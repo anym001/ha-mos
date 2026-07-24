@@ -1,0 +1,66 @@
+# Copilot Coding Agent Setup
+#
+# This workflow configures the environment for GitHub Copilot coding agent.
+# It runs automatically before Copilot starts working on any task.
+#
+# Documentation:
+# - https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/customize-the-agent-environment
+# - https://github.blog/changelog/2025-07-30-copilot-coding-agent-custom-setup-steps-are-more-reliable-and-easier-to-debug/
+
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+permissions:
+  contents: read
+
+# IMPORTANT: Keep HA_VERSION synchronized across all workflow files:
+# - copilot-setup-steps.yml
+# - lint.yml
+# - validate.yml (if added in the future)
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.9.3"
+          enable-cache: true
+          cache-dependency-glob: "**/requirements*.txt"
+
+      - name: Get Home Assistant version
+        id: ha_version
+        run: |
+          HA_VERSION=$(grep '"homeassistant"' hacs.json | head -1 | sed 's/.*"homeassistant"\s*:\s*"\([^"]*\)".*/\1/')
+          echo "HA_VERSION=${HA_VERSION}" >> $GITHUB_OUTPUT
+          echo "Home Assistant version: ${HA_VERSION}"
+
+      - name: Cache Home Assistant installation
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .local/ha-venv
+          key: ha-venv-${{ runner.os }}-py314-ha${{ steps.ha_version.outputs.HA_VERSION }}-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ha-venv-${{ runner.os }}-py314-ha${{ steps.ha_version.outputs.HA_VERSION }}-
+
+      - name: Install dependencies
+        run: script/setup/bootstrap
