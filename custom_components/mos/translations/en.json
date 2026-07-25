@@ -4,11 +4,15 @@
       "user": {
         "description": "Enter the connection details for your MOS server. Create an API token in the MOS web UI under User Settings → Admin API Tokens. If you need help, have a look at the [documentation]({documentation_url}).",
         "data": {
+          "name": "Name (optional)",
           "host": "Host",
           "api_token": "API token",
           "port": "Port",
           "ssl": "Use HTTPS",
           "verify_ssl": "Verify TLS certificate"
+        },
+        "data_description": {
+          "name": "A friendly name for this MOS server. Used as the entry's stable identity, independent of the host. Defaults to the hostname."
         }
       },
       "reconfigure": {

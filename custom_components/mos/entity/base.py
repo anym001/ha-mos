@@ -76,7 +76,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                     entry.entry_id,
                 ),
             },
-            name=osinfo.get("hostname") or entry.title,
+            name=entry.title or osinfo.get("hostname"),
             manufacturer="MOS",
             model=cpu.get("brand"),
             sw_version=mos.get("version"),

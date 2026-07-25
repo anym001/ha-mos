@@ -20,7 +20,7 @@ from custom_components.mos.config_flow_handler.schemas import get_reauth_schema,
 from custom_components.mos.config_flow_handler.validators import validate_connection
 from custom_components.mos.const import CONF_API_TOKEN, DEFAULT_SSL, DEFAULT_VERIFY_SSL, DOMAIN, LOGGER
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
 from homeassistant.loader import async_get_loaded_integration
 
 if TYPE_CHECKING:
@@ -96,11 +96,14 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as exception:  # noqa: BLE001
                 errors["base"] = self._map_exception_to_error(exception)
             else:
-                await self.async_set_unique_id(slugify(user_input[CONF_HOST]))
+                # A user-provided name gives the entry a stable, host-independent
+                # identity; otherwise fall back to the host.
+                name = (user_input.get(CONF_NAME) or "").strip()
+                await self.async_set_unique_id(slugify(name or user_input[CONF_HOST]))
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=osinfo.get("hostname") or user_input[CONF_HOST],
+                    title=name or osinfo.get("hostname") or user_input[CONF_HOST],
                     data=user_input,
                 )
 

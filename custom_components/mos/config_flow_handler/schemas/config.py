@@ -15,7 +15,7 @@ from typing import Any
 import voluptuous as vol
 
 from custom_components.mos.const import CONF_API_TOKEN, DEFAULT_SSL, DEFAULT_VERIFY_SSL
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
 from homeassistant.helpers import selector
 
 
@@ -61,6 +61,10 @@ def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
     """
     Get schema for user step (initial setup).
 
+    Includes an optional friendly name that becomes the entry's stable identity
+    (unique id and title), independent of the host. It is only offered here, not
+    on reconfigure, so the identity never drifts.
+
     Args:
         defaults: Optional dictionary of default values to pre-populate the form.
 
@@ -68,7 +72,19 @@ def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
         Voluptuous schema for the connection details.
 
     """
-    return vol.Schema(_host_fields(defaults or {}))
+    defaults = defaults or {}
+    fields: dict[Any, Any] = {
+        vol.Optional(
+            CONF_NAME,
+            default=defaults.get(CONF_NAME, vol.UNDEFINED),
+        ): selector.TextSelector(
+            selector.TextSelectorConfig(
+                type=selector.TextSelectorType.TEXT,
+            ),
+        ),
+    }
+    fields.update(_host_fields(defaults))
+    return vol.Schema(fields)
 
 
 def get_reconfigure_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
