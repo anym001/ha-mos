@@ -58,10 +58,9 @@ feature/xyz ──PR──▶ dev ──(staging test)──▶ PR ──▶ mai
 6. **HACS** installs from the default branch (`main`) or a release tag. For a beta,
    push a pre-release tag (`vX.Y.Z-beta.N`) and enable "show beta versions" in HACS.
 
-> **CI note:** the `Lint` and `Validate` workflows currently trigger only on
-> `main`. For the checks above to gate PRs against `dev`, add `dev` to the
-> `push`/`pull_request` branch filters in `.github/workflows/lint.yml` and
-> `.github/workflows/validate.yml`.
+The `Lint` and `Validate` workflows run on `push` and `pull_request` for both
+`main` and `dev`, so PRs against `dev` are gated the same way as PRs against
+`main`.
 
 ### Setting up branch protection (one-time)
 
@@ -84,11 +83,6 @@ system, not "classic"). A single ruleset covers both `main` **and** `dev`.
    - ✅ **Require status checks to pass**
      - ✅ **Require branches to be up to date before merging**
      - Add these checks: `Ruff`, `Hassfest validation`, `HACS validation`.
-   - ✅ **Restrict commit metadata** (optional, enforces the commit author/committer
-     email) — add a rule on **Commit author email** (and/or **Committer email**)
-     → _Must match a given regex pattern_, e.g.
-     `^(tec-claude@anymmail\.at|noreply@anthropic\.com)$`. Any push whose commit
-     email does not match is rejected.
 6. **Save changes**, then enable **Settings → General → Pull Requests → "Allow
    auto-merge"**. Click "Enable auto-merge" per PR.
 
