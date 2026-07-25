@@ -13,12 +13,84 @@ GitHub is used to host code, to track issues and feature requests, as well as ac
 
 Pull requests are the best way to propose changes to the codebase.
 
-1. Fork the repo and create your branch from `main`.
+1. Create your branch from `dev` (see [Branching model](#branching-model)).
 2. Run `script/setup/bootstrap` to install dependencies and pre-commit hooks.
 3. If you've changed something, update the documentation.
 4. Make sure your code passes all checks (using `script/check` for linting and type checking).
 5. Test your contribution.
-6. Issue that pull request!
+6. Open a pull request against `dev`.
+
+## Branching model
+
+`main` is always release-ready; `dev` is the integration/staging channel for
+testing changes before they reach a release.
+
+| Branch      | Purpose                                                                                                                                                                            | Protected |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `main`      | release-ready; [release-please](https://github.com/googleapis/release-please) opens a release PR from Conventional Commits, and merging it tags `vX.Y.Z` + cuts the GitHub release | yes       |
+| `dev`       | integration/staging; collects features before they go to `main`                                                                                                                    | yes       |
+| `feature/*` | short-lived work on a single topic; deleted after merge                                                                                                                            | –         |
+
+Keep **Settings → General → "Automatically delete head branches"** enabled — it
+cleans up merged `feature/*` branches. Protected branches (`dev`, `main`) are
+never deleted by this setting.
+
+### Workflow
+
+```text
+feature/xyz ──PR──▶ dev ──(staging test)──▶ PR ──▶ main ──release-please──▶ Release (vX.Y.Z)
+```
+
+1. **Branch** from `dev`: `git switch dev && git pull && git switch -c feature/xyz`.
+2. **Open a PR against `dev`.** CI (`Ruff`, `Hassfest validation`, `HACS validation`)
+   must be green; enable "Auto-merge" so GitHub merges the final, green state
+   automatically. Use [Conventional Commit](https://www.conventionalcommits.org/)
+   messages — release-please derives the next version and changelog from them.
+3. Test the merged `dev` state (local `./script/develop`, or a HACS beta install
+   from a pre-release tag if you cut one).
+4. When `dev` is good: **PR `dev → main`** and merge it. Merging to `main` does
+   not publish anything by itself.
+5. **Releases are automatic.** On push to `main`, release-please maintains a
+   "release PR"; merging that PR pushes the `vX.Y.Z` tag and publishes the GitHub
+   release with generated notes. There is no manual tag step and no VERSION file —
+   the version comes from the Conventional Commit history (`fix:` → patch,
+   `feat:` → minor, `!`/`BREAKING CHANGE` → major).
+6. **HACS** installs from the default branch (`main`) or a release tag. For a beta,
+   push a pre-release tag (`vX.Y.Z-beta.N`) and enable "show beta versions" in HACS.
+
+> **CI note:** the `Lint` and `Validate` workflows currently trigger only on
+> `main`. For the checks above to gate PRs against `dev`, add `dev` to the
+> `push`/`pull_request` branch filters in `.github/workflows/lint.yml` and
+> `.github/workflows/validate.yml`.
+
+### Setting up branch protection (one-time)
+
+GitHub → **Settings → Rules → Rulesets → New branch ruleset** (the newer Rulesets
+system, not "classic"). A single ruleset covers both `main` **and** `dev`.
+
+1. **Ruleset name:** `protected-branches`
+2. **Enforcement status:** `Active`
+3. **Bypass list:** leave empty (a bypass would undermine the protection for
+   yourself; in an emergency, temporarily set the ruleset to `Disabled`).
+4. **Target branches → Add target:** `Include default branch` (= `main`) **and**
+   `Include by pattern` → `dev` ("Applies to 2 targets").
+5. **Branch rules** (check boxes):
+   - ✅ **Restrict deletions**
+   - ✅ **Block force pushes**
+   - ✅ **Require a pull request before merging**
+     - **Required approvals: `0`** ⚠️ — as a solo maintainer you cannot review
+       your own PR; setting ≥1 would block you. The PR requirement and status
+       checks still apply at 0, and auto-merge works.
+   - ✅ **Require status checks to pass**
+     - ✅ **Require branches to be up to date before merging**
+     - Add these checks: `Ruff`, `Hassfest validation`, `HACS validation`.
+   - ✅ **Restrict commit metadata** (optional, enforces the commit author/committer
+     email) — add a rule on **Commit author email** (and/or **Committer email**)
+     → _Must match a given regex pattern_, e.g.
+     `^(tec-claude@anymmail\.at|noreply@anthropic\.com)$`. Any push whose commit
+     email does not match is rejected.
+6. **Save changes**, then enable **Settings → General → Pull Requests → "Allow
+   auto-merge"**. Click "Enable auto-merge" per PR.
 
 ## Any contributions you make will be under the MIT Software License
 
