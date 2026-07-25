@@ -53,8 +53,12 @@ feature/xyz ──PR──▶ dev ──(staging test)──▶ PR ──▶ mai
 5. **Releases are automatic.** On push to `main`, release-please maintains a
    "release PR"; merging that PR pushes the `vX.Y.Z` tag and publishes the GitHub
    release with generated notes. There is no manual tag step and no VERSION file —
-   the version comes from the Conventional Commit history (`fix:` → patch,
-   `feat:` → minor, `!`/`BREAKING CHANGE` → major).
+   the version is derived from the Conventional Commit history. While the project
+   is pre-1.0 (the current `manifest.json` version is `0.x`), the config
+   (`bump-minor-pre-major` + `bump-patch-for-minor-pre-major`) keeps every bump
+   small: `fix:` and `feat:` → patch (`0.1.0` → `0.1.1`), and a breaking change
+   (`!` / `BREAKING CHANGE`) → minor (`0.1.0` → `0.2.0`). From `1.0.0` onward the
+   usual SemVer applies: `fix:` → patch, `feat:` → minor, breaking → major.
 6. **HACS** installs from the default branch (`main`) or a release tag. For a beta,
    push a pre-release tag (`vX.Y.Z-beta.N`) and enable "show beta versions" in HACS.
 
