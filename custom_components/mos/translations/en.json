@@ -2,51 +2,52 @@
   "config": {
     "step": {
       "user": {
-        "description": "If you need help with the configuration have a look at the [documentation]({documentation_url}).",
+        "description": "Enter the connection details for your MOS server. Create an API token in the MOS web UI under User Settings → Admin API Tokens. If you need help, have a look at the [documentation]({documentation_url}).",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "host": "Host",
+          "api_token": "API token",
+          "port": "Port",
+          "ssl": "Use HTTPS",
+          "verify_ssl": "Verify TLS certificate"
         }
       },
       "reconfigure": {
-        "description": "Update the credentials for this integration.",
+        "description": "Update the connection details for this MOS server.",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "host": "Host",
+          "api_token": "API token",
+          "port": "Port",
+          "ssl": "Use HTTPS",
+          "verify_ssl": "Verify TLS certificate"
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate Integration",
-        "description": "The credentials for {username} are no longer valid. Please provide updated credentials to restore access.",
+        "title": "Reauthenticate MOS",
+        "description": "The API token for {host} is no longer valid. Please provide a new token to restore access.",
         "data": {
-          "username": "Username",
-          "password": "Password"
+          "api_token": "API token"
         }
       }
     },
     "error": {
-      "auth": "Username/Password is wrong.",
+      "auth": "The API token was rejected.",
       "connection": "Unable to connect to the server.",
       "unknown": "Unknown error occurred."
     },
     "abort": {
-      "already_configured": "This entry is already configured."
+      "already_configured": "This MOS server is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Configure Integration Options",
+        "title": "MOS options",
         "description": "Customize how this integration operates.",
         "data": {
-          "update_interval_hours": "Update interval (hours)",
-          "enable_debugging": "Enable debug logging",
-          "custom_icon": "Custom icon (optional)"
+          "scan_interval": "Update interval (seconds)"
         },
         "data_description": {
-          "update_interval_hours": "How often to refresh data from the API (0.25 to 24 hours)",
-          "enable_debugging": "Enable detailed debug logging for troubleshooting",
-          "custom_icon": "Override the default icon for entities (optional)"
+          "scan_interval": "How often to poll the MOS API (10 to 3600 seconds)."
         }
       }
     }
@@ -57,96 +58,42 @@
     },
     "update_failed": {
       "message": "Failed to update data from the server."
-    },
-    "switch_turn_on_failed": {
-      "message": "Failed to turn on the switch."
-    },
-    "switch_turn_off_failed": {
-      "message": "Failed to turn off the switch."
-    },
-    "number_set_failed": {
-      "message": "Failed to set the target value."
     }
   },
   "entity": {
     "sensor": {
-      "air_quality_index": {
-        "name": "Air Quality Index"
+      "boot_time": {
+        "name": "Boot time"
       },
-      "pm25": {
-        "name": "PM2.5"
+      "mos_version": {
+        "name": "MOS version"
       },
-      "filter_life": {
-        "name": "Filter Life Remaining"
+      "mos_channel": {
+        "name": "Update channel"
       },
-      "runtime": {
-        "name": "Total Runtime"
-      }
-    },
-    "binary_sensor": {
-      "api_connectivity": {
-        "name": "API Connection"
+      "mos_build": {
+        "name": "MOS build"
       },
-      "filter_replacement": {
-        "name": "Filter Replacement Needed"
-      }
-    },
-    "switch": {
-      "child_lock": {
-        "name": "Child Lock"
+      "mos_api": {
+        "name": "API version"
       },
-      "led_display": {
-        "name": "LED Display"
-      }
-    },
-    "select": {
-      "fan_speed": {
-        "name": "Fan Speed",
-        "state": {
-          "low": "Low",
-          "medium": "Medium",
-          "high": "High",
-          "auto": "Auto"
-        }
-      }
-    },
-    "number": {
-      "target_humidity": {
-        "name": "Target Humidity"
-      }
-    },
-    "button": {
-      "reset_filter": {
-        "name": "Reset Filter Timer"
-      }
-    },
-    "fan": {
-      "air_purifier": {
-        "name": "Air Purifier"
-      }
-    }
-  },
-  "issues": {
-    "deprecated_api_endpoint": {
-      "title": "Deprecated API Endpoint",
-      "fix_flow": {
-        "step": {
-          "init": {
-            "title": "Update API Endpoint",
-            "description": "Your device is using API version {api_version} which is deprecated. Please update to v2 for continued support and new features.\n\nClick Submit to update your device to use the new API endpoint (v2). This will reload the integration."
-          }
-        }
-      }
-    },
-    "missing_configuration": {
-      "title": "Missing Configuration",
-      "fix_flow": {
-        "step": {
-          "init": {
-            "title": "Acknowledge Configuration Issue",
-            "description": "Some configuration options are missing or invalid. Please reconfigure the integration to ensure proper operation.\n\nClick Submit to acknowledge this issue. You may need to reconfigure the integration if problems persist."
-          }
-        }
+      "mos_frontend": {
+        "name": "Frontend version"
+      },
+      "running_kernel": {
+        "name": "Running kernel"
+      },
+      "recommended_kernel": {
+        "name": "Recommended kernel"
+      },
+      "arch": {
+        "name": "Architecture"
+      },
+      "cpu_brand": {
+        "name": "CPU"
+      },
+      "base_os": {
+        "name": "Base OS"
       }
     }
   }

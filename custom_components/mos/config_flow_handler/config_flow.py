@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 from slugify import slugify
 
 from custom_components.mos.config_flow_handler.schemas import get_reauth_schema, get_reconfigure_schema, get_user_schema
-from custom_components.mos.config_flow_handler.validators import validate_credentials
-from custom_components.mos.const import DOMAIN, LOGGER
+from custom_components.mos.config_flow_handler.validators import validate_connection
+from custom_components.mos.const import CONF_API_TOKEN, DEFAULT_SSL, DEFAULT_VERIFY_SSL, DOMAIN, LOGGER
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
 from homeassistant.loader import async_get_loaded_integration
 
 if TYPE_CHECKING:
@@ -37,13 +37,10 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """
     Handle a config flow for mos.
 
-    This class manages the configuration flow for the integration, including
-    initial setup, reconfiguration, and reauthentication.
-
     Supported flows:
     - user: Initial setup via UI
-    - reconfigure: Update existing configuration
-    - reauth: Handle expired credentials
+    - reconfigure: Update connection details
+    - reauth: Handle an invalid API token
 
     For more details:
     https://developers.home-assistant.io/docs/config_entries_config_flow_handler
@@ -66,14 +63,23 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         return MOSOptionsFlow()
 
+    async def _validate(self, user_input: dict[str, Any]) -> dict[str, Any]:
+        """Validate connection details and return the osinfo payload."""
+        return await validate_connection(
+            self.hass,
+            host=user_input[CONF_HOST],
+            token=user_input[CONF_API_TOKEN],
+            use_ssl=user_input.get(CONF_SSL, DEFAULT_SSL),
+            verify_ssl=user_input.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+            port=user_input.get(CONF_PORT),
+        )
+
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """
         Handle a flow initialized by the user.
-
-        This is the entry point when a user adds the integration from the UI.
 
         Args:
             user_input: The user input from the config flow form, or None for initial display.
@@ -86,22 +92,15 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
+                osinfo = await self._validate(user_input)
             except Exception as exception:  # noqa: BLE001
                 errors["base"] = self._map_exception_to_error(exception)
             else:
-                # Set unique ID based on username
-                # NOTE: This is just an example - use a proper unique ID in production
-                # See: https://developers.home-assistant.io/docs/config_entries_config_flow_handler#unique-ids
-                await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]))
+                await self.async_set_unique_id(slugify(user_input[CONF_HOST]))
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=user_input[CONF_USERNAME],
+                    title=osinfo.get("hostname") or user_input[CONF_HOST],
                     data=user_input,
                 )
 
@@ -124,7 +123,7 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """
         Handle reconfiguration of the integration.
 
-        Allows users to update their credentials without removing and re-adding
+        Allows users to update the connection details without removing and re-adding
         the integration.
 
         Args:
@@ -139,11 +138,7 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
+                await self._validate(user_input)
             except Exception as exception:  # noqa: BLE001
                 errors["base"] = self._map_exception_to_error(exception)
             else:
@@ -154,7 +149,7 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=get_reconfigure_schema(entry.data.get(CONF_USERNAME, "")),
+            data_schema=get_reconfigure_schema(entry.data),
             errors=errors,
         )
 
@@ -163,7 +158,7 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         entry_data: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
         """
-        Handle reauthentication when credentials are invalid.
+        Handle reauthentication when the API token is invalid.
 
         This flow is automatically triggered when the coordinator catches
         an authentication error (ConfigEntryAuthFailed).
@@ -184,10 +179,10 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """
         Handle reauthentication confirmation.
 
-        Shows the reauthentication form and processes updated credentials.
+        Shows the reauthentication form and processes the updated API token.
 
         Args:
-            user_input: The user input with updated credentials, or None for initial display.
+            user_input: The user input with the new token, or None for initial display.
 
         Returns:
             The config flow result, either showing a form or updating the entry.
@@ -197,26 +192,23 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            merged = {**entry.data, **user_input}
             try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
+                await self._validate(merged)
             except Exception as exception:  # noqa: BLE001
                 errors["base"] = self._map_exception_to_error(exception)
             else:
                 return self.async_update_reload_and_abort(
                     entry,
-                    data={**entry.data, **user_input},
+                    data=merged,
                 )
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=get_reauth_schema(entry.data.get(CONF_USERNAME, "")),
+            data_schema=get_reauth_schema(),
             errors=errors,
             description_placeholders={
-                "username": entry.data.get(CONF_USERNAME, ""),
+                "host": entry.data.get(CONF_HOST, ""),
             },
         )
 

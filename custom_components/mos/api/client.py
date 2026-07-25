@@ -1,8 +1,9 @@
 """
 API Client for mos.
 
-This module provides the API client for communicating with external services.
-It demonstrates proper error handling, authentication patterns, and async operations.
+This module provides the API client for communicating with the local MOS REST API
+(``/api/v1/mos/<resource>``). It handles authentication via a Bearer token, request
+timeouts, and translation of transport errors into integration-specific exceptions.
 
 For more information on creating API clients:
 https://developers.home-assistant.io/docs/api_lib_index
@@ -15,6 +16,8 @@ import socket
 from typing import Any
 
 import aiohttp
+
+from custom_components.mos.const import API_BASE_PATH, DEFAULT_PORT_HTTP, DEFAULT_PORT_HTTPS, DEFAULT_TIMEOUT
 
 
 class MOSApiClientError(Exception):
@@ -48,7 +51,7 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
 
     """
     if response.status in (401, 403):
-        msg = "Invalid credentials"
+        msg = "Invalid API token"
         raise MOSApiClientAuthenticationError(
             msg,
         )
@@ -57,134 +60,83 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
 
 class MOSApiClient:
     """
-    API Client for Smart Air Purifier integration.
+    API client for the local MOS REST API.
 
-    This client demonstrates authentication and API communication patterns
-    for Home Assistant integrations. It handles HTTP requests, error handling,
-    and credential management.
+    The client is read-only in this phase and talks to
+    ``<scheme>://<host>:<port>/api/v1/mos/<resource>``. Every request carries the
+    configured Bearer token in the ``Authorization`` header.
 
-    The username and password are stored and would be used for:
-    - HTTP Basic Auth headers
-    - OAuth token exchange
-    - API key generation
-    - Session token management
-
-    Note: JSONPlaceholder is used as a demo endpoint and doesn't require auth.
-    In production, replace with your actual API endpoint that validates credentials.
-
-    For more information on API clients:
-    https://developers.home-assistant.io/docs/api_lib_index
+    TLS certificate verification is not handled here: it is controlled by the
+    aiohttp session that is passed in (Home Assistant provides a verifying or a
+    non-verifying shared session depending on the ``verify_ssl`` option).
 
     Attributes:
-        _username: The username for API authentication.
-        _password: The password for API authentication.
+        _token: The API token used for Bearer authentication.
         _session: The aiohttp ClientSession for making requests.
+        _base_url: The fully qualified base URL for all MOS API resources.
 
     """
 
     def __init__(
         self,
-        username: str,
-        password: str,
+        host: str,
+        token: str,
         session: aiohttp.ClientSession,
+        *,
+        use_ssl: bool = False,
+        port: int | None = None,
     ) -> None:
         """
-        Initialize the API Client with credentials.
+        Initialize the API client.
 
         Args:
-            username: The username for authentication from config flow.
-            password: The password for authentication from config flow.
+            host: The MOS host name or IP address.
+            token: The API token for Bearer authentication.
             session: The aiohttp ClientSession to use for requests.
+            use_ssl: Whether to use HTTPS instead of HTTP.
+            port: Optional TCP port. Defaults to 443 (SSL) or 80 (plain).
 
         """
-        self._username = username
-        self._password = password
+        self._token = token
         self._session = session
 
-    async def async_get_data(self) -> Any:
-        """
-        Get data from the API.
+        scheme = "https" if use_ssl else "http"
+        if port is None:
+            port = DEFAULT_PORT_HTTPS if use_ssl else DEFAULT_PORT_HTTP
+        self._base_url = f"{scheme}://{host}:{port}{API_BASE_PATH}"
 
-        This method fetches the current state and sensor data from the device.
-        It demonstrates where credentials would be used in production:
-        - Authorization headers (Basic Auth, Bearer Token)
-        - Query parameters (username, api_key)
-        - Session cookies (after login)
+    async def async_get_osinfo(self) -> dict[str, Any]:
+        """
+        Get operating system / hardware information from ``/osinfo``.
 
         Returns:
-            A dictionary containing the device data.
+            The parsed ``osinfo`` payload.
 
         Raises:
-            MOSApiClientAuthenticationError: If authentication fails.
+            MOSApiClientAuthenticationError: If the token is rejected.
             MOSApiClientCommunicationError: If communication fails.
             MOSApiClientError: For other API errors.
 
         """
-        # In production: Use username/password for authentication
-        # Example patterns:
-        # 1. Basic Auth: auth=aiohttp.BasicAuth(self._username, self._password)
-        # 2. Token: headers={"Authorization": f"Bearer {self._get_token()}"}
-        # 3. API Key: params={"username": self._username, "key": self._password}
+        return await self._get("osinfo")
 
-        return await self._api_wrapper(
-            method="get",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            # For demo purposes with JSONPlaceholder (no auth required)
-            # In production, add authentication here
-        )
-
-    async def async_set_fan_speed(self, speed: str) -> Any:
+    async def _get(self, resource: str) -> Any:
         """
-        Set the fan speed on the device.
+        Perform an authenticated GET on a MOS API resource.
 
         Args:
-            speed: The fan speed to set (low, medium, high, auto).
+            resource: The resource path relative to the API base (e.g. ``osinfo``).
 
         Returns:
-            A dictionary containing the API response.
-
-        Raises:
-            MOSApiClientAuthenticationError: If authentication fails.
-            MOSApiClientCommunicationError: If communication fails.
-            MOSApiClientError: For other API errors.
+            The parsed JSON response.
 
         """
-        # In production: Send authenticated request to change fan speed
-        return await self._api_wrapper(
-            method="patch",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            data={"fan_speed": speed, "user": self._username},
-            headers={"Content-type": "application/json; charset=UTF-8"},
-        )
-
-    async def async_set_target_humidity(self, humidity: int) -> Any:
-        """
-        Set the target humidity on the device.
-
-        Args:
-            humidity: The target humidity percentage (30-80).
-
-        Returns:
-            A dictionary containing the API response.
-
-        Raises:
-            MOSApiClientAuthenticationError: If authentication fails.
-            MOSApiClientCommunicationError: If communication fails.
-            MOSApiClientError: For other API errors.
-
-        """
-        # In production: Send authenticated request to change humidity setting
-        return await self._api_wrapper(
-            method="patch",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            data={"target_humidity": humidity, "user": self._username},
-            headers={"Content-type": "application/json; charset=UTF-8"},
-        )
+        return await self._api_wrapper(method="get", resource=resource)
 
     async def _api_wrapper(
         self,
         method: str,
-        url: str,
+        resource: str,
         data: dict | None = None,
         headers: dict | None = None,
     ) -> Any:
@@ -196,9 +148,9 @@ class MOSApiClient:
 
         Args:
             method: The HTTP method (get, post, patch, etc.).
-            url: The URL to request.
+            resource: The resource path relative to the API base URL.
             data: Optional data to send in the request body.
-            headers: Optional headers to include in the request.
+            headers: Optional additional headers to include in the request.
 
         Returns:
             The JSON response from the API.
@@ -209,17 +161,23 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
+        request_headers = {"Authorization": f"Bearer {self._token}"}
+        if headers:
+            request_headers.update(headers)
+
         try:
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(DEFAULT_TIMEOUT):
                 response = await self._session.request(
                     method=method,
-                    url=url,
-                    headers=headers,
+                    url=f"{self._base_url}/{resource}",
+                    headers=request_headers,
                     json=data,
                 )
                 _verify_response_or_raise(response)
                 return await response.json()
 
+        except MOSApiClientAuthenticationError:
+            raise
         except TimeoutError as exception:
             msg = f"Timeout error fetching information - {exception}"
             raise MOSApiClientCommunicationError(
