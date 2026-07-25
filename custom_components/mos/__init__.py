@@ -21,16 +21,15 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, CONF_SSL, CONF_VERIFY_SSL, Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import MOSApiClient
-from .const import DOMAIN, LOGGER
+from .const import CONF_API_TOKEN, DEFAULT_SCAN_INTERVAL, DEFAULT_SSL, DEFAULT_VERIFY_SSL, DOMAIN, LOGGER
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
-from .service_actions import async_setup_services
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -38,43 +37,11 @@ if TYPE_CHECKING:
     from .data import MOSConfigEntry
 
 PLATFORMS: list[Platform] = [
-    Platform.BINARY_SENSOR,
-    Platform.BUTTON,
-    Platform.FAN,
-    Platform.NUMBER,
-    Platform.SELECT,
     Platform.SENSOR,
-    Platform.SWITCH,
 ]
 
 # This integration is configured via config entries only
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """
-    Set up the integration.
-
-    This is called once at Home Assistant startup to register service actions.
-    Service actions must be registered here (not in async_setup_entry) to ensure:
-    - Service action validation works correctly
-    - Service actions are available even without config entries
-    - Helpful error messages are provided
-
-    This is a Silver Quality Scale requirement.
-
-    Args:
-        hass: The Home Assistant instance.
-        config: The Home Assistant configuration.
-
-    Returns:
-        True if setup was successful.
-
-    For more information:
-    https://developers.home-assistant.io/docs/dev_101_services
-    """
-    await async_setup_services(hass)
-    return True
 
 
 async def async_setup_entry(
@@ -85,22 +52,18 @@ async def async_setup_entry(
     Set up this integration using UI.
 
     This is called when a config entry is loaded. It:
-    1. Creates the API client with credentials from the config entry
+    1. Creates the API client from the connection details in the config entry
     2. Initializes the DataUpdateCoordinator for data fetching
     3. Performs the first data refresh
-    4. Sets up all platforms (sensors, switches, etc.)
-    5. Registers services
-    6. Sets up reload listener for config changes
+    4. Sets up the sensor platform
+    5. Sets up a reload listener for option changes
 
     Data flow in this integration:
-    1. User enters username/password in config flow (config_flow.py)
-    2. Credentials stored in entry.data[CONF_USERNAME/CONF_PASSWORD]
-    3. API Client initialized with credentials (api/client.py)
-    4. Coordinator fetches data using authenticated client (coordinator/base.py)
-    5. Entities access data via self.coordinator.data (sensor/, binary_sensor/, etc.)
-
-    This pattern ensures credentials from setup flow are used throughout
-    the integration's lifecycle for API communication.
+    1. User enters host + API token (+ SSL/port) in config flow (config_flow.py)
+    2. Details stored in entry.data[CONF_HOST/CONF_API_TOKEN/...]
+    3. API Client initialized with those details (api/client.py)
+    4. Coordinator fetches /osinfo using the authenticated client (coordinator/base.py)
+    5. Entities access data via self.coordinator.data (sensor/)
 
     Args:
         hass: The Home Assistant instance.
@@ -114,18 +77,24 @@ async def async_setup_entry(
     """
     # Initialize client first
     client = MOSApiClient(
-        username=entry.data[CONF_USERNAME],  # From config flow setup
-        password=entry.data[CONF_PASSWORD],  # From config flow setup
-        session=async_get_clientsession(hass),
+        host=entry.data[CONF_HOST],
+        token=entry.data[CONF_API_TOKEN],
+        session=async_get_clientsession(
+            hass,
+            verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+        ),
+        use_ssl=entry.data.get(CONF_SSL, DEFAULT_SSL),
+        port=entry.data.get(CONF_PORT),
     )
 
     # Initialize coordinator with config_entry
+    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     coordinator = MOSDataUpdateCoordinator(
         hass=hass,
         logger=LOGGER,
         name=DOMAIN,
         config_entry=entry,
-        update_interval=timedelta(hours=1),
+        update_interval=timedelta(seconds=scan_interval),
         always_update=False,  # Only update entities when data actually changes
     )
 

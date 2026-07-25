@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.redact import async_redact_data
+
+from .const import CONF_API_TOKEN
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -19,12 +20,10 @@ if TYPE_CHECKING:
 
 # Fields to redact from diagnostics - CRITICAL for security!
 TO_REDACT = {
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    "username",
-    "password",
-    "api_key",
+    CONF_API_TOKEN,
+    "api_token",
     "token",
+    "api_key",
 }
 
 
@@ -76,8 +75,8 @@ async def async_get_config_entry_diagnostics(
 
     # API client information (no sensitive data)
     api_info = {
-        "base_endpoint": "https://jsonplaceholder.typicode.com",
-        "has_credentials": bool(client._username),  # noqa: SLF001
+        "base_url": client._base_url,  # noqa: SLF001
+        "has_token": bool(client._token),  # noqa: SLF001
     }
 
     # Integration information
@@ -109,16 +108,18 @@ async def async_get_config_entry_diagnostics(
         "last_exception_type": (type(coordinator.last_exception).__name__ if coordinator.last_exception else None),
     }
 
-    # Current data sample (sanitized)
-    data_sample = {}
-    if coordinator.data:
-        if isinstance(coordinator.data, dict):
-            # Include sample data but sanitize sensitive info
-            data_sample = {
-                "title": coordinator.data.get("title"),
-                "body_length": len(coordinator.data.get("body", "")) if coordinator.data.get("body") else 0,
-                "has_user_id": "userId" in coordinator.data,
-            }
+    # Current data sample: the full osinfo payload minus the large package list
+    data_sample: dict[str, Any] = {}
+    if isinstance(coordinator.data, dict):
+        osinfo = dict(coordinator.data.get("osinfo") or {})
+        base = osinfo.get("base")
+        if isinstance(base, list):
+            osinfo["base"] = [
+                {key: value for key, value in entry_item.items() if key != "packages"}
+                for entry_item in base
+                if isinstance(entry_item, dict)
+            ]
+        data_sample = {"osinfo": osinfo}
 
     return {
         "entry": entry_info,
