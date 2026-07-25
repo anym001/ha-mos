@@ -92,18 +92,17 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             try:
-                osinfo = await self._validate(user_input)
+                await self._validate(user_input)
             except Exception as exception:  # noqa: BLE001
                 errors["base"] = self._map_exception_to_error(exception)
             else:
-                # A user-provided name gives the entry a stable, host-independent
-                # identity; otherwise fall back to the host.
-                name = (user_input.get(CONF_NAME) or "").strip()
-                await self.async_set_unique_id(slugify(name or user_input[CONF_HOST]))
+                # The required name is the entry's stable, host-independent identity.
+                name = user_input[CONF_NAME].strip()
+                await self.async_set_unique_id(slugify(name))
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=name or osinfo.get("hostname") or user_input[CONF_HOST],
+                    title=name,
                     data=user_input,
                 )
 

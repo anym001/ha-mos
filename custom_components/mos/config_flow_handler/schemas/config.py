@@ -61,7 +61,7 @@ def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
     """
     Get schema for user step (initial setup).
 
-    Includes an optional friendly name that becomes the entry's stable identity
+    Includes a required friendly name that becomes the entry's stable identity
     (unique id and title), independent of the host. It is only offered here, not
     on reconfigure, so the identity never drifts.
 
@@ -74,7 +74,7 @@ def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
     """
     defaults = defaults or {}
     fields: dict[Any, Any] = {
-        vol.Optional(
+        vol.Required(
             CONF_NAME,
             default=defaults.get(CONF_NAME, vol.UNDEFINED),
         ): selector.TextSelector(
