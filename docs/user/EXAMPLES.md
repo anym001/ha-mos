@@ -1,7 +1,7 @@
 # Examples
 
 This page provides ready-to-use examples for automations, dashboards, and blueprints
-with the Integration Blueprint custom integration.
+with the MOS custom integration.
 
 Replace entity IDs like `sensor.device_name_*` with your actual entity IDs after
 setting up the integration.
@@ -54,7 +54,7 @@ automation:
         weekday:
           - mon
     action:
-      - action: ha_integration_domain.example_service
+      - action: mos.example_service
         target:
           entity_id: button.device_name_reset_filter
 ```
@@ -65,7 +65,7 @@ Save this as a blueprint file and import it in Home Assistant:
 
 ```yaml
 blueprint:
-  name: Integration Blueprint — Threshold Alert
+  name: MOS — Threshold Alert
   description: Send a notification when a sensor exceeds a configurable threshold.
   domain: automation
   input:
@@ -74,7 +74,7 @@ blueprint:
       selector:
         entity:
           domain: sensor
-          integration: ha_integration_domain
+          integration: mos
     threshold:
       name: Threshold value
       selector:
@@ -160,4 +160,4 @@ hours_to_show: 24
 
 - [Configuration Reference](./CONFIGURATION.md) - All configuration options
 - [Getting Started](./GETTING_STARTED.md) - Installation and initial setup
-- [GitHub Issues](https://github.com/jpawlowski/hacs.integration_blueprint/issues) - Report problems
+- [GitHub Issues](https://github.com/anym001/ha-mos/issues) - Report problems
