@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# script/compare-blueprint: Show scaffolding diffs against the upstream blueprint
+#
+# This repository was generated from the hacs.integration_blueprint template via
+# GitHub's "Use this template" — there is no shared git history, so a plain merge
+# or "Sync fork" is not possible. This script adds a read-only 'blueprint' git
+# remote, fetches it, and shows how our generic scaffolding differs from the
+# current blueprint, so you can adopt upstream improvements deliberately.
+#
+# It is read-only: it never modifies tracked files, commits, or pushes. The only
+# side effect is a 'blueprint' remote in your LOCAL git config.
+#
+# Usage:
+#   ./script/compare-blueprint            Full diff of the scaffolding paths
+#   ./script/compare-blueprint --stat     Summary only (changed files + counts)
+#   ./script/compare-blueprint --paths    List the tracked scaffolding paths and exit
+#
+# Adopt an upstream change afterwards:
+#   git checkout blueprint/main -- <path>   # take a whole file you have not customized
+#   git cherry-pick <sha>                   # apply a single blueprint commit
+#
+# Examples:
+#   ./script/compare-blueprint --stat
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+# shellcheck source=script/.lib/output.sh
+source "$SCRIPT_DIR/.lib/output.sh"
+
+readonly BLUEPRINT_REMOTE="blueprint"
+readonly BLUEPRINT_URL="https://github.com/jpawlowski/hacs.integration_blueprint.git"
+readonly BLUEPRINT_BRANCH="main"
+
+# Generic scaffolding worth tracking against upstream. Intentionally excludes
+# custom_components/ and translations/ — that is our own, diverged code.
+SCAFFOLDING_PATHS=(
+    "script"
+    ".github/workflows"
+    ".github/instructions"
+    ".pre-commit-config.yaml"
+    ".yamllint.yml"
+    ".devcontainer"
+    "pyproject.toml"
+    "hacs.json"
+)
+
+require_command git
+
+if [[ ${1:-} == "--paths" ]]; then
+    log_header "Tracked scaffolding paths"
+    printf '%s\n' "${SCAFFOLDING_PATHS[@]}"
+    exit 0
+fi
+
+# Ensure the read-only blueprint remote exists (local git config only).
+if ! git remote get-url "$BLUEPRINT_REMOTE" >/dev/null 2>&1; then
+    log_info "Adding read-only remote '$BLUEPRINT_REMOTE' -> $BLUEPRINT_URL"
+    git remote add "$BLUEPRINT_REMOTE" "$BLUEPRINT_URL"
+fi
+
+log_header "Fetching blueprint ($BLUEPRINT_REMOTE/$BLUEPRINT_BRANCH)"
+git fetch --quiet "$BLUEPRINT_REMOTE" "$BLUEPRINT_BRANCH"
+
+log_header "Scaffolding diff vs. $BLUEPRINT_REMOTE/$BLUEPRINT_BRANCH"
+log_info "'+' lines are in the blueprint but not here; excludes custom_components/ and translations/"
+
+# --quiet returns non-zero when there ARE differences; use that to short-circuit.
+if git diff --quiet "HEAD" "$BLUEPRINT_REMOTE/$BLUEPRINT_BRANCH" -- "${SCAFFOLDING_PATHS[@]}"; then
+    log_success "No differences in the tracked scaffolding paths."
+    exit 0
+fi
+
+if [[ ${1:-} == "--stat" ]]; then
+    git diff --stat "HEAD" "$BLUEPRINT_REMOTE/$BLUEPRINT_BRANCH" -- "${SCAFFOLDING_PATHS[@]}"
+else
+    git diff "HEAD" "$BLUEPRINT_REMOTE/$BLUEPRINT_BRANCH" -- "${SCAFFOLDING_PATHS[@]}"
+fi
+
+log_separator
+log_info "Adopt a change: git checkout blueprint/main -- <path>   OR   git cherry-pick <sha>"
