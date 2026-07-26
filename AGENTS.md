@@ -8,13 +8,13 @@ This is a Home Assistant custom integration that was generated from a blueprint 
 
 **Integration details:**
 
-- **Domain:** `ha_integration_domain`
-- **Title:** Integration Blueprint
-- **Repository:** jpawlowski/hacs.integration_blueprint
+- **Domain:** `mos`
+- **Title:** MOS
+- **Repository:** anym001/ha-mos
 
 **Key directories:**
 
-- `custom_components/ha_integration_domain/` - Main integration code
+- `custom_components/mos/` - Main integration code
 - `config/` - Home Assistant configuration for local testing
 - `tests/` - Unit and integration tests
 - `script/` - Development and validation scripts
@@ -51,7 +51,7 @@ pkill -f "hass --config" || true && pkill -f "debugpy.*5678" || true && ./script
 
 **Adjusting log levels:**
 
-- Integration logs: `custom_components.ha_integration_domain: debug` in `config/configuration.yaml`
+- Integration logs: `custom_components.mos: debug` in `config/configuration.yaml`
 - You can modify log levels when debugging - just restart HA after changes
 
 **Context-specific instructions:**
@@ -188,15 +188,15 @@ As an AI agent, **aim for Silver or Gold Quality Scale** when generating code:
 
 This integration uses the following identifiers consistently:
 
-- **Domain:** `ha_integration_domain`
-- **Title:** Integration Blueprint
-- **Class prefix:** `IntegrationBlueprint`
+- **Domain:** `mos`
+- **Title:** MOS
+- **Class prefix:** `MOS`
 
 **When creating new files:**
 
-- Use the domain `ha_integration_domain` for all DOMAIN references
-- Prefix all integration-specific classes with `IntegrationBlueprint`
-- Use "Integration Blueprint" as the display title
+- Use the domain `mos` for all DOMAIN references
+- Prefix all integration-specific classes with `MOS`
+- Use "MOS" as the display title
 - Never hardcode different values
 
 ### Integration Structure
@@ -345,7 +345,7 @@ See `.github/instructions/blueprint.coordinator.instructions.md` and `.github/in
 
 **Entities:**
 
-- Inherit from platform base + `IntegrationBlueprintEntity`
+- Inherit from platform base + `MOSEntity`
 - Read from `coordinator.data`, never call API directly
 - Use `EntityDescription` for static metadata
 
@@ -525,7 +525,7 @@ After auto-fixes are applied, only manually edit files for errors that **remain 
 
 **Test structure:**
 
-- `tests/` mirrors `custom_components/ha_integration_domain/` structure
+- `tests/` mirrors `custom_components/mos/` structure
 - Use fixtures for common setup (Home Assistant mock, coordinator, etc.)
 - Mock external API calls
 
