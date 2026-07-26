@@ -11,6 +11,7 @@ This is a Home Assistant custom integration that was generated from a blueprint 
 - **Domain:** `mos`
 - **Title:** MOS
 - **Repository:** anym001/ha-mos
+- **Upstream template:** [jpawlowski/hacs.integration_blueprint](https://github.com/jpawlowski/hacs.integration_blueprint) (via "Use this template"; no shared git history — see `./script/compare-blueprint`)
 
 **Key directories:**
 

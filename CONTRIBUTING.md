@@ -90,6 +90,42 @@ system, not "classic"). A single ruleset covers both `main` **and** `dev`.
 6. **Save changes**, then enable **Settings → General → Pull Requests → "Allow
    auto-merge"**. Click "Enable auto-merge" per PR.
 
+## Keeping in sync with the blueprint
+
+This repository was generated from
+[jpawlowski/hacs.integration_blueprint](https://github.com/jpawlowski/hacs.integration_blueprint)
+via GitHub's **"Use this template"**. That records the template on GitHub but
+starts a **fresh git history with no common ancestor** — so there is no `git
+merge` or "Sync fork" path to pull in later blueprint improvements. Adoption is
+manual and deliberate, which is what you want for a project whose integration
+code (`custom_components/mos/`) has diverged from the template.
+
+Use the helper to see what changed in the generic scaffolding:
+
+```shell
+./script/compare-blueprint          # full diff of scaffolding paths vs. blueprint/main
+./script/compare-blueprint --stat   # just the changed files
+./script/compare-blueprint --paths  # list the tracked scaffolding paths
+```
+
+It adds a read-only `blueprint` remote (local git config only), fetches it, and
+diffs a curated set of scaffolding paths (`script/`, `.github/workflows/`,
+`.github/instructions/`, `.pre-commit-config.yaml`, `.devcontainer/`,
+`pyproject.toml`, `hacs.json`). It deliberately **excludes**
+`custom_components/` and `translations/` — that is our own code.
+
+To adopt an upstream change:
+
+```shell
+git checkout blueprint/main -- <path>   # take a whole file you have not customized
+git cherry-pick <sha>                   # apply a single blueprint commit (resolve conflicts if any)
+```
+
+Do this on a branch off `dev`, then open a PR against `dev` like any other
+change. Tip: **Watch → Custom → Releases** on the blueprint repo to get notified,
+then run the helper every few months — scaffolding improvements are rarely
+time-critical.
+
 ## Any contributions you make will be under the MIT Software License
 
 In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
