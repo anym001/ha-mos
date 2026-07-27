@@ -70,11 +70,11 @@ class MOSApiClient:
     """
     API client for the local MOS REST API.
 
-    The client is read-only in this phase and talks to
-    ``<scheme>://<host>:<port>/api/v1/mos/<resource>`` (``osinfo``, ``services``)
-    and ``<scheme>://<host>:<port>/api/v1/<resource>`` (``disks``, ``pools``).
-    Every request carries the configured Bearer token in the ``Authorization``
-    header.
+    The client is mostly read-only, with one write action (starting/stopping
+    an LXC container). It talks to ``<scheme>://<host>:<port>/api/v1/mos/<resource>``
+    (``osinfo``, ``services``) and ``<scheme>://<host>:<port>/api/v1/<resource>``
+    (``disks``, ``pools``). Every request carries the configured Bearer token
+    in the ``Authorization`` header.
 
     TLS certificate verification is not handled here: it is controlled by the
     aiohttp session that is passed in (Home Assistant provides a verifying or a
@@ -216,6 +216,39 @@ class MOSApiClient:
         """
         return await self._get("lxc/containers/usage", base_url=self._root_base_url)
 
+    async def async_start_lxc_container(self, name: str) -> dict[str, Any]:
+        """
+        Start a single LXC container via ``POST /lxc/containers/{name}/start``.
+
+        This is a write action (unlike every other method on this client): it
+        actually starts the container on the MOS server, not just reads state.
+
+        Returns:
+            The parsed ``OperationResult`` payload (``{"success", "message"}``).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._post(f"lxc/containers/{name}/start", base_url=self._root_base_url)
+
+    async def async_stop_lxc_container(self, name: str) -> dict[str, Any]:
+        """
+        Stop a single LXC container via ``POST /lxc/containers/{name}/stop``.
+
+        Returns:
+            The parsed ``OperationResult`` payload (``{"success", "message"}``).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._post(f"lxc/containers/{name}/stop", base_url=self._root_base_url)
+
     async def async_get_docker_containers(self) -> list[dict[str, Any]]:
         """
         Get Docker container update status from ``/docker/mos/containers``.
@@ -275,6 +308,20 @@ class MOSApiClient:
 
         """
         return await self._api_wrapper(method="get", resource=resource, base_url=base_url)
+
+    async def _post(self, resource: str, *, base_url: str | None = None) -> Any:
+        """
+        Perform an authenticated POST on a MOS API resource (a write action).
+
+        Args:
+            resource: The resource path relative to the API base.
+            base_url: Optional base URL override (see ``_get``).
+
+        Returns:
+            The parsed JSON response.
+
+        """
+        return await self._api_wrapper(method="post", resource=resource, base_url=base_url)
 
     async def _api_wrapper(
         self,

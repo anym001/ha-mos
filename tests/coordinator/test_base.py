@@ -108,6 +108,38 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     assert coordinator.data["docker_containers"] == []
 
 
+async def test_async_start_lxc_container_calls_client_and_refreshes(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """Starting a container calls the client's start endpoint and refreshes coordinator data."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+    mock_client.async_get_lxc_containers.reset_mock()
+
+    await coordinator.async_start_lxc_container("webserver")
+
+    mock_client.async_start_lxc_container.assert_called_once_with("webserver")
+    mock_client.async_get_lxc_containers.assert_called_once()
+
+
+async def test_async_stop_lxc_container_calls_client_and_refreshes(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """Stopping a container calls the client's stop endpoint and refreshes coordinator data."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+    mock_client.async_get_lxc_containers.reset_mock()
+
+    await coordinator.async_stop_lxc_container("database")
+
+    mock_client.async_stop_lxc_container.assert_called_once_with("database")
+    mock_client.async_get_lxc_containers.assert_called_once()
+
+
 async def test_token_permissions_are_fetched_once_at_setup(
     hass: HomeAssistant,
     mock_client: AsyncMock,

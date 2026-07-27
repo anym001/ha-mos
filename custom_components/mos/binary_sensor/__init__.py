@@ -72,6 +72,7 @@ async def async_setup_entry(
             data_key="lxc_containers",
             id_fn=lambda container: container["name"],
             entity_factory=build_lxc_container_binary_sensors,
+            device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_lxc_{name}"),
         )
     if entry.options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
         async_setup_dynamic_entities(
@@ -81,4 +82,5 @@ async def async_setup_entry(
             data_key="docker_containers",
             id_fn=lambda container: container["name"],
             entity_factory=build_docker_container_binary_sensors,
+            device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_docker_{name}"),
         )

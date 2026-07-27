@@ -2,10 +2,12 @@
 
 Containers are a dynamic list (created/removed at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
-static ENTITY_DESCRIPTIONS tuple. They live on the main server device
-alongside the system sensors; the container's own name is folded into the
-entity name via ``translation_placeholders`` so entity_ids stay unique per
-container (e.g. ``sensor.mos_server_pushbits_installed_version``).
+static ENTITY_DESCRIPTIONS tuple. Each container gets its own device (linked
+back to the main server device via ``via_device``), so it can be individually
+enabled/disabled from its device page instead of cluttering the server
+device's entity list (e.g. ``sensor.sirius_docker_pushbits_installed_version``;
+the server name and "docker" category keep things unique across multiple
+servers and disambiguate from an LXC container of the same name).
 
 Note: the ``local``/``remote`` fields are image tags when the container uses
 one (e.g. ``1.20.2``), but fall back to a full image digest (``sha256:...``)
@@ -73,7 +75,7 @@ class MOSDockerContainerSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_docker_{name}_{entity_description.key}",
-            translation_placeholders={"container_name": name},
+            container_device=(f"docker_{name}", f"Docker {name}"),
         )
 
     @property

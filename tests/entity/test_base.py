@@ -28,13 +28,29 @@ async def test_device_info_shows_mos_version_not_cpu(
     assert device.model != "Intel Xeon E-2288G"
 
 
-async def test_single_device_for_all_entities(
+async def test_disk_and_pool_entities_share_the_server_device(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """All mos entities, including per-disk/per-pool ones, share the one server device."""
+    """Per-disk/per-pool entities share the one server device (unlike LXC/Docker containers)."""
+    registry = dr.async_get(hass)
+    server_device = registry.async_get_device(identifiers={(DOMAIN, setup_integration.entry_id)})
+
+    assert server_device is not None
+    assert server_device.name == "Sirius"
+
+
+async def test_lxc_and_docker_containers_get_their_own_device(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Each LXC/Docker container is a separate device linked back to the server device."""
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, setup_integration.entry_id)
 
-    assert len(devices) == 1
-    assert devices[0].name == "Sirius"
+    # 1 server device + 2 mock LXC containers + 2 mock Docker containers.
+    assert len(devices) == 5
+    server_device = registry.async_get_device(identifiers={(DOMAIN, setup_integration.entry_id)})
+    container_devices = [device for device in devices if device.id != server_device.id]
+    assert len(container_devices) == 4
+    assert all(device.via_device_id == server_device.id for device in container_devices)

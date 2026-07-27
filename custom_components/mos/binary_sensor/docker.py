@@ -2,7 +2,7 @@
 
 Containers are a dynamic list, so entities are added/removed via
 ``async_setup_dynamic_entities`` (see sensor/docker.py for the matching
-version sensors, on the same main server device).
+version sensors, on the same per-container device).
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class MOSDockerContainerBinarySensor(BinarySensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_docker_{name}_{entity_description.key}",
-            translation_placeholders={"container_name": name},
+            container_device=(f"docker_{name}", f"Docker {name}"),
         )
 
     @property

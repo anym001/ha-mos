@@ -91,6 +91,37 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             LOGGER.debug("Token permission introspection unavailable - %s", exception)
             self.token_permissions = None
 
+    async def async_start_lxc_container(self, name: str) -> None:
+        """
+        Start an LXC container, then refresh so its new state is reflected immediately.
+
+        Entities never call the API client directly (see api/__init__.py); this
+        is the coordinator-side entry point for the switch platform's write action.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        client = self.config_entry.runtime_data.client
+        await client.async_start_lxc_container(name)
+        await self.async_request_refresh()
+
+    async def async_stop_lxc_container(self, name: str) -> None:
+        """
+        Stop an LXC container, then refresh so its new state is reflected immediately.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_lxc_container(name)
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> Any:
         """
         Fetch data from the MOS API.

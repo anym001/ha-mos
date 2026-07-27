@@ -94,6 +94,42 @@ async def test_docker_containers_uses_root_path(
     assert await client.async_get_docker_containers() == [{"name": "PushBits", "update_available": True}]
 
 
+async def test_start_lxc_container_posts_to_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Starting an LXC container POSTs to the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/lxc/containers/webserver/start",
+        json={"success": True, "message": "Container webserver successfully started"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_start_lxc_container("webserver")
+
+    assert result == {"success": True, "message": "Container webserver successfully started"}
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
+async def test_stop_lxc_container_posts_to_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Stopping an LXC container POSTs to the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/lxc/containers/webserver/stop",
+        json={"success": True, "message": "Container webserver successfully stopped"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_stop_lxc_container("webserver")
+
+    assert result == {"success": True, "message": "Container webserver successfully stopped"}
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
 async def test_token_permissions_use_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

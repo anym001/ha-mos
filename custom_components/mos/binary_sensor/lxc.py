@@ -2,7 +2,10 @@
 
 Containers are a dynamic list, so entities are added/removed via
 ``async_setup_dynamic_entities`` (see sensor/lxc.py for the matching numeric
-sensors, on the same main server device).
+sensors, on the same per-container device).
+
+Running state is not duplicated here - it's covered by the container's power
+switch (switch/lxc.py), which is both a control and a state indicator.
 """
 
 from __future__ import annotations
@@ -12,11 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-    BinarySensorEntityDescription,
-)
+from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
 
 if TYPE_CHECKING:
     from custom_components.mos.coordinator import MOSDataUpdateCoordinator
@@ -36,12 +35,6 @@ class MOSLxcContainerBinarySensorEntityDescription(BinarySensorEntityDescription
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSLxcContainerBinarySensorEntityDescription, ...] = (
-    MOSLxcContainerBinarySensorEntityDescription(
-        key="running",
-        translation_key="lxc_running",
-        device_class=BinarySensorDeviceClass.RUNNING,
-        value_fn=lambda container: container.get("state") == "running",
-    ),
     MOSLxcContainerBinarySensorEntityDescription(
         key="autostart",
         translation_key="lxc_autostart",
@@ -69,7 +62,7 @@ class MOSLxcContainerBinarySensor(BinarySensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_lxc_{name}_{entity_description.key}",
-            translation_placeholders={"container_name": name},
+            container_device=(f"lxc_{name}", f"LXC {name}"),
         )
 
     @property

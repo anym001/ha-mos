@@ -15,14 +15,14 @@
 - **Physical Disks**: Power status, temperature status, and SMART warnings per disk
 - **Services**: Docker, VM, SSH, Samba, NFS, Tailscale, and Netbird status
 - **System Health**: Live CPU load/temperature, memory usage, and swap usage
-- **LXC Containers**: Per-container CPU/memory usage, running state, and autostart
-- **Docker Containers**: Per-container installed/latest version, update-available status, and autostart
+- **LXC Containers**: Per-container CPU/memory usage, autostart, and a power switch to start/stop the container
+- **Docker Containers**: Per-container installed/latest version, update-available status, and autostart (no start/stop control yet - MOS has no single-container endpoint for Docker)
 - **Selective Categories**: Turn disks, pools, services, LXC, or Docker containers on/off entirely via the options flow
 - **Reconfigurable**: Change connection details anytime without removing the integration
 - **Reauthentication**: Prompted automatically if the API token is rejected
 - **Diagnostics**: Download a full diagnostics report for troubleshooting
 
-All entities live on a single MOS device — there's no per-disk or per-pool device clutter; each pool/disk simply gets its own name folded into its entity ID (e.g. `sensor.mos_server_tank_usage`).
+Disks and storage pools live on the single MOS server device — there's no per-disk or per-pool device clutter; each pool/disk simply gets its own name folded into its entity ID (e.g. `sensor.mos_server_tank_usage`). LXC and Docker containers, on the other hand, each get their own device (linked back to the server device via `via_device`, named `<server> LXC <container>` / `<server> Docker <container>` to stay unique across multiple configured servers and disambiguate same-named LXC/Docker containers), since there can be many of them and you may want to enable/disable individual containers from their own device page.
 
 **This integration sets up the following platforms.**
 
@@ -30,6 +30,7 @@ All entities live on a single MOS device — there's no per-disk or per-pool dev
 | --------------- | --------------------------------------------------------------------------------------------------------- |
 | `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info |
 | `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state        |
+| `switch`        | LXC container power (start/stop the container on the MOS server)                                        |
 
 ## 🚀 Quick Start
 
@@ -97,8 +98,12 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 - **Services**: Docker running, VM running, SSH enabled, Samba enabled, NFS enabled, Tailscale online, Netbird online
 - **Storage pools** (per pool): Problem (health issue - _Diagnostic_), scrub running, balance running, parity running (only the operations that apply to that pool's filesystem type)
 - **Physical disks** (per disk): SMART warning (_Diagnostic_)
-- **LXC containers** (per container): Running, autostart
+- **LXC containers** (per container): Autostart
 - **Docker containers** (per container): Update available (_Diagnostic_), autostart
+
+### Switches
+
+- **LXC containers** (per container): Power - reflects whether the container is running, and starts/stops it on the MOS server when toggled
 
 Disks, pools, and LXC/Docker containers appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
 

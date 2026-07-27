@@ -2,10 +2,12 @@
 
 Containers are a dynamic list (created/destroyed at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
-static ENTITY_DESCRIPTIONS tuple. They live on the main server device
-alongside the system sensors; the container's own name is folded into the
-entity name via ``translation_placeholders`` so entity_ids stay unique per
-container (e.g. ``sensor.mos_server_database_cpu_usage``).
+static ENTITY_DESCRIPTIONS tuple. Each container gets its own device (linked
+back to the main server device via ``via_device``), so it can be individually
+enabled/disabled from its device page instead of cluttering the server
+device's entity list (e.g. ``sensor.sirius_lxc_database_cpu_usage``; the
+server name and "lxc" category keep things unique across multiple servers
+and disambiguate from a Docker container of the same name).
 """
 
 from __future__ import annotations
@@ -75,7 +77,7 @@ class MOSLxcContainerSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_lxc_{name}_{entity_description.key}",
-            translation_placeholders={"container_name": name},
+            container_device=(f"lxc_{name}", f"LXC {name}"),
         )
 
     @property
