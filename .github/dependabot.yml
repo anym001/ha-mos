@@ -22,7 +22,7 @@ updates:
       # Bundle every github-actions update (incl. majors) into a single monthly
       # PR instead of one PR per action. Avoids the mutual merge conflicts that
       # separate PRs cause once the first one lands (each touches the same
-      # pinned-SHA lines across lint.yml/validate.yml/copilot-setup-steps.yml).
+      # pinned-SHA lines across lint.yml/test.yml/validate.yml).
       github-actions:
         patterns:
           - "*"

@@ -106,7 +106,6 @@
       ],
       // Please keep this file in sync with settings in .vscode/settings.default.jsonc
       "settings": {
-        "chat.promptFiles": true,
         "editor.tabSize": 4,
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,
