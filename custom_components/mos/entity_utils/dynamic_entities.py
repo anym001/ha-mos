@@ -1,16 +1,21 @@
 """
 Dynamic entity lifecycle helper for mos.
 
-Some MOS resources (disks, storage pools) are lists of items that can appear or
-disappear at runtime - a disk gets plugged in, a pool gets deleted, and so on.
-This module provides a single, reusable way for a platform (sensor,
-binary_sensor, ...) to keep its entities in sync with such a list, including
-removing the entity when an item disappears. All such entities live on the
-main server device (see entity/base.py's ``translation_placeholders``), so
-there is no per-item device to clean up here.
+Some MOS resources (disks, storage pools, LXC/Docker containers) are lists of
+items that can appear or disappear at runtime - a disk gets plugged in, a
+container gets removed, and so on. This module provides a single, reusable
+way for a platform (sensor, binary_sensor, ...) to keep its entities in sync
+with such a list, including removing the entity when an item disappears.
 
-Used by sensor/disks.py, sensor/pools.py, binary_sensor/disks.py and
-binary_sensor/pools.py to avoid duplicating the add/remove diffing logic.
+Disks and pools live on the main server device (see entity/base.py's
+``translation_placeholders``), so there is no per-item device to clean up.
+LXC/Docker containers get their own device (``container_device``); when a
+container disappears, its now-entity-less device is removed too, via the
+optional ``device_identifiers_fn``.
+
+Used by sensor/disks.py, sensor/pools.py, sensor/lxc.py, sensor/docker.py,
+their binary_sensor counterparts, and switch/lxc.py to avoid duplicating the
+add/remove diffing logic.
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -38,6 +43,7 @@ def async_setup_dynamic_entities(
     data_key: str,
     id_fn: Callable[[dict[str, Any]], str],
     entity_factory: Callable[[MOSDataUpdateCoordinator, str], Sequence[Entity]],
+    device_identifiers_fn: Callable[[str], tuple[str, str]] | None = None,
 ) -> None:
     """
     Keep entities in sync with a dynamic list of items in coordinator data.
@@ -53,6 +59,12 @@ def async_setup_dynamic_entities(
         entity_factory: Builds all entities for a given item id (an item can
             back more than one entity, e.g. a disk's power-status sensor and
             its SMART binary_sensor).
+        device_identifiers_fn: For items with their own device (containers):
+            given an item id, returns its device registry identifiers
+            (``(domain, unique_key)``). When an item disappears, if this
+            leaves its device with zero entities (across all platforms), the
+            device is removed too. ``None`` for items that share the main
+            server device (disks, pools).
 
     """
     coordinator = entry.runtime_data.coordinator
@@ -74,21 +86,38 @@ def async_setup_dynamic_entities(
 
         removed_ids = known.keys() - current_ids
         for item_id in removed_ids:
-            hass.async_create_task(_async_remove_entities(hass, known.pop(item_id)))
+            device_identifiers = device_identifiers_fn(item_id) if device_identifiers_fn else None
+            hass.async_create_task(_async_remove_entities(hass, known.pop(item_id), device_identifiers))
 
     _sync()
     entry.async_on_unload(coordinator.async_add_listener(_sync))
 
 
-async def _async_remove_entities(hass: HomeAssistant, entities: Sequence[Entity]) -> None:
+async def _async_remove_entities(
+    hass: HomeAssistant,
+    entities: Sequence[Entity],
+    device_identifiers: tuple[str, str] | None,
+) -> None:
     """Remove entities that no longer have a backing item, including their registry entry.
 
     ``async_remove`` alone only clears the entity's state; without also removing
-    the entity registry entry, a disk/pool that disappears for good would leave
-    a permanently orphaned, unavailable entity behind.
+    the entity registry entry, a disk/pool/container that disappears for good
+    would leave a permanently orphaned, unavailable entity behind.
+
+    If ``device_identifiers`` is given, also remove that device once it has no
+    entities left. Sensor and binary_sensor entities for the same container
+    are torn down independently by their own platform, so this check runs
+    once per platform and only succeeds once the last one has cleared its
+    entities - no extra coordination needed between platforms.
     """
     registry = er.async_get(hass)
     for entity in entities:
         await entity.async_remove(force_remove=True)
         if entity.entity_id and registry.async_get(entity.entity_id):
             registry.async_remove(entity.entity_id)
+
+    if device_identifiers is not None:
+        device_registry = dr.async_get(hass)
+        device = device_registry.async_get_device(identifiers={device_identifiers})
+        if device is not None and not er.async_entries_for_device(registry, device.id, include_disabled_entities=True):
+            device_registry.async_remove_device(device.id)

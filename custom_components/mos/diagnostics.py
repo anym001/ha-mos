@@ -78,6 +78,7 @@ async def async_get_config_entry_diagnostics(
         "base_url": client._base_url,  # noqa: SLF001
         "root_base_url": client._root_base_url,  # noqa: SLF001
         "has_token": bool(client._token),  # noqa: SLF001
+        "token_permissions": coordinator.token_permissions,
     }
 
     # Integration information
@@ -126,6 +127,10 @@ async def async_get_config_entry_diagnostics(
             "services": coordinator.data.get("services"),
             "disks": coordinator.data.get("disks"),
             "pools": coordinator.data.get("pools"),
+            "system_load": coordinator.data.get("system_load"),
+            "lxc_containers": coordinator.data.get("lxc_containers"),
+            "docker_containers": coordinator.data.get("docker_containers"),
+            "vm_machines": coordinator.data.get("vm_machines"),
         }
 
     return {

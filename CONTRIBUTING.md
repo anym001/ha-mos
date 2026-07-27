@@ -43,13 +43,18 @@ feature/xyz ──PR──▶ dev ──(staging test)──▶ PR ──▶ mai
 
 1. **Branch** from `dev`: `git switch dev && git pull && git switch -c feature/xyz`.
 2. **Open a PR against `dev`.** CI (`Ruff`, `Hassfest validation`, `HACS validation`)
-   must be green; enable "Auto-merge" so GitHub merges the final, green state
-   automatically. Use [Conventional Commit](https://www.conventionalcommits.org/)
-   messages — release-please derives the next version and changelog from them.
+   must be green; enable "Auto-merge". **Use "Squash and merge"** with a
+   [Conventional Commit](https://www.conventionalcommits.org/)-formatted PR title
+   (e.g. `feat(mos): add pools, disks, and services entities`) — release-please
+   scans commit _subjects_ on `dev`'s history for these prefixes, so intermediate
+   WIP commits on the feature branch don't need to be conventional themselves,
+   but the single squashed commit that lands on `dev` does.
 3. Test the merged `dev` state (local `./script/develop`, or a HACS beta install
    from a pre-release tag if you cut one).
-4. When `dev` is good: **PR `dev → main`** and merge it. Merging to `main` does
-   not publish anything by itself.
+4. When `dev` is good: **PR `dev → main`** and merge it using "Create a merge
+   commit" (not squash) — this preserves each individual, already-conventional
+   commit from `dev` so release-please can pick all of them up on `main`.
+   Merging to `main` does not publish anything by itself.
 5. **Releases are automatic.** On push to `main`, release-please maintains a
    "release PR"; merging that PR pushes the `vX.Y.Z` tag and publishes the GitHub
    release with generated notes. There is no manual tag step and no VERSION file —
