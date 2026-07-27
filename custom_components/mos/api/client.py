@@ -177,6 +177,26 @@ class MOSApiClient:
         """
         return await self._get("pools", base_url=self._root_base_url)
 
+    async def async_get_system_load(self) -> dict[str, Any]:
+        """
+        Get live system health telemetry from ``/system/load``.
+
+        Despite its name the payload covers more than CPU load: it also
+        includes memory, swap, network and temperature figures, all sampled
+        at request time. This is a live snapshot, unlike the mostly static
+        ``osinfo`` payload.
+
+        Returns:
+            The parsed ``system/load`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("system/load", base_url=self._root_base_url)
+
     async def async_get_token_permissions(self) -> dict[str, Any]:
         """
         Introspect the permission scope of the token used for authentication.

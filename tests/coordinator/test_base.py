@@ -10,7 +10,14 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
-from custom_components.mos.const import CONF_ENABLE_DISKS, CONF_ENABLE_POOLS, CONF_ENABLE_SERVICES, DOMAIN, LOGGER
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
+    CONF_ENABLE_SYSTEM_HEALTH,
+    DOMAIN,
+    LOGGER,
+)
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -42,6 +49,7 @@ async def test_fetches_all_resources_by_default(hass: HomeAssistant, mock_client
         "services": mock_client.async_get_services.return_value,
         "disks": mock_client.async_get_disks.return_value,
         "pools": mock_client.async_get_pools.return_value,
+        "system_load": mock_client.async_get_system_load.return_value,
     }
 
 
@@ -54,6 +62,7 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
             CONF_ENABLE_DISKS: False,
             CONF_ENABLE_POOLS: False,
             CONF_ENABLE_SERVICES: False,
+            CONF_ENABLE_SYSTEM_HEALTH: False,
         },
     )
     coordinator = _make_coordinator(hass, mock_client, entry)
@@ -63,11 +72,13 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     mock_client.async_get_services.assert_not_called()
     mock_client.async_get_disks.assert_not_called()
     mock_client.async_get_pools.assert_not_called()
+    mock_client.async_get_system_load.assert_not_called()
     mock_client.async_get_osinfo.assert_called_once()
 
     assert coordinator.data["services"] == {}
     assert coordinator.data["disks"] == []
     assert coordinator.data["pools"] == []
+    assert coordinator.data["system_load"] == {}
 
 
 async def test_token_permissions_are_fetched_once_at_setup(

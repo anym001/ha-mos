@@ -51,13 +51,15 @@
           "scan_interval": "Update interval (seconds)",
           "enable_disks": "Enable disks",
           "enable_pools": "Enable storage pools",
-          "enable_services": "Enable services"
+          "enable_services": "Enable services",
+          "enable_system_health": "Enable system health"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
           "enable_disks": "Create entities for physical disks.",
           "enable_pools": "Create entities for storage pools.",
-          "enable_services": "Create entities for system services (Docker, VM, SSH, ...)."
+          "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
+          "enable_system_health": "Create entities for live CPU, memory and swap usage."
         }
       }
     }
@@ -116,6 +118,21 @@
       },
       "disk_temperature_status": {
         "name": "{disk_name} temperature status"
+      },
+      "cpu_load": {
+        "name": "CPU load"
+      },
+      "cpu_temperature": {
+        "name": "CPU temperature"
+      },
+      "memory_usage": {
+        "name": "Memory usage"
+      },
+      "memory_used": {
+        "name": "Memory used"
+      },
+      "swap_usage": {
+        "name": "Swap usage"
       }
     },
     "binary_sensor": {
