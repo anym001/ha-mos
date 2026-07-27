@@ -76,6 +76,7 @@ async def async_get_config_entry_diagnostics(
     # API client information (no sensitive data)
     api_info = {
         "base_url": client._base_url,  # noqa: SLF001
+        "root_base_url": client._root_base_url,  # noqa: SLF001
         "has_token": bool(client._token),  # noqa: SLF001
     }
 
@@ -108,7 +109,8 @@ async def async_get_config_entry_diagnostics(
         "last_exception_type": (type(coordinator.last_exception).__name__ if coordinator.last_exception else None),
     }
 
-    # Current data sample: the full osinfo payload minus the large package list
+    # Current data sample: the full osinfo payload minus the large package list,
+    # plus the other polled resources (no sensitive data in any of these)
     data_sample: dict[str, Any] = {}
     if isinstance(coordinator.data, dict):
         osinfo = dict(coordinator.data.get("osinfo") or {})
@@ -119,7 +121,12 @@ async def async_get_config_entry_diagnostics(
                 for entry_item in base
                 if isinstance(entry_item, dict)
             ]
-        data_sample = {"osinfo": osinfo}
+        data_sample = {
+            "osinfo": osinfo,
+            "services": coordinator.data.get("services"),
+            "disks": coordinator.data.get("disks"),
+            "pools": coordinator.data.get("pools"),
+        }
 
     return {
         "entry": entry_info,

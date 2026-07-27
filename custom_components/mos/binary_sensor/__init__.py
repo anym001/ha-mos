@@ -1,4 +1,4 @@
-"""Sensor platform for mos."""
+"""Binary sensor platform for mos."""
 
 from __future__ import annotations
 
@@ -7,15 +7,17 @@ from typing import TYPE_CHECKING
 from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SERVICES,
     PARALLEL_UPDATES as PARALLEL_UPDATES,
 )
 from custom_components.mos.entity_utils import async_setup_dynamic_entities
 
-from .disks import build_disk_sensors
-from .pools import build_pool_sensors
-from .system import ENTITY_DESCRIPTIONS as SYSTEM_DESCRIPTIONS, MOSSystemSensor
+from .disks import build_disk_binary_sensors
+from .pools import build_pool_binary_sensors
+from .services import ENTITY_DESCRIPTIONS as SERVICE_DESCRIPTIONS, MOSServiceBinarySensor
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
@@ -28,14 +30,15 @@ async def async_setup_entry(
     entry: MOSConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the sensor platform."""
-    async_add_entities(
-        MOSSystemSensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
+    """Set up the binary sensor platform."""
+    if entry.options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
+        async_add_entities(
+            MOSServiceBinarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in SERVICE_DESCRIPTIONS
         )
-        for entity_description in SYSTEM_DESCRIPTIONS
-    )
 
     if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
         async_setup_dynamic_entities(
@@ -44,7 +47,7 @@ async def async_setup_entry(
             async_add_entities,
             data_key="disks",
             id_fn=lambda disk: disk["serial"],
-            entity_factory=build_disk_sensors,
+            entity_factory=build_disk_binary_sensors,
         )
     if entry.options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
         async_setup_dynamic_entities(
@@ -53,5 +56,5 @@ async def async_setup_entry(
             async_add_entities,
             data_key="pools",
             id_fn=lambda pool: str(pool["id"]),
-            entity_factory=build_pool_sensors,
+            entity_factory=build_pool_binary_sensors,
         )

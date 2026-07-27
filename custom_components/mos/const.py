@@ -10,6 +10,7 @@ ATTRIBUTION = "Data provided by the local MOS API"
 
 # API
 API_BASE_PATH = "/api/v1/mos"
+API_ROOT_PATH = "/api/v1"
 CONF_API_TOKEN = "api_token"
 DEFAULT_TIMEOUT = 10
 
@@ -26,3 +27,11 @@ PARALLEL_UPDATES = 1
 DEFAULT_SCAN_INTERVAL = 30
 MIN_SCAN_INTERVAL = 10
 MAX_SCAN_INTERVAL = 3600
+
+# Optional resource categories - can be disabled via the options flow
+CONF_ENABLE_DISKS = "enable_disks"
+CONF_ENABLE_POOLS = "enable_pools"
+CONF_ENABLE_SERVICES = "enable_services"
+DEFAULT_ENABLE_DISKS = True
+DEFAULT_ENABLE_POOLS = True
+DEFAULT_ENABLE_SERVICES = True
