@@ -52,14 +52,18 @@
           "enable_disks": "Enable disks",
           "enable_pools": "Enable storage pools",
           "enable_services": "Enable services",
-          "enable_system_health": "Enable system health"
+          "enable_lxc": "Enable LXC containers",
+          "enable_docker": "Enable Docker containers",
+          "enable_vm": "Enable VMs"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
           "enable_disks": "Create entities for physical disks.",
           "enable_pools": "Create entities for storage pools.",
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
-          "enable_system_health": "Create entities for live CPU, memory and swap usage."
+          "enable_lxc": "Create entities for each LXC container.",
+          "enable_docker": "Create entities for each Docker container.",
+          "enable_vm": "Create entities for each VM."
         }
       }
     }
@@ -70,6 +74,27 @@
     },
     "update_failed": {
       "message": "Failed to update data from the server."
+    },
+    "lxc_start_failed": {
+      "message": "Failed to start LXC container {name}."
+    },
+    "lxc_stop_failed": {
+      "message": "Failed to stop LXC container {name}."
+    },
+    "docker_start_failed": {
+      "message": "Failed to start Docker container {name}."
+    },
+    "docker_stop_failed": {
+      "message": "Failed to stop Docker container {name}."
+    },
+    "vm_start_failed": {
+      "message": "Failed to start VM {name}."
+    },
+    "vm_stop_failed": {
+      "message": "Failed to stop VM {name}."
+    },
+    "insufficient_write_permission": {
+      "message": "The configured API token does not have write access to {resource}."
     }
   },
   "entity": {
@@ -133,6 +158,24 @@
       },
       "swap_usage": {
         "name": "Swap usage"
+      },
+      "lxc_cpu_usage": {
+        "name": "CPU usage"
+      },
+      "lxc_memory_usage": {
+        "name": "Memory usage"
+      },
+      "docker_installed_version": {
+        "name": "Installed version"
+      },
+      "docker_latest_version": {
+        "name": "Latest version"
+      },
+      "vm_cpu_usage": {
+        "name": "CPU usage"
+      },
+      "vm_memory_usage": {
+        "name": "Memory usage"
       }
     },
     "binary_sensor": {
@@ -171,6 +214,29 @@
       },
       "disk_smart_warning": {
         "name": "{disk_name} SMART warning"
+      },
+      "lxc_autostart": {
+        "name": "Autostart"
+      },
+      "docker_update_available": {
+        "name": "Update available"
+      },
+      "docker_autostart": {
+        "name": "Autostart"
+      },
+      "vm_autostart": {
+        "name": "Autostart"
+      }
+    },
+    "switch": {
+      "lxc_power": {
+        "name": "Power"
+      },
+      "docker_power": {
+        "name": "Power"
+      },
+      "vm_power": {
+        "name": "Power"
       }
     }
   }

@@ -17,20 +17,49 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
 from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
+    CONF_ENABLE_DOCKER,
+    CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
-    CONF_ENABLE_SYSTEM_HEALTH,
+    CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_DOCKER,
+    DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
-    DEFAULT_ENABLE_SYSTEM_HEALTH,
+    DEFAULT_ENABLE_VM,
     LOGGER,
 )
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from custom_components.mos.entity_utils import has_write_access
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
+
+
+def _merge_docker_engine_state(
+    containers: list[dict[str, Any]],
+    engine_containers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Merge live Docker Engine state into MOS's docker container list.
+
+    ``/docker/mos/containers`` has no running-state field; the raw Docker
+    Engine proxy's ``/containers/json`` does, keyed by name (with a leading
+    slash, per Docker's own ``Names`` convention).
+    """
+    engine_by_name: dict[str, dict[str, Any]] = {}
+    for engine_container in engine_containers:
+        for raw_name in engine_container.get("Names") or []:
+            engine_by_name[raw_name.lstrip("/")] = engine_container
+
+    merged: list[dict[str, Any]] = []
+    for container in containers:
+        name: str = container.get("name") or ""
+        engine_container = engine_by_name.get(name) or {}
+        merged.append({**container, "state": engine_container.get("State")})
+    return merged
 
 
 class MOSDataUpdateCoordinator(DataUpdateCoordinator):
@@ -89,6 +118,129 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             LOGGER.debug("Token permission introspection unavailable - %s", exception)
             self.token_permissions = None
 
+    def _check_write_access(self, resource: str) -> None:
+        """
+        Raise if the configured token cannot write to `resource`.
+
+        Checked before every write action (LXC/Docker start/stop) so an
+        insufficiently-scoped token fails with a clear, translated error
+        instead of a generic 401/403 from the server.
+
+        ``token_permissions`` is the full ``/auth/admin-tokens/me`` payload
+        (``{id, name, role, isBootToken, permissions}``); the actual
+        mode/resources live one level down, under its ``permissions`` key.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to `resource`.
+
+        """
+        scope = (self.token_permissions or {}).get("permissions")
+        if not has_write_access(scope, resource):
+            raise HomeAssistantError(
+                translation_domain="mos",
+                translation_key="insufficient_write_permission",
+                translation_placeholders={"resource": resource},
+            )
+
+    async def async_start_lxc_container(self, name: str) -> None:
+        """
+        Start an LXC container, then refresh so its new state is reflected immediately.
+
+        Entities never call the API client directly (see api/__init__.py); this
+        is the coordinator-side entry point for the switch platform's write action.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "lxc".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("lxc")
+        client = self.config_entry.runtime_data.client
+        await client.async_start_lxc_container(name)
+        await self.async_request_refresh()
+
+    async def async_stop_lxc_container(self, name: str) -> None:
+        """
+        Stop an LXC container, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "lxc".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("lxc")
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_lxc_container(name)
+        await self.async_request_refresh()
+
+    async def async_start_docker_container(self, name: str) -> None:
+        """
+        Start a Docker container, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "docker".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("docker")
+        client = self.config_entry.runtime_data.client
+        await client.async_start_docker_container(name)
+        await self.async_request_refresh()
+
+    async def async_stop_docker_container(self, name: str) -> None:
+        """
+        Stop a Docker container, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "docker".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("docker")
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_docker_container(name)
+        await self.async_request_refresh()
+
+    async def async_start_vm_machine(self, name: str) -> None:
+        """
+        Start a VM, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "vm".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("vm")
+        client = self.config_entry.runtime_data.client
+        await client.async_start_vm_machine(name)
+        await self.async_request_refresh()
+
+    async def async_stop_vm_machine(self, name: str) -> None:
+        """
+        Stop a VM, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "vm".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("vm")
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_vm_machine(name)
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> Any:
         """
         Fetch data from the MOS API.
@@ -102,15 +254,22 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         {
             "osinfo": {...},       # System / hardware information from /osinfo
+            "system_load": {...},  # Live CPU/memory/swap telemetry from /system/load
             "services": {...},     # Service enabled/running flags from /services
             "disks": [...],        # Physical disks from /disks
             "pools": [...],        # Storage pools from /pools
-            "system_load": {...},  # Live CPU/memory/swap telemetry from /system/load
+            "lxc_containers": [...],   # LXC containers from /lxc/containers/usage
+            "docker_containers": [...],  # Docker containers from /docker/mos/containers,
+                                          # with "state" merged in from the raw Docker
+                                          # Engine proxy (/docker/containers/json)
+            "vm_machines": [...],      # VMs from /vm/machines/usage
         }
 
-        Resources disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
-        friends) are not fetched at all and default to an empty payload, so
-        the corresponding platforms simply create no entities for them.
+        ``osinfo`` and ``system_load`` are always fetched. The other resources
+        can be disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
+        friends); when disabled they are not fetched at all and default to an
+        empty payload, so the corresponding platforms simply create no
+        entities for them.
 
         Returns:
             The data from the API as a dictionary keyed by resource.
@@ -122,15 +281,23 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         client = self.config_entry.runtime_data.client
         options = self.config_entry.options
 
-        tasks: dict[str, Any] = {"osinfo": client.async_get_osinfo()}
+        tasks: dict[str, Any] = {
+            "osinfo": client.async_get_osinfo(),
+            "system_load": client.async_get_system_load(),
+        }
         if options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
             tasks["services"] = client.async_get_services()
         if options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
             tasks["disks"] = client.async_get_disks()
         if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
             tasks["pools"] = client.async_get_pools()
-        if options.get(CONF_ENABLE_SYSTEM_HEALTH, DEFAULT_ENABLE_SYSTEM_HEALTH):
-            tasks["system_load"] = client.async_get_system_load()
+        if options.get(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC):
+            tasks["lxc_containers"] = client.async_get_lxc_containers()
+        if options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
+            tasks["docker_containers"] = client.async_get_docker_containers()
+            tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
+        if options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
+            tasks["vm_machines"] = client.async_get_vm_machines()
 
         try:
             results = await asyncio.gather(*tasks.values())
@@ -151,5 +318,12 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])
-        data.setdefault("system_load", {})
+        data.setdefault("lxc_containers", [])
+        data.setdefault("docker_containers", [])
+        data.setdefault("vm_machines", [])
+        if "docker_engine_containers" in data:
+            data["docker_containers"] = _merge_docker_engine_state(
+                data["docker_containers"],
+                data.pop("docker_engine_containers"),
+            )
         return data

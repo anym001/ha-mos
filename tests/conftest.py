@@ -121,6 +121,88 @@ def mock_system_load() -> dict[str, Any]:
 
 
 @pytest.fixture
+def mock_lxc_containers() -> list[dict[str, Any]]:
+    """Return a realistic ``/lxc/containers/usage`` payload."""
+    return [
+        {
+            "name": "database",
+            "state": "running",
+            "autostart": True,
+            "unprivileged": False,
+            "cpu": {"usage": 25.5, "unit": "%"},
+            "memory": {"bytes": 1073741824, "formatted": "1.00 GiB"},
+            "network": {"ipv4": ["192.168.1.100"], "ipv6": [], "docker": [], "all": ["192.168.1.100"]},
+        },
+        {
+            "name": "webserver",
+            "state": "stopped",
+            "autostart": False,
+            "unprivileged": True,
+            "cpu": {"usage": 0, "unit": "%"},
+            "memory": {"bytes": 0, "formatted": "0 Bytes"},
+            "network": {"ipv4": [], "ipv6": [], "docker": [], "all": []},
+        },
+    ]
+
+
+@pytest.fixture
+def mock_docker_containers() -> list[dict[str, Any]]:
+    """Return a realistic ``/docker/mos/containers`` payload."""
+    return [
+        {
+            "index": 1,
+            "name": "PushBits",
+            "autostart": True,
+            "repo": "ghcr.io/pushbits/server",
+            "local": "1.20.2",
+            "remote": "1.21.0",
+            "update_available": True,
+        },
+        {
+            "index": 2,
+            "name": "nginx",
+            "autostart": False,
+            "repo": "library/nginx",
+            "local": "1.25.3",
+            "remote": "1.25.3",
+            "update_available": False,
+        },
+    ]
+
+
+@pytest.fixture
+def mock_docker_engine_containers() -> list[dict[str, Any]]:
+    """Return a realistic raw Docker Engine ``/containers/json`` payload."""
+    return [
+        {"Id": "abc123", "Names": ["/PushBits"], "State": "running"},
+        {"Id": "def456", "Names": ["/nginx"], "State": "exited"},
+    ]
+
+
+@pytest.fixture
+def mock_vm_machines() -> list[dict[str, Any]]:
+    """Return a realistic ``/vm/machines/usage`` payload."""
+    return [
+        {
+            "name": "Test",
+            "state": "running",
+            "autostart": True,
+            "cpu": {"usage": 12.5, "unit": "%"},
+            "memory": {"bytes": 2147483648, "formatted": "2.00 GiB"},
+            "vncPort": 5900,
+        },
+        {
+            "name": "Legacy",
+            "state": "stopped",
+            "autostart": False,
+            "cpu": {"usage": 0, "unit": "%"},
+            "memory": {"bytes": 0, "formatted": "0 GiB"},
+            "vncPort": None,
+        },
+    ]
+
+
+@pytest.fixture
 def mock_token_permissions() -> dict[str, Any]:
     """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
     return {
@@ -158,6 +240,10 @@ def mock_client(
     mock_disks: list[dict[str, Any]],
     mock_pools: list[dict[str, Any]],
     mock_system_load: dict[str, Any],
+    mock_lxc_containers: list[dict[str, Any]],
+    mock_docker_containers: list[dict[str, Any]],
+    mock_docker_engine_containers: list[dict[str, Any]],
+    mock_vm_machines: list[dict[str, Any]],
     mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
@@ -167,6 +253,10 @@ def mock_client(
     client.async_get_disks.return_value = mock_disks
     client.async_get_pools.return_value = mock_pools
     client.async_get_system_load.return_value = mock_system_load
+    client.async_get_lxc_containers.return_value = mock_lxc_containers
+    client.async_get_docker_containers.return_value = mock_docker_containers
+    client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
+    client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"  # noqa: SLF001

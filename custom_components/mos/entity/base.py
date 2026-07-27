@@ -48,6 +48,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         *,
         unique_id: str | None = None,
         translation_placeholders: dict[str, str] | None = None,
+        container_device: tuple[str, str] | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -63,6 +64,14 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 per-item entities (disks, pools) that share the main server
                 device and need the item's own name folded into the entity
                 name/entity_id to stay unique and readable.
+            container_device: Optional ``(device_key, display_name)`` for
+                entities that get their own device instead of the shared
+                server device (LXC/Docker containers, which can be numerous
+                and are individually enabled/disabled via the standard HA
+                device page rather than cluttering the server device). The
+                device is linked back to the server device via ``via_device``,
+                and its name is prefixed with the server name so it stays
+                unique/identifiable across multiple configured MOS servers.
 
         """
         super().__init__(coordinator)
@@ -72,6 +81,19 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         self._attr_unique_id = unique_id or f"{entry.entry_id}_{entity_description.key}"
         if translation_placeholders is not None:
             self._attr_translation_placeholders = translation_placeholders
+
+        if container_device is not None:
+            device_key, device_name = container_device
+            # Prefix with the server name so container devices/entities stay unique and
+            # identifiable when more than one MOS server is configured (e.g. two servers
+            # both happen to run a container named "database").
+            self._attr_device_info = DeviceInfo(
+                identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
+                name=f"{entry.title} {device_name}" if entry.title else device_name,
+                manufacturer="MOS",
+                via_device=(entry.domain, entry.entry_id),
+            )
+            return
 
         osinfo: dict = (coordinator.data or {}).get("osinfo", {})
         mos: dict = osinfo.get("mos", {})
