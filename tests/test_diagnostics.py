@@ -21,19 +21,22 @@ async def test_api_token_is_redacted(
 
 
 async def test_data_sample_includes_all_resources(
+    *,
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
     mock_services: dict,
     mock_disks: list[dict],
     mock_pools: list[dict],
+    mock_system_load: dict,
 ) -> None:
-    """The data sample surfaces services/disks/pools alongside osinfo."""
+    """The data sample surfaces services/disks/pools/system_load alongside osinfo."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
 
     data_sample = diagnostics["data_sample"]
     assert data_sample["services"] == mock_services
     assert data_sample["disks"] == mock_disks
     assert data_sample["pools"] == mock_pools
+    assert data_sample["system_load"] == mock_system_load
     assert data_sample["osinfo"]["hostname"] == "sirius"
 
 

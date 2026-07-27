@@ -127,6 +127,7 @@ async def async_get_config_entry_diagnostics(
             "services": coordinator.data.get("services"),
             "disks": coordinator.data.get("disks"),
             "pools": coordinator.data.get("pools"),
+            "system_load": coordinator.data.get("system_load"),
         }
 
     return {

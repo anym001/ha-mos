@@ -49,6 +49,21 @@ async def test_disks_and_pools_use_root_path(
     assert await client.async_get_pools() == [{"id": 1}]
 
 
+async def test_system_load_uses_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """system_load is fetched from the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/system/load",
+        json={"cpu": {"load": 42.35}},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_system_load() == {"cpu": {"load": 42.35}}
+
+
 async def test_token_permissions_use_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

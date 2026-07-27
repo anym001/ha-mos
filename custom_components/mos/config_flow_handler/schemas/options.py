@@ -16,9 +16,11 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
+    CONF_ENABLE_SYSTEM_HEALTH,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
+    DEFAULT_ENABLE_SYSTEM_HEALTH,
     DEFAULT_SCAN_INTERVAL,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
@@ -64,6 +66,10 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
             vol.Optional(
                 CONF_ENABLE_SERVICES,
                 default=defaults.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_SYSTEM_HEALTH,
+                default=defaults.get(CONF_ENABLE_SYSTEM_HEALTH, DEFAULT_ENABLE_SYSTEM_HEALTH),
             ): selector.BooleanSelector(),
         },
     )

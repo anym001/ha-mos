@@ -19,9 +19,11 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
+    CONF_ENABLE_SYSTEM_HEALTH,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
+    DEFAULT_ENABLE_SYSTEM_HEALTH,
     LOGGER,
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -99,10 +101,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         entities:
 
         {
-            "osinfo": {...},     # System / hardware information from /osinfo
-            "services": {...},   # Service enabled/running flags from /services
-            "disks": [...],      # Physical disks from /disks
-            "pools": [...],      # Storage pools from /pools
+            "osinfo": {...},       # System / hardware information from /osinfo
+            "services": {...},     # Service enabled/running flags from /services
+            "disks": [...],        # Physical disks from /disks
+            "pools": [...],        # Storage pools from /pools
+            "system_load": {...},  # Live CPU/memory/swap telemetry from /system/load
         }
 
         Resources disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
@@ -126,6 +129,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             tasks["disks"] = client.async_get_disks()
         if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
             tasks["pools"] = client.async_get_pools()
+        if options.get(CONF_ENABLE_SYSTEM_HEALTH, DEFAULT_ENABLE_SYSTEM_HEALTH):
+            tasks["system_load"] = client.async_get_system_load()
 
         try:
             results = await asyncio.gather(*tasks.values())
@@ -146,4 +151,5 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])
+        data.setdefault("system_load", {})
         return data

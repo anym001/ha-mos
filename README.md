@@ -14,7 +14,8 @@
 - **Storage Pools**: Usage, free space, health, and scrub/balance/parity status per pool
 - **Physical Disks**: Power status, temperature status, and SMART warnings per disk
 - **Services**: Docker, VM, SSH, Samba, NFS, Tailscale, and Netbird status
-- **Selective Categories**: Turn disks, pools, or services on/off entirely via the options flow
+- **System Health**: Live CPU load/temperature, memory usage, and swap usage
+- **Selective Categories**: Turn disks, pools, services, or system health on/off entirely via the options flow
 - **Reconfigurable**: Change connection details anytime without removing the integration
 - **Reauthentication**: Prompted automatically if the API token is rejected
 - **Diagnostics**: Download a full diagnostics report for troubleshooting
@@ -23,10 +24,10 @@ All entities live on a single MOS device — there's no per-disk or per-pool dev
 
 **This integration sets up the following platforms.**
 
-| Platform        | Description                                                           |
-| --------------- | --------------------------------------------------------------------- |
-| `sensor`        | System info, storage pool usage/free space, disk power/temperature    |
-| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status |
+| Platform        | Description                                                                       |
+| --------------- | --------------------------------------------------------------------------------- |
+| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature |
+| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status             |
 
 ## 🚀 Quick Start
 
@@ -68,7 +69,7 @@ If you prefer not to use HACS:
 After setup, click **Configure** on the integration to adjust:
 
 - **Update interval**: How often to poll the MOS API (10–3600 seconds, default 30)
-- **Enable disks / storage pools / services**: Turn any of these entity categories off entirely if you don't want them (e.g. no VMs configured, so hide the services entities)
+- **Enable disks / storage pools / services / system health**: Turn any of these entity categories off entirely if you don't want them (e.g. no VMs configured, so hide the services entities)
 
 Changing an option reloads the integration automatically.
 
@@ -83,6 +84,7 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 ### Sensors
 
 - **System info**: MOS version, update channel, build, API version, frontend version, running/recommended kernel, architecture, CPU, base OS, boot time
+- **System health**: CPU load (%), CPU temperature, memory usage (%), memory used, swap usage (%)
 - **Storage pools** (per pool): Usage (%), free space
 - **Physical disks** (per disk): Power status, temperature status
 
@@ -117,6 +119,7 @@ You can change these anytime by clicking **Configure**:
 | Enable disks         | On      | Create entities for physical disks                            |
 | Enable storage pools | On      | Create entities for storage pools                             |
 | Enable services      | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
+| Enable system health | On      | Create entities for live CPU/memory/swap usage                |
 
 ## Troubleshooting
 
