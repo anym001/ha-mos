@@ -112,8 +112,7 @@ class MOSApiClient:
         self._session = session
 
         scheme = "https" if use_ssl else "http"
-        if port is None:
-            port = DEFAULT_PORT_HTTPS if use_ssl else DEFAULT_PORT_HTTP
+        port = int(port) if port is not None else (DEFAULT_PORT_HTTPS if use_ssl else DEFAULT_PORT_HTTP)
         root_url = f"{scheme}://{host}:{port}"
         self._base_url = f"{root_url}{API_BASE_PATH}"
         self._root_base_url = f"{root_url}{API_ROOT_PATH}"
