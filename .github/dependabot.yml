@@ -5,9 +5,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    # PRs always target dev, never main (branching convention, see
-    # CONTRIBUTING.md); main only updates via the dev -> main release PR.
-    target-branch: "dev"
     commit-message:
       prefix: "chore(deps)"
 
@@ -15,7 +12,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    target-branch: "dev"
     commit-message:
       prefix: "chore(deps)"
     groups:
@@ -31,7 +27,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    target-branch: "dev"
     commit-message:
       prefix: "chore(deps)"
     ignore:
