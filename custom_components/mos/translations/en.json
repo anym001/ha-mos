@@ -48,10 +48,16 @@
         "title": "MOS options",
         "description": "Customize how this integration operates.",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Update interval (seconds)",
+          "enable_disks": "Enable disks",
+          "enable_pools": "Enable storage pools",
+          "enable_services": "Enable services"
         },
         "data_description": {
-          "scan_interval": "How often to poll the MOS API (10 to 3600 seconds)."
+          "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
+          "enable_disks": "Create entities for physical disks.",
+          "enable_pools": "Create entities for storage pools.",
+          "enable_services": "Create entities for system services (Docker, VM, SSH, ...)."
         }
       }
     }
@@ -98,6 +104,56 @@
       },
       "base_os": {
         "name": "Base OS"
+      },
+      "pool_usage": {
+        "name": "{pool_name} usage"
+      },
+      "pool_free_space": {
+        "name": "{pool_name} free space"
+      },
+      "disk_power_status": {
+        "name": "{disk_name} power status"
+      },
+      "disk_temperature_status": {
+        "name": "{disk_name} temperature status"
+      }
+    },
+    "binary_sensor": {
+      "docker_running": {
+        "name": "Docker running"
+      },
+      "vm_running": {
+        "name": "VM running"
+      },
+      "ssh_enabled": {
+        "name": "SSH enabled"
+      },
+      "samba_enabled": {
+        "name": "Samba enabled"
+      },
+      "nfs_enabled": {
+        "name": "NFS enabled"
+      },
+      "tailscale_online": {
+        "name": "Tailscale online"
+      },
+      "netbird_online": {
+        "name": "Netbird online"
+      },
+      "pool_problem": {
+        "name": "{pool_name} problem"
+      },
+      "pool_scrub_running": {
+        "name": "{pool_name} scrub running"
+      },
+      "pool_balance_running": {
+        "name": "{pool_name} balance running"
+      },
+      "pool_parity_running": {
+        "name": "{pool_name} parity running"
+      },
+      "disk_smart_warning": {
+        "name": "{disk_name} SMART warning"
       }
     }
   }

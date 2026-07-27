@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
-from homeassistant.const import EntityCategory
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
@@ -66,70 +65,60 @@ ENTITY_DESCRIPTIONS: tuple[MOSSensorEntityDescription, ...] = (
         key="mos_version",
         translation_key="mos_version",
         icon="mdi:tag-outline",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("version"),
     ),
     MOSSensorEntityDescription(
         key="mos_channel",
         translation_key="mos_channel",
         icon="mdi:source-branch",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("channel"),
     ),
     MOSSensorEntityDescription(
         key="mos_build",
         translation_key="mos_build",
         icon="mdi:hammer-wrench",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("build"),
     ),
     MOSSensorEntityDescription(
         key="mos_api",
         translation_key="mos_api",
         icon="mdi:api",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("api"),
     ),
     MOSSensorEntityDescription(
         key="mos_frontend",
         translation_key="mos_frontend",
         icon="mdi:monitor-dashboard",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("frontend"),
     ),
     MOSSensorEntityDescription(
         key="running_kernel",
         translation_key="running_kernel",
         icon="mdi:penguin",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("running_kernel"),
     ),
     MOSSensorEntityDescription(
         key="recommended_kernel",
         translation_key="recommended_kernel",
         icon="mdi:penguin",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("recommended_kernel"),
     ),
     MOSSensorEntityDescription(
         key="arch",
         translation_key="arch",
         icon="mdi:chip",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("arch"),
     ),
     MOSSensorEntityDescription(
         key="cpu_brand",
         translation_key="cpu_brand",
         icon="mdi:cpu-64-bit",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda osinfo: (osinfo.get("cpu") or {}).get("brand"),
     ),
     MOSSensorEntityDescription(
         key="base_os",
         translation_key="base_os",
         icon="mdi:linux",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=_base_os,
     ),
 )

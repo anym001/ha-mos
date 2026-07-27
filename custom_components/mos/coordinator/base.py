@@ -11,10 +11,19 @@ https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
-from custom_components.mos.const import LOGGER
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
+    DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SERVICES,
+    LOGGER,
+)
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -69,12 +78,19 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         It is called automatically based on the update_interval.
 
         The returned data is keyed by resource so that additional endpoints
-        (disks, docker, ...) can be added as further keys in later phases without
-        breaking existing entities:
+        can be added as further keys in later phases without breaking existing
+        entities:
 
         {
-            "osinfo": {...},   # System / hardware information from /osinfo
+            "osinfo": {...},     # System / hardware information from /osinfo
+            "services": {...},   # Service enabled/running flags from /services
+            "disks": [...],      # Physical disks from /disks
+            "pools": [...],      # Storage pools from /pools
         }
+
+        Resources disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
+        friends) are not fetched at all and default to an empty payload, so
+        the corresponding platforms simply create no entities for them.
 
         Returns:
             The data from the API as a dictionary keyed by resource.
@@ -84,8 +100,18 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             UpdateFailed: If data fetching fails for other reasons.
         """
         client = self.config_entry.runtime_data.client
+        options = self.config_entry.options
+
+        tasks: dict[str, Any] = {"osinfo": client.async_get_osinfo()}
+        if options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
+            tasks["services"] = client.async_get_services()
+        if options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
+            tasks["disks"] = client.async_get_disks()
+        if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
+            tasks["pools"] = client.async_get_pools()
+
         try:
-            return {"osinfo": await client.async_get_osinfo()}
+            results = await asyncio.gather(*tasks.values())
         except MOSApiClientAuthenticationError as exception:
             LOGGER.warning("Authentication error - %s", exception)
             raise ConfigEntryAuthFailed(
@@ -98,3 +124,9 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_domain="mos",
                 translation_key="update_failed",
             ) from exception
+
+        data: dict[str, Any] = dict(zip(tasks.keys(), results, strict=True))
+        data.setdefault("services", {})
+        data.setdefault("disks", [])
+        data.setdefault("pools", [])
+        return data

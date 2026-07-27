@@ -12,7 +12,17 @@ from typing import Any
 
 import voluptuous as vol
 
-from custom_components.mos.const import DEFAULT_SCAN_INTERVAL, MAX_SCAN_INTERVAL, MIN_SCAN_INTERVAL
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
+    DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SERVICES,
+    DEFAULT_SCAN_INTERVAL,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
+)
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.helpers import selector
 
@@ -43,6 +53,18 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
                     mode=selector.NumberSelectorMode.BOX,
                 ),
             ),
+            vol.Optional(
+                CONF_ENABLE_DISKS,
+                default=defaults.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_POOLS,
+                default=defaults.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_SERVICES,
+                default=defaults.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES),
+            ): selector.BooleanSelector(),
         },
     )
 

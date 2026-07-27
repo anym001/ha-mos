@@ -45,6 +45,9 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         self,
         coordinator: MOSDataUpdateCoordinator,
         entity_description: EntityDescription,
+        *,
+        unique_id: str | None = None,
+        translation_placeholders: dict[str, str] | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -52,16 +55,25 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         Args:
             coordinator: The data update coordinator for this entity.
             entity_description: The entity description defining characteristics.
+            unique_id: Optional unique_id override, for entities whose identity
+                includes more than just the entry and description key (e.g. a
+                per-disk or per-pool suffix). Defaults to ``{entry_id}_{key}``.
+            translation_placeholders: Optional placeholders for this entity's
+                translated name, e.g. ``{"pool_name": "Test1"}``. Used by
+                per-item entities (disks, pools) that share the main server
+                device and need the item's own name folded into the entity
+                name/entity_id to stay unique and readable.
 
         """
         super().__init__(coordinator)
         self.entity_description = entity_description
         entry = coordinator.config_entry
         # Include entity description key in unique_id to support multiple entities
-        self._attr_unique_id = f"{entry.entry_id}_{entity_description.key}"
+        self._attr_unique_id = unique_id or f"{entry.entry_id}_{entity_description.key}"
+        if translation_placeholders is not None:
+            self._attr_translation_placeholders = translation_placeholders
 
         osinfo: dict = (coordinator.data or {}).get("osinfo", {})
-        cpu: dict = osinfo.get("cpu", {})
         mos: dict = osinfo.get("mos", {})
 
         host = entry.data.get(CONF_HOST)
@@ -78,7 +90,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             },
             name=entry.title or osinfo.get("hostname"),
             manufacturer="MOS",
-            model=cpu.get("brand"),
-            sw_version=mos.get("version"),
+            model=mos.get("version"),
+            sw_version=mos.get("build"),
             configuration_url=configuration_url if host else None,
         )
