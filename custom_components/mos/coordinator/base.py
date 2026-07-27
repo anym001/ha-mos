@@ -118,6 +118,32 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             LOGGER.debug("Token permission introspection unavailable - %s", exception)
             self.token_permissions = None
 
+    def _optimistically_set_container_state(self, resource_key: str, name: str, state: str) -> None:
+        """
+        Patch a single container's ``state`` in ``self.data`` and notify listeners, without polling.
+
+        Used after a successful start/stop so the switch flips immediately,
+        instead of waiting on (or triggering) a full ``_async_update_data``
+        round trip. That round trip previously ran via ``async_request_refresh()``
+        right after a start/stop call that can itself take up to
+        ``CONTAINER_ACTION_TIMEOUT`` - on a short ``update_interval`` that
+        collides with the *next* regularly scheduled poll, doubling up
+        concurrent requests against the MOS server right when it's already
+        slow. ``async_set_updated_data`` also reschedules the periodic timer,
+        so this doesn't cause an extra poll on top of the regular cadence.
+
+        If `name` isn't present in the current data (e.g. it raced a resource
+        being disabled), this is a no-op - the next scheduled poll will pick
+        up the real state regardless.
+        """
+        containers: list[dict[str, Any]] = self.data.get(resource_key) or []
+        if not any(container.get("name") == name for container in containers):
+            return
+        patched = [
+            {**container, "state": state} if container.get("name") == name else container for container in containers
+        ]
+        self.async_set_updated_data({**self.data, resource_key: patched})
+
     def _check_write_access(self, resource: str) -> None:
         """
         Raise if the configured token cannot write to `resource`.
@@ -144,7 +170,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def async_start_lxc_container(self, name: str) -> None:
         """
-        Start an LXC container, then refresh so its new state is reflected immediately.
+        Start an LXC container, then optimistically flip its local state to "running".
 
         Entities never call the API client directly (see api/__init__.py); this
         is the coordinator-side entry point for the switch platform's write action.
@@ -159,11 +185,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("lxc")
         client = self.config_entry.runtime_data.client
         await client.async_start_lxc_container(name)
-        await self.async_request_refresh()
+        self._optimistically_set_container_state("lxc_containers", name, "running")
 
     async def async_stop_lxc_container(self, name: str) -> None:
         """
-        Stop an LXC container, then refresh so its new state is reflected immediately.
+        Stop an LXC container, then optimistically flip its local state to "stopped".
 
         Raises:
             HomeAssistantError: If the token lacks write access to "lxc".
@@ -175,11 +201,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("lxc")
         client = self.config_entry.runtime_data.client
         await client.async_stop_lxc_container(name)
-        await self.async_request_refresh()
+        self._optimistically_set_container_state("lxc_containers", name, "stopped")
 
     async def async_start_docker_container(self, name: str) -> None:
         """
-        Start a Docker container, then refresh so its new state is reflected immediately.
+        Start a Docker container, then optimistically flip its local state to "running".
 
         Raises:
             HomeAssistantError: If the token lacks write access to "docker".
@@ -191,11 +217,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("docker")
         client = self.config_entry.runtime_data.client
         await client.async_start_docker_container(name)
-        await self.async_request_refresh()
+        self._optimistically_set_container_state("docker_containers", name, "running")
 
     async def async_stop_docker_container(self, name: str) -> None:
         """
-        Stop a Docker container, then refresh so its new state is reflected immediately.
+        Stop a Docker container, then optimistically flip its local state to "exited".
 
         Raises:
             HomeAssistantError: If the token lacks write access to "docker".
@@ -207,7 +233,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("docker")
         client = self.config_entry.runtime_data.client
         await client.async_stop_docker_container(name)
-        await self.async_request_refresh()
+        self._optimistically_set_container_state("docker_containers", name, "exited")
 
     async def async_start_vm_machine(self, name: str) -> None:
         """

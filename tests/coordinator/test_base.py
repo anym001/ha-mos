@@ -122,11 +122,11 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     assert coordinator.data["vm_machines"] == []
 
 
-async def test_async_start_lxc_container_calls_client_and_refreshes(
+async def test_async_start_lxc_container_calls_client_and_updates_state_optimistically(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """Starting a container calls the client's start endpoint and refreshes coordinator data."""
+    """Starting a container calls the client's start endpoint and flips its local state, without polling."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
     await coordinator.async_config_entry_first_refresh()
@@ -135,14 +135,16 @@ async def test_async_start_lxc_container_calls_client_and_refreshes(
     await coordinator.async_start_lxc_container("webserver")
 
     mock_client.async_start_lxc_container.assert_called_once_with("webserver")
-    mock_client.async_get_lxc_containers.assert_called_once()
+    mock_client.async_get_lxc_containers.assert_not_called()
+    containers = {c["name"]: c["state"] for c in coordinator.data["lxc_containers"]}
+    assert containers == {"database": "running", "webserver": "running"}
 
 
-async def test_async_stop_lxc_container_calls_client_and_refreshes(
+async def test_async_stop_lxc_container_calls_client_and_updates_state_optimistically(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """Stopping a container calls the client's stop endpoint and refreshes coordinator data."""
+    """Stopping a container calls the client's stop endpoint and flips its local state, without polling."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
     await coordinator.async_config_entry_first_refresh()
@@ -151,14 +153,16 @@ async def test_async_stop_lxc_container_calls_client_and_refreshes(
     await coordinator.async_stop_lxc_container("database")
 
     mock_client.async_stop_lxc_container.assert_called_once_with("database")
-    mock_client.async_get_lxc_containers.assert_called_once()
+    mock_client.async_get_lxc_containers.assert_not_called()
+    containers = {c["name"]: c["state"] for c in coordinator.data["lxc_containers"]}
+    assert containers == {"database": "stopped", "webserver": "stopped"}
 
 
-async def test_async_start_docker_container_calls_client_and_refreshes(
+async def test_async_start_docker_container_calls_client_and_updates_state_optimistically(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """Starting a Docker container calls the client's start endpoint and refreshes coordinator data."""
+    """Starting a Docker container calls the client's start endpoint and flips its local state, without polling."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
     await coordinator.async_config_entry_first_refresh()
@@ -167,14 +171,16 @@ async def test_async_start_docker_container_calls_client_and_refreshes(
     await coordinator.async_start_docker_container("nginx")
 
     mock_client.async_start_docker_container.assert_called_once_with("nginx")
-    mock_client.async_get_docker_containers.assert_called_once()
+    mock_client.async_get_docker_containers.assert_not_called()
+    containers = {c["name"]: c["state"] for c in coordinator.data["docker_containers"]}
+    assert containers == {"PushBits": "running", "nginx": "running"}
 
 
-async def test_async_stop_docker_container_calls_client_and_refreshes(
+async def test_async_stop_docker_container_calls_client_and_updates_state_optimistically(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """Stopping a Docker container calls the client's stop endpoint and refreshes coordinator data."""
+    """Stopping a Docker container calls the client's stop endpoint and flips its local state, without polling."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
     await coordinator.async_config_entry_first_refresh()
@@ -183,7 +189,9 @@ async def test_async_stop_docker_container_calls_client_and_refreshes(
     await coordinator.async_stop_docker_container("PushBits")
 
     mock_client.async_stop_docker_container.assert_called_once_with("PushBits")
-    mock_client.async_get_docker_containers.assert_called_once()
+    mock_client.async_get_docker_containers.assert_not_called()
+    containers = {c["name"]: c["state"] for c in coordinator.data["docker_containers"]}
+    assert containers == {"PushBits": "exited", "nginx": "exited"}
 
 
 async def test_async_start_vm_machine_calls_client_and_refreshes(
