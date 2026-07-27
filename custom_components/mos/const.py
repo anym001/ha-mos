@@ -13,6 +13,11 @@ API_BASE_PATH = "/api/v1/mos"
 API_ROOT_PATH = "/api/v1"
 CONF_API_TOKEN = "api_token"
 DEFAULT_TIMEOUT = 10
+# Docker start/stop is proxied synchronously to the Docker Engine, which itself
+# waits up to ~10s (SIGTERM grace period) before killing the container. That's
+# right at the edge of DEFAULT_TIMEOUT, so containers that take a few seconds to
+# shut down can trip our own timeout even though the stop succeeds a moment later.
+DOCKER_ACTION_TIMEOUT = 30
 
 # Connection defaults
 DEFAULT_SSL = False
