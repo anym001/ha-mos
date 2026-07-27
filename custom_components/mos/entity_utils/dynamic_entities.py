@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -73,13 +74,21 @@ def async_setup_dynamic_entities(
 
         removed_ids = known.keys() - current_ids
         for item_id in removed_ids:
-            hass.async_create_task(_async_remove_entities(known.pop(item_id)))
+            hass.async_create_task(_async_remove_entities(hass, known.pop(item_id)))
 
     _sync()
     entry.async_on_unload(coordinator.async_add_listener(_sync))
 
 
-async def _async_remove_entities(entities: Sequence[Entity]) -> None:
-    """Remove entities that no longer have a backing item."""
+async def _async_remove_entities(hass: HomeAssistant, entities: Sequence[Entity]) -> None:
+    """Remove entities that no longer have a backing item, including their registry entry.
+
+    ``async_remove`` alone only clears the entity's state; without also removing
+    the entity registry entry, a disk/pool that disappears for good would leave
+    a permanently orphaned, unavailable entity behind.
+    """
+    registry = er.async_get(hass)
     for entity in entities:
         await entity.async_remove(force_remove=True)
+        if entity.entity_id and registry.async_get(entity.entity_id):
+            registry.async_remove(entity.entity_id)

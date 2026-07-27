@@ -13,8 +13,8 @@ on:
 permissions: {}
 
 # IMPORTANT: Keep HA_VERSION synchronized across all workflow files:
-# - copilot-setup-steps.yml
 # - lint.yml
+# - test.yml
 # - validate.yml (if added in the future)
 
 jobs:

@@ -38,13 +38,16 @@ def _host_fields(defaults: Mapping[str, Any]) -> dict[Any, Any]:
         vol.Optional(
             CONF_PORT,
             default=defaults.get(CONF_PORT, vol.UNDEFINED),
-        ): selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                min=1,
-                max=65535,
-                step=1,
-                mode=selector.NumberSelectorMode.BOX,
+        ): vol.All(
+            selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=65535,
+                    step=1,
+                    mode=selector.NumberSelectorMode.BOX,
+                ),
             ),
+            vol.Coerce(int),
         ),
         vol.Optional(
             CONF_SSL,
