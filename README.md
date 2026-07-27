@@ -27,9 +27,9 @@ All entities live on a single MOS device — there's no per-disk or per-pool dev
 
 **This integration sets up the following platforms.**
 
-| Platform        | Description                                                          |
+| Platform        | Description                                                           |
 | --------------- | --------------------------------------------------------------------- |
-| `sensor`        | System info, storage pool usage/free space, disk power/temperature   |
+| `sensor`        | System info, storage pool usage/free space, disk power/temperature    |
 | `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status |
 
 ## 🚀 Quick Start
@@ -102,25 +102,25 @@ Disks and pools appear/disappear automatically as they're added or removed on th
 
 ### During Setup
 
-| Name              | Required | Description                                             |
-| ----------------- | -------- | -------------------------------------------------------- |
-| Name              | Yes      | Friendly name for this server; used as the device name  |
-| Host              | Yes      | MOS server IP address or hostname                        |
-| API token         | Yes      | Admin API token from the MOS web UI                       |
-| Port              | No       | Defaults to 80 (HTTP) or 443 (HTTPS)                      |
-| Use HTTPS         | No       | Off by default                                            |
-| Verify TLS certificate | No  | On by default                                             |
+| Name                   | Required | Description                                            |
+| ---------------------- | -------- | ------------------------------------------------------ |
+| Name                   | Yes      | Friendly name for this server; used as the device name |
+| Host                   | Yes      | MOS server IP address or hostname                      |
+| API token              | Yes      | Admin API token from the MOS web UI                    |
+| Port                   | No       | Defaults to 80 (HTTP) or 443 (HTTPS)                   |
+| Use HTTPS              | No       | Off by default                                         |
+| Verify TLS certificate | No       | On by default                                          |
 
 ### After Setup (Options)
 
 You can change these anytime by clicking **Configure**:
 
-| Name                    | Default | Description                                  |
-| ----------------------- | ------- | --------------------------------------------- |
-| Update interval         | 30s     | How often to poll the MOS API (10–3600s)      |
-| Enable disks            | On      | Create entities for physical disks            |
-| Enable storage pools    | On      | Create entities for storage pools             |
-| Enable services         | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
+| Name                 | Default | Description                                                   |
+| -------------------- | ------- | ------------------------------------------------------------- |
+| Update interval      | 30s     | How often to poll the MOS API (10–3600s)                      |
+| Enable disks         | On      | Create entities for physical disks                            |
+| Enable storage pools | On      | Create entities for storage pools                             |
+| Enable services      | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
 
 ## Troubleshooting
 
