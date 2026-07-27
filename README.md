@@ -28,11 +28,11 @@ Disks and storage pools live on the single MOS server device — there's no per-
 
 **This integration sets up the following platforms.**
 
-| Platform        | Description                                                                                             |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
+| Platform        | Description                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info, VM info |
-| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state, VM state |
-| `switch`        | LXC container, Docker container, and VM power (start/stop on the MOS server)                            |
+| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state, VM state           |
+| `switch`        | LXC container, Docker container, and VM power (start/stop on the MOS server)                                          |
 
 ## 🚀 Quick Start
 
@@ -132,15 +132,15 @@ All three switches check the configured API token's permission scope before atte
 
 You can change these anytime by clicking **Configure**:
 
-| Name                 | Default | Description                                                   |
-| -------------------- | ------- | ------------------------------------------------------------- |
-| Update interval      | 30s     | How often to poll the MOS API (10–3600s)                      |
-| Enable disks         | On      | Create entities for physical disks                            |
-| Enable storage pools | On      | Create entities for storage pools                             |
-| Enable services      | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
-| Enable LXC containers   | On   | Create entities for each LXC container                        |
-| Enable Docker containers | On  | Create entities for each Docker container                     |
-| Enable VMs               | On  | Create entities for each VM                                   |
+| Name                     | Default | Description                                                   |
+| ------------------------ | ------- | ------------------------------------------------------------- |
+| Update interval          | 30s     | How often to poll the MOS API (10–3600s)                      |
+| Enable disks             | On      | Create entities for physical disks                            |
+| Enable storage pools     | On      | Create entities for storage pools                             |
+| Enable services          | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
+| Enable LXC containers    | On      | Create entities for each LXC container                        |
+| Enable Docker containers | On      | Create entities for each Docker container                     |
+| Enable VMs               | On      | Create entities for each VM                                   |
 
 System health (CPU load/temperature, memory, swap) is always enabled and has no toggle.
 
