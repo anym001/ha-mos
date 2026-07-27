@@ -30,6 +30,7 @@ async def test_data_sample_includes_all_resources(
     mock_system_load: dict,
     mock_lxc_containers: list[dict],
     mock_docker_containers: list[dict],
+    mock_vm_machines: list[dict],
 ) -> None:
     """The data sample surfaces every polled resource alongside osinfo."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
@@ -43,6 +44,7 @@ async def test_data_sample_includes_all_resources(
     # docker_containers has a "state" field merged in from the Docker Engine proxy.
     assert {c["name"] for c in data_sample["docker_containers"]} == {c["name"] for c in mock_docker_containers}
     assert all("state" in c for c in data_sample["docker_containers"])
+    assert data_sample["vm_machines"] == mock_vm_machines
     assert data_sample["osinfo"]["hostname"] == "sirius"
 
 
@@ -61,10 +63,10 @@ async def test_devices_and_entities_are_reported(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """The server device plus one device per LXC/Docker container are reported."""
+    """The server device plus one device per LXC/Docker/VM item are reported."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
 
-    # 1 server device + 2 mock LXC containers + 2 mock Docker containers.
-    assert len(diagnostics["devices"]) == 5
+    # 1 server device + 2 mock LXC containers + 2 mock Docker containers + 2 mock VMs.
+    assert len(diagnostics["devices"]) == 7
     for device in diagnostics["devices"]:
         assert device["entity_count"] > 0

@@ -9,10 +9,12 @@ from custom_components.mos.const import (
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
+    CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_VM,
     PARALLEL_UPDATES as PARALLEL_UPDATES,
 )
 from custom_components.mos.entity_utils import async_setup_dynamic_entities
@@ -23,6 +25,7 @@ from .lxc import build_lxc_container_sensors
 from .pools import build_pool_sensors
 from .system import ENTITY_DESCRIPTIONS as SYSTEM_DESCRIPTIONS, MOSSystemSensor
 from .system_health import ENTITY_DESCRIPTIONS as SYSTEM_HEALTH_DESCRIPTIONS, MOSSystemHealthSensor
+from .vm import build_vm_machine_sensors
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
@@ -88,4 +91,14 @@ async def async_setup_entry(
             id_fn=lambda container: container["name"],
             entity_factory=build_docker_container_sensors,
             device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_docker_{name}"),
+        )
+    if entry.options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="vm_machines",
+            id_fn=lambda machine: machine["name"],
+            entity_factory=build_vm_machine_sensors,
+            device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_vm_{name}"),
         )

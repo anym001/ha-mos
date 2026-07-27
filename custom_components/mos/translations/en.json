@@ -53,7 +53,8 @@
           "enable_pools": "Enable storage pools",
           "enable_services": "Enable services",
           "enable_lxc": "Enable LXC containers",
-          "enable_docker": "Enable Docker containers"
+          "enable_docker": "Enable Docker containers",
+          "enable_vm": "Enable VMs"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
@@ -61,7 +62,8 @@
           "enable_pools": "Create entities for storage pools.",
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
           "enable_lxc": "Create entities for each LXC container.",
-          "enable_docker": "Create entities for each Docker container."
+          "enable_docker": "Create entities for each Docker container.",
+          "enable_vm": "Create entities for each VM."
         }
       }
     }
@@ -84,6 +86,12 @@
     },
     "docker_stop_failed": {
       "message": "Failed to stop Docker container {name}."
+    },
+    "vm_start_failed": {
+      "message": "Failed to start VM {name}."
+    },
+    "vm_stop_failed": {
+      "message": "Failed to stop VM {name}."
     },
     "insufficient_write_permission": {
       "message": "The configured API token does not have write access to {resource}."
@@ -162,6 +170,12 @@
       },
       "docker_latest_version": {
         "name": "Latest version"
+      },
+      "vm_cpu_usage": {
+        "name": "CPU usage"
+      },
+      "vm_memory_usage": {
+        "name": "Memory usage"
       }
     },
     "binary_sensor": {
@@ -209,6 +223,9 @@
       },
       "docker_autostart": {
         "name": "Autostart"
+      },
+      "vm_autostart": {
+        "name": "Autostart"
       }
     },
     "switch": {
@@ -216,6 +233,9 @@
         "name": "Power"
       },
       "docker_power": {
+        "name": "Power"
+      },
+      "vm_power": {
         "name": "Power"
       }
     }

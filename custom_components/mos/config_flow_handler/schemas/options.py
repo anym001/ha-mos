@@ -18,11 +18,13 @@ from custom_components.mos.const import (
     CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
+    CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
+    DEFAULT_ENABLE_VM,
     DEFAULT_SCAN_INTERVAL,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
@@ -76,6 +78,10 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
             vol.Optional(
                 CONF_ENABLE_DOCKER,
                 default=defaults.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_VM,
+                default=defaults.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM),
             ): selector.BooleanSelector(),
         },
     )

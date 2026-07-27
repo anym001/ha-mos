@@ -180,6 +180,29 @@ def mock_docker_engine_containers() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_vm_machines() -> list[dict[str, Any]]:
+    """Return a realistic ``/vm/machines/usage`` payload."""
+    return [
+        {
+            "name": "Test",
+            "state": "running",
+            "autostart": True,
+            "cpu": {"usage": 12.5, "unit": "%"},
+            "memory": {"bytes": 2147483648, "formatted": "2.00 GiB"},
+            "vncPort": 5900,
+        },
+        {
+            "name": "Legacy",
+            "state": "stopped",
+            "autostart": False,
+            "cpu": {"usage": 0, "unit": "%"},
+            "memory": {"bytes": 0, "formatted": "0 GiB"},
+            "vncPort": None,
+        },
+    ]
+
+
+@pytest.fixture
 def mock_token_permissions() -> dict[str, Any]:
     """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
     return {
@@ -220,6 +243,7 @@ def mock_client(
     mock_lxc_containers: list[dict[str, Any]],
     mock_docker_containers: list[dict[str, Any]],
     mock_docker_engine_containers: list[dict[str, Any]],
+    mock_vm_machines: list[dict[str, Any]],
     mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
@@ -232,6 +256,7 @@ def mock_client(
     client.async_get_lxc_containers.return_value = mock_lxc_containers
     client.async_get_docker_containers.return_value = mock_docker_containers
     client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
+    client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"  # noqa: SLF001

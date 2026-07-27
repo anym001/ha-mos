@@ -323,6 +323,56 @@ class MOSApiClient:
         """
         await self._post(f"docker/containers/{name}/stop", base_url=self._root_base_url)
 
+    async def async_get_vm_machines(self) -> list[dict[str, Any]]:
+        """
+        Get VM status and resource usage from ``/vm/machines/usage``.
+
+        Like ``/lxc/containers/usage``, this is used instead of the plainer
+        ``/vm/machines`` because it is a strict superset: it includes the
+        same name/state/autostart fields plus live CPU and memory usage, in
+        a single call.
+
+        Returns:
+            The parsed ``vm/machines/usage`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("vm/machines/usage", base_url=self._root_base_url)
+
+    async def async_start_vm_machine(self, name: str) -> dict[str, Any]:
+        """
+        Start a single VM via ``POST /vm/machines/{name}/start``.
+
+        Returns:
+            The parsed ``OperationResult`` payload (``{"success", "message"}``).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._post(f"vm/machines/{name}/start", base_url=self._root_base_url)
+
+    async def async_stop_vm_machine(self, name: str) -> dict[str, Any]:
+        """
+        Stop a single VM via ``POST /vm/machines/{name}/stop``.
+
+        Returns:
+            The parsed ``OperationResult`` payload (``{"success", "message"}``).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._post(f"vm/machines/{name}/stop", base_url=self._root_base_url)
+
     async def async_get_token_permissions(self) -> dict[str, Any]:
         """
         Introspect the permission scope of the token used for authentication.

@@ -183,6 +183,57 @@ async def test_stop_lxc_container_posts_to_root_path(
     assert aioclient_mock.mock_calls[0][0] == "post"
 
 
+async def test_vm_machines_uses_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """vm_machines is fetched from the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/vm/machines/usage",
+        json=[{"name": "Test", "state": "running"}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_vm_machines() == [{"name": "Test", "state": "running"}]
+
+
+async def test_start_vm_machine_posts_to_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Starting a VM POSTs to the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/vm/machines/Test/start",
+        json={"success": True, "message": "VM Test successfully started"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_start_vm_machine("Test")
+
+    assert result == {"success": True, "message": "VM Test successfully started"}
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
+async def test_stop_vm_machine_posts_to_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Stopping a VM POSTs to the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/vm/machines/Test/stop",
+        json={"success": True, "message": "VM Test successfully stopped"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_stop_vm_machine("Test")
+
+    assert result == {"success": True, "message": "VM Test successfully stopped"}
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
 async def test_token_permissions_use_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

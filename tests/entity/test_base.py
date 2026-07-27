@@ -44,13 +44,13 @@ async def test_lxc_and_docker_containers_get_their_own_device(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Each LXC/Docker container is a separate device linked back to the server device."""
+    """Each LXC/Docker/VM item is a separate device linked back to the server device."""
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, setup_integration.entry_id)
 
-    # 1 server device + 2 mock LXC containers + 2 mock Docker containers.
-    assert len(devices) == 5
+    # 1 server device + 2 mock LXC containers + 2 mock Docker containers + 2 mock VMs.
+    assert len(devices) == 7
     server_device = registry.async_get_device(identifiers={(DOMAIN, setup_integration.entry_id)})
     container_devices = [device for device in devices if device.id != server_device.id]
-    assert len(container_devices) == 4
+    assert len(container_devices) == 6
     assert all(device.via_device_id == server_device.id for device in container_devices)

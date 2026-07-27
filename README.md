@@ -17,21 +17,22 @@
 - **System Health**: Live CPU load/temperature, memory usage, and swap usage
 - **LXC Containers**: Per-container CPU/memory usage, autostart, and a power switch to start/stop the container
 - **Docker Containers**: Per-container installed/latest version, update-available status, autostart, and a power switch to start/stop the container (via the raw Docker Engine proxy - a deliberate MOS design choice, since Docker has no purpose-built single-container endpoint like LXC does)
+- **Virtual Machines**: Per-VM CPU/memory usage, autostart, and a power switch to start/stop the VM
 - **Permission-Aware Writes**: Start/stop actions check the API token's permission scope first and fail with a clear error if the token isn't allowed to write to that resource, instead of a raw server rejection
-- **Selective Categories**: Turn disks, pools, services, LXC, or Docker containers on/off entirely via the options flow
+- **Selective Categories**: Turn disks, pools, services, LXC, Docker containers, or VMs on/off entirely via the options flow
 - **Reconfigurable**: Change connection details anytime without removing the integration
 - **Reauthentication**: Prompted automatically if the API token is rejected
 - **Diagnostics**: Download a full diagnostics report for troubleshooting
 
-Disks and storage pools live on the single MOS server device — there's no per-disk or per-pool device clutter; each pool/disk simply gets its own name folded into its entity ID (e.g. `sensor.mos_server_tank_usage`). LXC and Docker containers, on the other hand, each get their own device (linked back to the server device via `via_device`, named `<server> LXC <container>` / `<server> Docker <container>` to stay unique across multiple configured servers and disambiguate same-named LXC/Docker containers), since there can be many of them and you may want to enable/disable individual containers from their own device page.
+Disks and storage pools live on the single MOS server device — there's no per-disk or per-pool device clutter; each pool/disk simply gets its own name folded into its entity ID (e.g. `sensor.mos_server_tank_usage`). LXC containers, Docker containers, and VMs, on the other hand, each get their own device (linked back to the server device via `via_device`, named `<server> LXC <container>` / `<server> Docker <container>` / `<server> VM <machine>` to stay unique across multiple configured servers and disambiguate same-named items across categories), since there can be many of them and you may want to enable/disable individual containers/VMs from their own device page.
 
 **This integration sets up the following platforms.**
 
 | Platform        | Description                                                                                             |
 | --------------- | --------------------------------------------------------------------------------------------------------- |
-| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info |
-| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state        |
-| `switch`        | LXC and Docker container power (start/stop the container on the MOS server)                             |
+| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info, VM info |
+| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state, VM state |
+| `switch`        | LXC container, Docker container, and VM power (start/stop on the MOS server)                            |
 
 ## 🚀 Quick Start
 
@@ -73,7 +74,7 @@ If you prefer not to use HACS:
 After setup, click **Configure** on the integration to adjust:
 
 - **Update interval**: How often to poll the MOS API (10–3600 seconds, default 30)
-- **Enable disks / storage pools / services / LXC / Docker**: Turn any of these entity categories off entirely if you don't want them (e.g. no LXC containers configured, so hide the LXC entities)
+- **Enable disks / storage pools / services / LXC / Docker / VM**: Turn any of these entity categories off entirely if you don't want them (e.g. no LXC containers configured, so hide the LXC entities)
 
 Changing an option reloads the integration automatically.
 
@@ -93,6 +94,7 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 - **Physical disks** (per disk): Power status, temperature status
 - **LXC containers** (per container): CPU usage (%), memory usage
 - **Docker containers** (per container): Installed version, latest version
+- **VMs** (per VM): CPU usage (%), memory usage
 
 ### Binary Sensors
 
@@ -101,15 +103,17 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 - **Physical disks** (per disk): SMART warning (_Diagnostic_)
 - **LXC containers** (per container): Autostart
 - **Docker containers** (per container): Update available (_Diagnostic_), autostart
+- **VMs** (per VM): Autostart
 
 ### Switches
 
 - **LXC containers** (per container): Power - reflects whether the container is running, and starts/stops it on the MOS server when toggled (via MOS's dedicated `/lxc/containers/{name}/start`/`stop` endpoints)
 - **Docker containers** (per container): Power - same behavior, via the raw Docker Engine proxy (`/docker/containers/{name}/start`/`stop`)
+- **VMs** (per VM): Power - same behavior, via MOS's dedicated `/vm/machines/{name}/start`/`stop` endpoints
 
-Disks, pools, and LXC/Docker containers appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
+Disks, pools, LXC/Docker containers, and VMs appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
 
-Both switches check the configured API token's permission scope before attempting a write. A token restricted to read-only (or "custom" scope without write access to `lxc`/`docker`) fails with a clear error instead of a raw 401/403 from the server.
+All three switches check the configured API token's permission scope before attempting a write. A token restricted to read-only (or "custom" scope without write access to `lxc`/`docker`/`vm`) fails with a clear error instead of a raw 401/403 from the server.
 
 ## Configuration Options
 
@@ -136,6 +140,7 @@ You can change these anytime by clicking **Configure**:
 | Enable services      | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
 | Enable LXC containers   | On   | Create entities for each LXC container                        |
 | Enable Docker containers | On  | Create entities for each Docker container                     |
+| Enable VMs               | On  | Create entities for each VM                                   |
 
 System health (CPU load/temperature, memory, swap) is always enabled and has no toggle.
 

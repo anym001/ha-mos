@@ -21,11 +21,13 @@ from custom_components.mos.const import (
     CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
+    CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
+    DEFAULT_ENABLE_VM,
     LOGGER,
 )
 from custom_components.mos.entity_utils import has_write_access
@@ -207,6 +209,38 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         await client.async_stop_docker_container(name)
         await self.async_request_refresh()
 
+    async def async_start_vm_machine(self, name: str) -> None:
+        """
+        Start a VM, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "vm".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("vm")
+        client = self.config_entry.runtime_data.client
+        await client.async_start_vm_machine(name)
+        await self.async_request_refresh()
+
+    async def async_stop_vm_machine(self, name: str) -> None:
+        """
+        Stop a VM, then refresh so its new state is reflected immediately.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "vm".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("vm")
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_vm_machine(name)
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> Any:
         """
         Fetch data from the MOS API.
@@ -228,6 +262,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             "docker_containers": [...],  # Docker containers from /docker/mos/containers,
                                           # with "state" merged in from the raw Docker
                                           # Engine proxy (/docker/containers/json)
+            "vm_machines": [...],      # VMs from /vm/machines/usage
         }
 
         ``osinfo`` and ``system_load`` are always fetched. The other resources
@@ -261,6 +296,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         if options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
             tasks["docker_containers"] = client.async_get_docker_containers()
             tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
+        if options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
+            tasks["vm_machines"] = client.async_get_vm_machines()
 
         try:
             results = await asyncio.gather(*tasks.values())
@@ -283,6 +320,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("pools", [])
         data.setdefault("lxc_containers", [])
         data.setdefault("docker_containers", [])
+        data.setdefault("vm_machines", [])
         if "docker_engine_containers" in data:
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],

@@ -16,6 +16,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
+    CONF_ENABLE_VM,
     DOMAIN,
 )
 from homeassistant import config_entries
@@ -231,6 +232,7 @@ async def test_options_flow_defaults_and_update(
             CONF_ENABLE_SERVICES: True,
             CONF_ENABLE_LXC: True,
             CONF_ENABLE_DOCKER: True,
+            CONF_ENABLE_VM: True,
         },
     )
     await hass.async_block_till_done()
