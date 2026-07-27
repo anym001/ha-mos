@@ -1,5 +1,6 @@
 // Please keep this file (mostly!) in sync with settings in .devcontainer/devcontainer.json
 {
+  "chat.promptFiles": true,
   "editor.tabSize": 4,
   "editor.formatOnPaste": false,
   "editor.formatOnSave": true,
