@@ -22,6 +22,7 @@ import aiohttp
 from custom_components.mos.const import (
     API_BASE_PATH,
     API_ROOT_PATH,
+    CONTAINER_ACTION_TIMEOUT,
     DEFAULT_PORT_HTTP,
     DEFAULT_PORT_HTTPS,
     DEFAULT_TIMEOUT,
@@ -232,7 +233,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"lxc/containers/{name}/start", base_url=self._root_base_url)
+        return await self._post(
+            f"lxc/containers/{name}/start",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_stop_lxc_container(self, name: str) -> dict[str, Any]:
         """
@@ -247,7 +252,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"lxc/containers/{name}/stop", base_url=self._root_base_url)
+        return await self._post(
+            f"lxc/containers/{name}/stop",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_get_docker_containers(self) -> list[dict[str, Any]]:
         """
@@ -306,7 +315,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        await self._post(f"docker/containers/{name}/start", base_url=self._root_base_url)
+        await self._post(
+            f"docker/containers/{name}/start",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_stop_docker_container(self, name: str) -> None:
         """
@@ -321,7 +334,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        await self._post(f"docker/containers/{name}/stop", base_url=self._root_base_url)
+        await self._post(
+            f"docker/containers/{name}/stop",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_get_vm_machines(self) -> list[dict[str, Any]]:
         """
@@ -414,27 +431,38 @@ class MOSApiClient:
         """
         return await self._api_wrapper(method="get", resource=resource, base_url=base_url)
 
-    async def _post(self, resource: str, *, base_url: str | None = None) -> Any:
+    async def _post(
+        self,
+        resource: str,
+        *,
+        base_url: str | None = None,
+        timeout: int = DEFAULT_TIMEOUT,
+    ) -> Any:
         """
         Perform an authenticated POST on a MOS API resource (a write action).
 
         Args:
             resource: The resource path relative to the API base.
             base_url: Optional base URL override (see ``_get``).
+            timeout: Request timeout in seconds. Defaults to ``DEFAULT_TIMEOUT``;
+                pass a longer value for actions proxied to something with its own
+                grace period (e.g. Docker's stop/start).
 
         Returns:
             The parsed JSON response.
 
         """
-        return await self._api_wrapper(method="post", resource=resource, base_url=base_url)
+        return await self._api_wrapper(method="post", resource=resource, base_url=base_url, timeout=timeout)
 
     async def _api_wrapper(
         self,
         method: str,
         resource: str,
+        *,
         data: dict | None = None,
         headers: dict | None = None,
         base_url: str | None = None,
+        timeout: int = DEFAULT_TIMEOUT,
     ) -> Any:
         """
         Wrapper for API requests with error handling.
@@ -448,6 +476,7 @@ class MOSApiClient:
             data: Optional data to send in the request body.
             headers: Optional additional headers to include in the request.
             base_url: Optional base URL override (see ``_get``).
+            timeout: Request timeout in seconds.
 
         Returns:
             The JSON response from the API.
@@ -463,7 +492,7 @@ class MOSApiClient:
             request_headers.update(headers)
 
         try:
-            async with asyncio.timeout(DEFAULT_TIMEOUT):
+            async with asyncio.timeout(timeout):
                 response = await self._session.request(
                     method=method,
                     url=f"{base_url or self._base_url}/{resource}",
