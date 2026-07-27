@@ -46,7 +46,7 @@ feature/xyz ──PR──▶ dev ──(staging test)──▶ PR ──▶ mai
    must be green; enable "Auto-merge". **Use "Squash and merge"** with a
    [Conventional Commit](https://www.conventionalcommits.org/)-formatted PR title
    (e.g. `feat(mos): add pools, disks, and services entities`) — release-please
-   scans commit *subjects* on `dev`'s history for these prefixes, so intermediate
+   scans commit _subjects_ on `dev`'s history for these prefixes, so intermediate
    WIP commits on the feature branch don't need to be conventional themselves,
    but the single squashed commit that lands on `dev` does.
 3. Test the merged `dev` state (local `./script/develop`, or a HACS beta install
