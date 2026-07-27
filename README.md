@@ -7,10 +7,6 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-**✨ Develop in the cloud:** Want to contribute or customize this integration? Open it directly in GitHub Codespaces - no local setup required!
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/anym001/ha-mos?quickstart=1)
-
 ## ✨ Features
 
 - **Easy Setup**: Simple configuration through the UI - no YAML required
