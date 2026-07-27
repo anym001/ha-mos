@@ -4,22 +4,25 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import PARALLEL_UPDATES as PARALLEL_UPDATES
-from homeassistant.components.binary_sensor import BinarySensorEntityDescription
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
+    DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SERVICES,
+    PARALLEL_UPDATES as PARALLEL_UPDATES,
+)
+from custom_components.mos.entity_utils import async_setup_dynamic_entities
 
-from .connectivity import ENTITY_DESCRIPTIONS as CONNECTIVITY_DESCRIPTIONS, MOSConnectivitySensor
-from .filter import ENTITY_DESCRIPTIONS as FILTER_DESCRIPTIONS, MOSFilterSensor
+from .disks import build_disk_binary_sensors
+from .pools import build_pool_binary_sensors
+from .services import ENTITY_DESCRIPTIONS as SERVICE_DESCRIPTIONS, MOSServiceBinarySensor
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-# Combine all entity descriptions from different modules
-ENTITY_DESCRIPTIONS: tuple[BinarySensorEntityDescription, ...] = (
-    *CONNECTIVITY_DESCRIPTIONS,
-    *FILTER_DESCRIPTIONS,
-)
 
 
 async def async_setup_entry(
@@ -27,24 +30,31 @@ async def async_setup_entry(
     entry: MOSConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the binary_sensor platform."""
-    # Create connectivity sensors
-    connectivity_entities = [
-        MOSConnectivitySensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
+    """Set up the binary sensor platform."""
+    if entry.options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
+        async_add_entities(
+            MOSServiceBinarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in SERVICE_DESCRIPTIONS
         )
-        for entity_description in CONNECTIVITY_DESCRIPTIONS
-    ]
 
-    # Create filter sensors
-    filter_entities = [
-        MOSFilterSensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
+    if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="disks",
+            id_fn=lambda disk: disk["serial"],
+            entity_factory=build_disk_binary_sensors,
         )
-        for entity_description in FILTER_DESCRIPTIONS
-    ]
-
-    # Add all entities
-    async_add_entities([*connectivity_entities, *filter_entities])
+    if entry.options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="pools",
+            id_fn=lambda pool: str(pool["id"]),
+            entity_factory=build_pool_binary_sensors,
+        )

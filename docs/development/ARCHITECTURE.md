@@ -252,40 +252,6 @@ Typically read `AGENTS.md` for project overview and may use path-specific instru
 - Remove outdated rules to prevent bloat
 - Document major architectural decisions in `DECISIONS.md`
 
-### Using GitHub Copilot Coding Agent
-
-**GitHub Copilot Coding Agent** ([github.com/copilot/agents](https://github.com/copilot/agents)) can autonomously initialize new projects from this template and implement features.
-
-**Template Initialization:**
-
-When creating a repository from this template, you can provide a prompt to Copilot Coding Agent that includes:
-
-- Integration domain, title, and repository details
-- Instructions to run `initialize.sh` in unattended mode with `--force` flag
-- The agent will set up the project and create an initialization pull request
-
-**Working with initialized projects:**
-
-Once a project is initialized, Copilot Coding Agent:
-
-- Automatically reads all instruction files (`AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`)
-- Runs validation scripts (`script/check`) to verify changes
-- Creates pull requests with comprehensive implementations
-- Can iterate based on test failures and linter errors
-
-**Agent-specific instructions (since November 2025):**
-
-Use `excludeAgent` frontmatter to control which agents use specific instructions:
-
-```yaml
----
-applyTo: "**/*.py"
-excludeAgent: "code-review" # Only coding-agent uses this
----
-```
-
-See [`COPILOT_AGENT.md`](./COPILOT_AGENT.md) for detailed usage instructions, example prompts, and troubleshooting.
-
 ## Key Design Decisions
 
 See [DECISIONS.md](./DECISIONS.md) for architectural and design decisions made during development.

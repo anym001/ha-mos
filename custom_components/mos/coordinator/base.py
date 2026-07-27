@@ -11,10 +11,19 @@ https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
-from custom_components.mos.const import LOGGER
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    CONF_ENABLE_SERVICES,
+    DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SERVICES,
+    LOGGER,
+)
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -63,48 +72,46 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> Any:
         """
-        Fetch data from API endpoint.
+        Fetch data from the MOS API.
 
         This is the only method that should be implemented in a DataUpdateCoordinator.
         It is called automatically based on the update_interval.
 
-        Context-based fetching:
-        The coordinator tracks which entities are currently listening via async_contexts().
-        This allows optimizing API calls to only fetch data that's actually needed.
-        For example, if only sensor entities are enabled, we can skip fetching switch data.
+        The returned data is keyed by resource so that additional endpoints
+        can be added as further keys in later phases without breaking existing
+        entities:
 
-        The API client uses the credentials from config_entry to authenticate:
-        - username: from config_entry.data["username"]
-        - password: from config_entry.data["password"]
-
-        Expected API response structure (example):
         {
-            "userId": 1,      # Used as device identifier
-            "id": 1,          # Data record ID
-            "title": "...",   # Additional metadata
-            "body": "...",    # Additional content
-            # In production, would include:
-            # "air_quality": {"aqi": 45, "pm25": 12.3},
-            # "filter": {"life_remaining": 75, "runtime_hours": 324},
-            # "settings": {"fan_speed": "medium", "humidity": 55}
+            "osinfo": {...},     # System / hardware information from /osinfo
+            "services": {...},   # Service enabled/running flags from /services
+            "disks": [...],      # Physical disks from /disks
+            "pools": [...],      # Storage pools from /pools
         }
 
+        Resources disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
+        friends) are not fetched at all and default to an empty payload, so
+        the corresponding platforms simply create no entities for them.
+
         Returns:
-            The data from the API as a dictionary.
+            The data from the API as a dictionary keyed by resource.
 
         Raises:
             ConfigEntryAuthFailed: If authentication fails, triggers reauthentication.
-            UpdateFailed: If data fetching fails for other reasons, optionally with retry_after.
+            UpdateFailed: If data fetching fails for other reasons.
         """
-        try:
-            # Optional: Get active entity contexts to optimize data fetching
-            # listening_contexts = set(self.async_contexts())
-            # LOGGER.debug("Active entity contexts: %s", listening_contexts)
+        client = self.config_entry.runtime_data.client
+        options = self.config_entry.options
 
-            # Fetch data from API
-            # In production, you could pass listening_contexts to optimize the API call:
-            # return await self.config_entry.runtime_data.client.async_get_data(listening_contexts)
-            return await self.config_entry.runtime_data.client.async_get_data()
+        tasks: dict[str, Any] = {"osinfo": client.async_get_osinfo()}
+        if options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
+            tasks["services"] = client.async_get_services()
+        if options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
+            tasks["disks"] = client.async_get_disks()
+        if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
+            tasks["pools"] = client.async_get_pools()
+
+        try:
+            results = await asyncio.gather(*tasks.values())
         except MOSApiClientAuthenticationError as exception:
             LOGGER.warning("Authentication error - %s", exception)
             raise ConfigEntryAuthFailed(
@@ -113,10 +120,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             ) from exception
         except MOSApiClientError as exception:
             LOGGER.exception("Error communicating with API")
-            # If the API provides rate limit information, you can honor it:
-            # if hasattr(exception, 'retry_after'):
-            #     raise UpdateFailed(retry_after=exception.retry_after) from exception
             raise UpdateFailed(
                 translation_domain="mos",
                 translation_key="update_failed",
             ) from exception
+
+        data: dict[str, Any] = dict(zip(tasks.keys(), results, strict=True))
+        data.setdefault("services", {})
+        data.setdefault("disks", [])
+        data.setdefault("pools", [])
+        return data

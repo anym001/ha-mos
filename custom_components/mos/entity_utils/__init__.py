@@ -1,11 +1,10 @@
 """Entity utilities package for mos."""
 
-from .device_info import create_device_info, update_device_info
+from .dynamic_entities import async_setup_dynamic_entities
 from .state_helpers import format_state_value, parse_state_attributes
 
 __all__ = [
-    "create_device_info",
+    "async_setup_dynamic_entities",
     "format_state_value",
     "parse_state_attributes",
-    "update_device_info",
 ]

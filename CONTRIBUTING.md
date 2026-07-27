@@ -160,25 +160,6 @@ Run `script/check` to lint and type-check your code before submitting, or `scrip
 
 **Local validation:** Run `script/hassfest` to validate your integration against Home Assistant's quality standards using the official validation tools. This checks manifest.json, translations, services.yaml (service action definitions), and integration structure locally before pushing to GitHub.
 
-## GitHub Copilot Support
-
-This project includes [prompt files](./.github/prompts/) to help you work more efficiently with GitHub Copilot. These reusable templates provide context and requirements for common tasks:
-
-- **Add New Sensor** - Create sensors with proper structure
-- **Add New Service** - Implement services with validation
-- **Add Config Option** - Add configuration options to flows
-- **Add Entity to Device** - Expand device capabilities
-- **Debug Coordinator Issue** - Diagnose data update problems
-- **Update Translations** - Manage multilingual strings
-
-**Example usage in Copilot Chat:**
-
-```text
-#file:Add New Sensor.prompt.md Add a temperature sensor
-```
-
-See the prompt files in `.github/prompts/` for details on using these templates.
-
 ## Code Quality
 
 This blueprint follows Home Assistant's [integration quality standards](https://developers.home-assistant.io/docs/core/integration-quality-scale/) as best practices. The code includes:

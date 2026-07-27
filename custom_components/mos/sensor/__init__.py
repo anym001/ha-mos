@@ -4,22 +4,23 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import PARALLEL_UPDATES as PARALLEL_UPDATES
-from homeassistant.components.sensor import SensorEntityDescription
+from custom_components.mos.const import (
+    CONF_ENABLE_DISKS,
+    CONF_ENABLE_POOLS,
+    DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_POOLS,
+    PARALLEL_UPDATES as PARALLEL_UPDATES,
+)
+from custom_components.mos.entity_utils import async_setup_dynamic_entities
 
-from .air_quality import ENTITY_DESCRIPTIONS as AIR_QUALITY_DESCRIPTIONS, MOSAirQualitySensor
-from .diagnostic import ENTITY_DESCRIPTIONS as DIAGNOSTIC_DESCRIPTIONS, MOSDiagnosticSensor
+from .disks import build_disk_sensors
+from .pools import build_pool_sensors
+from .system import ENTITY_DESCRIPTIONS as SYSTEM_DESCRIPTIONS, MOSSystemSensor
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-# Combine all entity descriptions from different modules
-ENTITY_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
-    *AIR_QUALITY_DESCRIPTIONS,
-    *DIAGNOSTIC_DESCRIPTIONS,
-)
 
 
 async def async_setup_entry(
@@ -28,19 +29,29 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    # Add air quality sensors
     async_add_entities(
-        MOSAirQualitySensor(
+        MOSSystemSensor(
             coordinator=entry.runtime_data.coordinator,
             entity_description=entity_description,
         )
-        for entity_description in AIR_QUALITY_DESCRIPTIONS
+        for entity_description in SYSTEM_DESCRIPTIONS
     )
-    # Add diagnostic sensors
-    async_add_entities(
-        MOSDiagnosticSensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
+
+    if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="disks",
+            id_fn=lambda disk: disk["serial"],
+            entity_factory=build_disk_sensors,
         )
-        for entity_description in DIAGNOSTIC_DESCRIPTIONS
-    )
+    if entry.options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="pools",
+            id_fn=lambda pool: str(pool["id"]),
+            entity_factory=build_pool_sensors,
+        )

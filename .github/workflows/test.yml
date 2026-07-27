@@ -1,4 +1,4 @@
-name: Lint
+name: Test
 
 on:
   push:
@@ -18,8 +18,8 @@ permissions: {}
 # - validate.yml (if added in the future)
 
 jobs:
-  ruff:
-    name: "Ruff"
+  pytest:
+    name: "pytest"
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout the repository
@@ -54,11 +54,8 @@ jobs:
             ha-venv-${{ runner.os }}-py314-ha${{ steps.ha_version.outputs.HA_VERSION }}-
             ha-venv-${{ runner.os }}-py314-
 
-      - name: Install shfmt
-        run: sudo apt-get install -y shfmt
-
       - name: Install requirements
         run: script/setup/bootstrap
 
-      - name: Lint check
-        run: script/lint-check
+      - name: Run tests
+        run: script/test
