@@ -70,6 +70,38 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     assert coordinator.data["pools"] == []
 
 
+async def test_token_permissions_are_fetched_once_at_setup(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_token_permissions: dict,
+) -> None:
+    """Token permissions are introspected once during setup, not on every refresh."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
+
+    assert coordinator.token_permissions == mock_token_permissions
+    mock_client.async_get_token_permissions.assert_called_once()
+
+
+async def test_token_permissions_lookup_failure_does_not_block_setup(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A server that doesn't support token introspection yet (404) must not fail setup."""
+    mock_client.async_get_token_permissions.side_effect = MOSApiClientCommunicationError("not found")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.token_permissions is None
+    assert coordinator.last_update_success is True
+    assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
+
+
 async def test_authentication_error_raises_config_entry_auth_failed(
     hass: HomeAssistant,
     mock_client: AsyncMock,
