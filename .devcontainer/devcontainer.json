@@ -19,6 +19,7 @@
   // Runs on every container creation — installs all dependencies.
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   // Runs on every client attach — detects fresh blueprints and triggers initialization.
+  "postAttachCommand": "bash .devcontainer/post-attach.sh",
   "containerEnv": {
     // Python runtime variables — must be set for ALL Python processes, including those spawned
     // by VS Code extensions (Pylance, test runner, Ruff) that never go through our shell scripts.
@@ -106,6 +107,7 @@
       ],
       // Please keep this file in sync with settings in .vscode/settings.default.jsonc
       "settings": {
+        "chat.promptFiles": true,
         "editor.tabSize": 4,
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,
