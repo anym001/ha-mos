@@ -22,7 +22,7 @@ from custom_components.mos.const import (
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
 
 
 def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigEntry) -> MOSDataUpdateCoordinator:
@@ -38,8 +38,12 @@ def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigE
     )
 
 
-async def test_fetches_all_resources_by_default(hass: HomeAssistant, mock_client: AsyncMock) -> None:
-    """With no options set, all resources are fetched."""
+async def test_fetches_all_resources_by_default(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict],
+) -> None:
+    """With no options set, all resources are fetched; docker_containers gets a merged "state"."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
@@ -52,7 +56,10 @@ async def test_fetches_all_resources_by_default(hass: HomeAssistant, mock_client
         "disks": mock_client.async_get_disks.return_value,
         "pools": mock_client.async_get_pools.return_value,
         "lxc_containers": mock_client.async_get_lxc_containers.return_value,
-        "docker_containers": mock_client.async_get_docker_containers.return_value,
+        "docker_containers": [
+            {**mock_docker_containers[0], "state": "running"},
+            {**mock_docker_containers[1], "state": "exited"},
+        ],
     }
 
 
@@ -99,6 +106,7 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     mock_client.async_get_pools.assert_not_called()
     mock_client.async_get_lxc_containers.assert_not_called()
     mock_client.async_get_docker_containers.assert_not_called()
+    mock_client.async_get_docker_engine_containers.assert_not_called()
     mock_client.async_get_osinfo.assert_called_once()
 
     assert coordinator.data["services"] == {}
@@ -138,6 +146,86 @@ async def test_async_stop_lxc_container_calls_client_and_refreshes(
 
     mock_client.async_stop_lxc_container.assert_called_once_with("database")
     mock_client.async_get_lxc_containers.assert_called_once()
+
+
+async def test_async_start_docker_container_calls_client_and_refreshes(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """Starting a Docker container calls the client's start endpoint and refreshes coordinator data."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+    mock_client.async_get_docker_containers.reset_mock()
+
+    await coordinator.async_start_docker_container("nginx")
+
+    mock_client.async_start_docker_container.assert_called_once_with("nginx")
+    mock_client.async_get_docker_containers.assert_called_once()
+
+
+async def test_async_stop_docker_container_calls_client_and_refreshes(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """Stopping a Docker container calls the client's stop endpoint and refreshes coordinator data."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+    mock_client.async_get_docker_containers.reset_mock()
+
+    await coordinator.async_stop_docker_container("PushBits")
+
+    mock_client.async_stop_docker_container.assert_called_once_with("PushBits")
+    mock_client.async_get_docker_containers.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("permissions_scope", "resource"),
+    [
+        ({"mode": "readonly"}, "lxc"),
+        ({"mode": "readonly"}, "docker"),
+        ({"mode": "custom", "resources": {"lxc": "read"}}, "lxc"),
+        ({"mode": "custom", "resources": {}}, "docker"),
+    ],
+)
+async def test_write_actions_blocked_without_write_access(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    permissions_scope: dict,
+    resource: str,
+) -> None:
+    """A token without write access to the resource is rejected before any API call."""
+    mock_client.async_get_token_permissions.return_value = {"id": "1", "permissions": permissions_scope}
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    method = coordinator.async_start_lxc_container if resource == "lxc" else coordinator.async_start_docker_container
+
+    with pytest.raises(HomeAssistantError):
+        await method("some-container")
+
+    mock_client.async_start_lxc_container.assert_not_called()
+    mock_client.async_start_docker_container.assert_not_called()
+
+
+async def test_write_action_allowed_with_custom_write_access(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A "custom" token with explicit write access to the resource is allowed through."""
+    mock_client.async_get_token_permissions.return_value = {
+        "id": "1",
+        "permissions": {"mode": "custom", "resources": {"lxc": "write"}},
+    }
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    await coordinator.async_start_lxc_container("webserver")
+
+    mock_client.async_start_lxc_container.assert_called_once_with("webserver")
 
 
 async def test_token_permissions_are_fetched_once_at_setup(

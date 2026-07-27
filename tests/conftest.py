@@ -171,6 +171,15 @@ def mock_docker_containers() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_docker_engine_containers() -> list[dict[str, Any]]:
+    """Return a realistic raw Docker Engine ``/containers/json`` payload."""
+    return [
+        {"Id": "abc123", "Names": ["/PushBits"], "State": "running"},
+        {"Id": "def456", "Names": ["/nginx"], "State": "exited"},
+    ]
+
+
+@pytest.fixture
 def mock_token_permissions() -> dict[str, Any]:
     """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
     return {
@@ -210,6 +219,7 @@ def mock_client(
     mock_system_load: dict[str, Any],
     mock_lxc_containers: list[dict[str, Any]],
     mock_docker_containers: list[dict[str, Any]],
+    mock_docker_engine_containers: list[dict[str, Any]],
     mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
@@ -221,6 +231,7 @@ def mock_client(
     client.async_get_system_load.return_value = mock_system_load
     client.async_get_lxc_containers.return_value = mock_lxc_containers
     client.async_get_docker_containers.return_value = mock_docker_containers
+    client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"  # noqa: SLF001

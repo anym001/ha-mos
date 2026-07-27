@@ -268,6 +268,61 @@ class MOSApiClient:
         """
         return await self._get("docker/mos/containers", base_url=self._root_base_url)
 
+    async def async_get_docker_engine_containers(self) -> list[dict[str, Any]]:
+        """
+        Get the live container list, including running state, via the raw Docker Engine proxy.
+
+        Unlike ``/docker/mos/containers`` (image/update-tracking metadata
+        only - no running state), ``GET /docker/containers/json`` is proxied
+        straight through to the Docker Engine API (a deliberate MOS design
+        choice - Docker requests are passed through directly, unlike LXC
+        which has purpose-built MOS endpoints). Used to merge a ``state``
+        field into the ``docker_containers`` payload for the power switch.
+
+        Returns:
+            The raw Docker Engine container list (``Id``, ``Names``,
+            ``State``, ...).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("docker/containers/json?all=true", base_url=self._root_base_url)
+
+    async def async_start_docker_container(self, name: str) -> None:
+        """
+        Start a single Docker container via the raw Docker Engine proxy.
+
+        Calls ``POST /docker/containers/{name}/start``, proxied straight
+        through to Docker's own ``POST /containers/{id}/start`` (accepts a
+        container name, not just an ID). Docker returns 204 No Content on
+        success, unlike the LXC endpoints' JSON ``OperationResult`` body.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        await self._post(f"docker/containers/{name}/start", base_url=self._root_base_url)
+
+    async def async_stop_docker_container(self, name: str) -> None:
+        """
+        Stop a single Docker container via the raw Docker Engine proxy.
+
+        Calls ``POST /docker/containers/{name}/stop`` (see
+        ``async_start_docker_container`` for details).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        await self._post(f"docker/containers/{name}/stop", base_url=self._root_base_url)
+
     async def async_get_token_permissions(self) -> dict[str, Any]:
         """
         Introspect the permission scope of the token used for authentication.
@@ -366,6 +421,11 @@ class MOSApiClient:
                     json=data,
                 )
                 _verify_response_or_raise(response)
+                if response.status == 204 or not await response.read():
+                    # The raw Docker Engine proxy returns 204 No Content on
+                    # successful start/stop, unlike every JSON-bodied MOS
+                    # endpoint.
+                    return None
                 return await response.json()
 
         except MOSApiClientAuthenticationError:

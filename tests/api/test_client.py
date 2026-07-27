@@ -94,6 +94,59 @@ async def test_docker_containers_uses_root_path(
     assert await client.async_get_docker_containers() == [{"name": "PushBits", "update_available": True}]
 
 
+async def test_docker_engine_containers_uses_raw_proxy(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """docker_engine_containers hits the raw Docker Engine proxy, not the mos-native endpoint."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/docker/containers/json?all=true",
+        json=[{"Id": "abc", "Names": ["/PushBits"], "State": "running"}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_docker_engine_containers() == [
+        {"Id": "abc", "Names": ["/PushBits"], "State": "running"}
+    ]
+
+
+async def test_start_docker_container_posts_to_raw_proxy_and_handles_204(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Starting a Docker container POSTs to the raw proxy; a 204 No Content response doesn't crash."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/docker/containers/PushBits/start",
+        status=204,
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_start_docker_container("PushBits")
+
+    assert result is None
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
+async def test_stop_docker_container_posts_to_raw_proxy_and_handles_204(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Stopping a Docker container POSTs to the raw proxy; a 204 No Content response doesn't crash."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/docker/containers/PushBits/stop",
+        status=204,
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    result = await client.async_stop_docker_container("PushBits")
+
+    assert result is None
+    assert aioclient_mock.mock_calls[0][0] == "post"
+
+
 async def test_start_lxc_container_posts_to_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

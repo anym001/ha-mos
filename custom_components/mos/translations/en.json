@@ -78,6 +78,15 @@
     },
     "lxc_stop_failed": {
       "message": "Failed to stop LXC container {name}."
+    },
+    "docker_start_failed": {
+      "message": "Failed to start Docker container {name}."
+    },
+    "docker_stop_failed": {
+      "message": "Failed to stop Docker container {name}."
+    },
+    "insufficient_write_permission": {
+      "message": "The configured API token does not have write access to {resource}."
     }
   },
   "entity": {
@@ -204,6 +213,9 @@
     },
     "switch": {
       "lxc_power": {
+        "name": "Power"
+      },
+      "docker_power": {
         "name": "Power"
       }
     }

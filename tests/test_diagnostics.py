@@ -40,7 +40,9 @@ async def test_data_sample_includes_all_resources(
     assert data_sample["pools"] == mock_pools
     assert data_sample["system_load"] == mock_system_load
     assert data_sample["lxc_containers"] == mock_lxc_containers
-    assert data_sample["docker_containers"] == mock_docker_containers
+    # docker_containers has a "state" field merged in from the Docker Engine proxy.
+    assert {c["name"] for c in data_sample["docker_containers"]} == {c["name"] for c in mock_docker_containers}
+    assert all("state" in c for c in data_sample["docker_containers"])
     assert data_sample["osinfo"]["hostname"] == "sirius"
 
 

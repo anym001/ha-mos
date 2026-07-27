@@ -16,7 +16,8 @@
 - **Services**: Docker, VM, SSH, Samba, NFS, Tailscale, and Netbird status
 - **System Health**: Live CPU load/temperature, memory usage, and swap usage
 - **LXC Containers**: Per-container CPU/memory usage, autostart, and a power switch to start/stop the container
-- **Docker Containers**: Per-container installed/latest version, update-available status, and autostart (no start/stop control yet - MOS has no single-container endpoint for Docker)
+- **Docker Containers**: Per-container installed/latest version, update-available status, autostart, and a power switch to start/stop the container (via the raw Docker Engine proxy - a deliberate MOS design choice, since Docker has no purpose-built single-container endpoint like LXC does)
+- **Permission-Aware Writes**: Start/stop actions check the API token's permission scope first and fail with a clear error if the token isn't allowed to write to that resource, instead of a raw server rejection
 - **Selective Categories**: Turn disks, pools, services, LXC, or Docker containers on/off entirely via the options flow
 - **Reconfigurable**: Change connection details anytime without removing the integration
 - **Reauthentication**: Prompted automatically if the API token is rejected
@@ -30,7 +31,7 @@ Disks and storage pools live on the single MOS server device — there's no per-
 | --------------- | --------------------------------------------------------------------------------------------------------- |
 | `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info |
 | `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state        |
-| `switch`        | LXC container power (start/stop the container on the MOS server)                                        |
+| `switch`        | LXC and Docker container power (start/stop the container on the MOS server)                             |
 
 ## 🚀 Quick Start
 
@@ -103,9 +104,12 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 
 ### Switches
 
-- **LXC containers** (per container): Power - reflects whether the container is running, and starts/stops it on the MOS server when toggled
+- **LXC containers** (per container): Power - reflects whether the container is running, and starts/stops it on the MOS server when toggled (via MOS's dedicated `/lxc/containers/{name}/start`/`stop` endpoints)
+- **Docker containers** (per container): Power - same behavior, via the raw Docker Engine proxy (`/docker/containers/{name}/start`/`stop`)
 
 Disks, pools, and LXC/Docker containers appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
+
+Both switches check the configured API token's permission scope before attempting a write. A token restricted to read-only (or "custom" scope without write access to `lxc`/`docker`) fails with a clear error instead of a raw 401/403 from the server.
 
 ## Configuration Options
 
