@@ -107,6 +107,18 @@ def mock_pools() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_token_permissions() -> dict[str, Any]:
+    """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
+    return {
+        "id": "1784927822204",
+        "name": "ha-mos",
+        "role": "admin",
+        "isBootToken": False,
+        "permissions": {"mode": "full"},
+    }
+
+
+@pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
     """Return a MockConfigEntry with realistic connection details."""
     return MockConfigEntry(
@@ -130,6 +142,7 @@ def mock_client(
     mock_services: dict[str, Any],
     mock_disks: list[dict[str, Any]],
     mock_pools: list[dict[str, Any]],
+    mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
     client = AsyncMock(spec=MOSApiClient)
@@ -137,6 +150,7 @@ def mock_client(
     client.async_get_services.return_value = mock_services
     client.async_get_disks.return_value = mock_disks
     client.async_get_pools.return_value = mock_pools
+    client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"  # noqa: SLF001
     client._root_base_url = "http://10.0.1.30:80/api/v1"  # noqa: SLF001

@@ -49,6 +49,27 @@ async def test_disks_and_pools_use_root_path(
     assert await client.async_get_pools() == [{"id": 1}]
 
 
+async def test_token_permissions_use_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Token permission introspection is fetched from the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/auth/admin-tokens/me",
+        json={"id": "1", "name": "ha-mos", "role": "admin", "isBootToken": False, "permissions": {"mode": "full"}},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_token_permissions() == {
+        "id": "1",
+        "name": "ha-mos",
+        "role": "admin",
+        "isBootToken": False,
+        "permissions": {"mode": "full"},
+    }
+
+
 async def test_https_and_explicit_port(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

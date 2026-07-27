@@ -78,6 +78,7 @@ async def async_get_config_entry_diagnostics(
         "base_url": client._base_url,  # noqa: SLF001
         "root_base_url": client._root_base_url,  # noqa: SLF001
         "has_token": bool(client._token),  # noqa: SLF001
+        "token_permissions": coordinator.token_permissions,
     }
 
     # Integration information

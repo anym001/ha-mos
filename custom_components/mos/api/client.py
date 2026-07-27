@@ -177,6 +177,30 @@ class MOSApiClient:
         """
         return await self._get("pools", base_url=self._root_base_url)
 
+    async def async_get_token_permissions(self) -> dict[str, Any]:
+        """
+        Introspect the permission scope of the token used for authentication.
+
+        Calls ``GET /auth/admin-tokens/me``, which is reachable regardless of
+        the token's own scope (unlike other ``/auth`` resources, which are
+        blocked for readonly tokens). Only available on MOS versions that
+        support token permission scoping; older servers respond with a 404,
+        which surfaces as ``MOSApiClientCommunicationError`` like any other
+        failed request.
+
+        Returns:
+            A payload of the shape ``{"id", "name", "role", "isBootToken",
+            "permissions": {"mode": "full" | "readonly" | "custom",
+            "resources": {...}}}``.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("auth/admin-tokens/me", base_url=self._root_base_url)
+
     async def _get(self, resource: str, *, base_url: str | None = None) -> Any:
         """
         Perform an authenticated GET on a MOS API resource.

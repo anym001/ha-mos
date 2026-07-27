@@ -37,6 +37,17 @@ async def test_data_sample_includes_all_resources(
     assert data_sample["osinfo"]["hostname"] == "sirius"
 
 
+async def test_token_permissions_are_included(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_token_permissions: dict,
+) -> None:
+    """The token's permission scope is surfaced alongside the other API info."""
+    diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
+
+    assert diagnostics["api"]["token_permissions"] == mock_token_permissions
+
+
 async def test_devices_and_entities_are_reported(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,

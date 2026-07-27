@@ -48,9 +48,16 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
     Attributes:
         config_entry: The config entry for this integration instance.
+        token_permissions: The token's permission scope from
+            ``/auth/admin-tokens/me``, fetched once at setup (not on every
+            poll cycle, since permissions don't change at runtime). ``None``
+            if the MOS server doesn't support this endpoint yet, or the
+            lookup otherwise failed - callers should treat that as "unknown,
+            assume full access" rather than blocking on it.
     """
 
     config_entry: MOSConfigEntry
+    token_permissions: dict[str, Any] | None = None
 
     async def _async_setup(self) -> None:
         """
@@ -64,11 +71,21 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         This runs before the first data fetch, ensuring any required setup
         is complete before entities start requesting data.
+
+        Token permission introspection happens here rather than in
+        ``_async_update_data`` because the token's permission scope doesn't
+        change at runtime - one lookup per config entry lifetime is enough. A
+        genuinely invalid token is still caught properly: the first
+        ``_async_update_data`` call (via ``async_get_osinfo``) runs right
+        after this and maps auth failures to ``ConfigEntryAuthFailed`` as
+        usual, so failures here are not re-raised.
         """
-        # Example: Fetch device info once at startup
-        # device_info = await self.config_entry.runtime_data.client.get_device_info()
-        # self._device_id = device_info["id"]
-        LOGGER.debug("Coordinator setup complete for %s", self.config_entry.entry_id)
+        client = self.config_entry.runtime_data.client
+        try:
+            self.token_permissions = await client.async_get_token_permissions()
+        except MOSApiClientError as exception:
+            LOGGER.debug("Token permission introspection unavailable - %s", exception)
+            self.token_permissions = None
 
     async def _async_update_data(self) -> Any:
         """
