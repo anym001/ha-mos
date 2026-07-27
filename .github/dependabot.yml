@@ -4,34 +4,34 @@ updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
-      interval: "monthly"
-    # PRs always target dev, never main (branching convention, see
-    # CONTRIBUTING.md); main only updates via the dev -> main release PR.
-    target-branch: "dev"
+      interval: "weekly"
+      day: "monday"
     commit-message:
       prefix: "chore(deps)"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-    target-branch: "dev"
+      interval: "weekly"
+      day: "monday"
     commit-message:
       prefix: "chore(deps)"
+    # Let new action versions settle for 7 days before opening a PR (same as HA Core)
+    cooldown:
+      default-days: 7
     groups:
-      # Bundle every github-actions update (incl. majors) into a single monthly
-      # PR instead of one PR per action. Avoids the mutual merge conflicts that
-      # separate PRs cause once the first one lands (each touches the same
-      # pinned-SHA lines across lint.yml/test.yml/validate.yml).
+      # Bundle all minor/patch action updates into a single PR; major updates stay separate
       github-actions:
-        patterns:
-          - "*"
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "monthly"
-    target-branch: "dev"
+      interval: "weekly"
+      day: "monday"
     commit-message:
       prefix: "chore(deps)"
     ignore:
@@ -42,9 +42,12 @@ updates:
       # pytest-homeassistant-custom-component releases track Home Assistant closely.
       # Keep this pinned and bump it manually together with hacs.json "homeassistant".
       - dependency-name: "pytest-homeassistant-custom-component"
+    # Let patch releases settle 3 days, minor releases 7 days before opening a PR
+    cooldown:
+      semver-patch-days: 3
+      semver-minor-days: 7
     groups:
-      # Bundle all minor/patch Python dep updates into a single PR; major updates
-      # stay separate so a breaking bump (e.g. a web framework) is reviewed in isolation.
+      # Bundle all minor/patch Python dep updates into a single PR; major updates stay separate.
       # pytest-homeassistant-custom-component is intentionally excluded and ignored above,
       # because it is updated manually together with hacs.json "homeassistant".
       python-dependencies:
