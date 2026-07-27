@@ -12,9 +12,10 @@ from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiCli
 from custom_components.mos.const import (
     CONF_API_TOKEN,
     CONF_ENABLE_DISKS,
+    CONF_ENABLE_DOCKER,
+    CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
-    CONF_ENABLE_SYSTEM_HEALTH,
     DOMAIN,
 )
 from homeassistant import config_entries
@@ -228,7 +229,8 @@ async def test_options_flow_defaults_and_update(
             CONF_ENABLE_DISKS: False,
             CONF_ENABLE_POOLS: True,
             CONF_ENABLE_SERVICES: True,
-            CONF_ENABLE_SYSTEM_HEALTH: True,
+            CONF_ENABLE_LXC: True,
+            CONF_ENABLE_DOCKER: True,
         },
     )
     await hass.async_block_till_done()

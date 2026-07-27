@@ -17,13 +17,15 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
 from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
+    CONF_ENABLE_DOCKER,
+    CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
-    CONF_ENABLE_SYSTEM_HEALTH,
     DEFAULT_ENABLE_DISKS,
+    DEFAULT_ENABLE_DOCKER,
+    DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
-    DEFAULT_ENABLE_SYSTEM_HEALTH,
     LOGGER,
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -102,15 +104,19 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         {
             "osinfo": {...},       # System / hardware information from /osinfo
+            "system_load": {...},  # Live CPU/memory/swap telemetry from /system/load
             "services": {...},     # Service enabled/running flags from /services
             "disks": [...],        # Physical disks from /disks
             "pools": [...],        # Storage pools from /pools
-            "system_load": {...},  # Live CPU/memory/swap telemetry from /system/load
+            "lxc_containers": [...],   # LXC containers from /lxc/containers/usage
+            "docker_containers": [...],  # Docker containers from /docker/mos/containers
         }
 
-        Resources disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
-        friends) are not fetched at all and default to an empty payload, so
-        the corresponding platforms simply create no entities for them.
+        ``osinfo`` and ``system_load`` are always fetched. The other resources
+        can be disabled via the options flow (see ``CONF_ENABLE_DISKS`` and
+        friends); when disabled they are not fetched at all and default to an
+        empty payload, so the corresponding platforms simply create no
+        entities for them.
 
         Returns:
             The data from the API as a dictionary keyed by resource.
@@ -122,15 +128,20 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         client = self.config_entry.runtime_data.client
         options = self.config_entry.options
 
-        tasks: dict[str, Any] = {"osinfo": client.async_get_osinfo()}
+        tasks: dict[str, Any] = {
+            "osinfo": client.async_get_osinfo(),
+            "system_load": client.async_get_system_load(),
+        }
         if options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
             tasks["services"] = client.async_get_services()
         if options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
             tasks["disks"] = client.async_get_disks()
         if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
             tasks["pools"] = client.async_get_pools()
-        if options.get(CONF_ENABLE_SYSTEM_HEALTH, DEFAULT_ENABLE_SYSTEM_HEALTH):
-            tasks["system_load"] = client.async_get_system_load()
+        if options.get(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC):
+            tasks["lxc_containers"] = client.async_get_lxc_containers()
+        if options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
+            tasks["docker_containers"] = client.async_get_docker_containers()
 
         try:
             results = await asyncio.gather(*tasks.values())
@@ -151,5 +162,6 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])
-        data.setdefault("system_load", {})
+        data.setdefault("lxc_containers", [])
+        data.setdefault("docker_containers", [])
         return data

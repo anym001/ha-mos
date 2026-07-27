@@ -197,6 +197,44 @@ class MOSApiClient:
         """
         return await self._get("system/load", base_url=self._root_base_url)
 
+    async def async_get_lxc_containers(self) -> list[dict[str, Any]]:
+        """
+        Get LXC container status and resource usage from ``/lxc/containers/usage``.
+
+        This endpoint is used instead of the plainer ``/lxc/containers`` because
+        it is a strict superset: it includes the same name/state/autostart/network
+        fields plus live CPU and memory usage, in a single call.
+
+        Returns:
+            The parsed ``lxc/containers/usage`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("lxc/containers/usage", base_url=self._root_base_url)
+
+    async def async_get_docker_containers(self) -> list[dict[str, Any]]:
+        """
+        Get Docker container update status from ``/docker/mos/containers``.
+
+        Despite the OpenAPI summary calling these "images", the payload is
+        keyed by container (``name``, ``autostart``) and includes the
+        installed vs. available image version/digest for update tracking.
+
+        Returns:
+            The parsed ``docker/mos/containers`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("docker/mos/containers", base_url=self._root_base_url)
+
     async def async_get_token_permissions(self) -> dict[str, Any]:
         """
         Introspect the permission scope of the token used for authentication.

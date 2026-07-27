@@ -12,9 +12,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
 from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
+    CONF_ENABLE_DOCKER,
+    CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
-    CONF_ENABLE_SYSTEM_HEALTH,
     DOMAIN,
     LOGGER,
 )
@@ -38,7 +39,7 @@ def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigE
 
 
 async def test_fetches_all_resources_by_default(hass: HomeAssistant, mock_client: AsyncMock) -> None:
-    """With no options set, all four resources are fetched."""
+    """With no options set, all resources are fetched."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
@@ -46,11 +47,34 @@ async def test_fetches_all_resources_by_default(hass: HomeAssistant, mock_client
 
     assert coordinator.data == {
         "osinfo": mock_client.async_get_osinfo.return_value,
+        "system_load": mock_client.async_get_system_load.return_value,
         "services": mock_client.async_get_services.return_value,
         "disks": mock_client.async_get_disks.return_value,
         "pools": mock_client.async_get_pools.return_value,
-        "system_load": mock_client.async_get_system_load.return_value,
+        "lxc_containers": mock_client.async_get_lxc_containers.return_value,
+        "docker_containers": mock_client.async_get_docker_containers.return_value,
     }
+
+
+async def test_system_load_is_always_fetched(hass: HomeAssistant, mock_client: AsyncMock) -> None:
+    """system_load has no options-flow toggle - it is fetched unconditionally, like osinfo."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        state=ConfigEntryState.SETUP_IN_PROGRESS,
+        options={
+            CONF_ENABLE_DISKS: False,
+            CONF_ENABLE_POOLS: False,
+            CONF_ENABLE_SERVICES: False,
+            CONF_ENABLE_LXC: False,
+            CONF_ENABLE_DOCKER: False,
+        },
+    )
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_system_load.assert_called_once()
+    assert coordinator.data["system_load"] == mock_client.async_get_system_load.return_value
 
 
 async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_client: AsyncMock) -> None:
@@ -62,7 +86,8 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
             CONF_ENABLE_DISKS: False,
             CONF_ENABLE_POOLS: False,
             CONF_ENABLE_SERVICES: False,
-            CONF_ENABLE_SYSTEM_HEALTH: False,
+            CONF_ENABLE_LXC: False,
+            CONF_ENABLE_DOCKER: False,
         },
     )
     coordinator = _make_coordinator(hass, mock_client, entry)
@@ -72,13 +97,15 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     mock_client.async_get_services.assert_not_called()
     mock_client.async_get_disks.assert_not_called()
     mock_client.async_get_pools.assert_not_called()
-    mock_client.async_get_system_load.assert_not_called()
+    mock_client.async_get_lxc_containers.assert_not_called()
+    mock_client.async_get_docker_containers.assert_not_called()
     mock_client.async_get_osinfo.assert_called_once()
 
     assert coordinator.data["services"] == {}
     assert coordinator.data["disks"] == []
     assert coordinator.data["pools"] == []
-    assert coordinator.data["system_load"] == {}
+    assert coordinator.data["lxc_containers"] == []
+    assert coordinator.data["docker_containers"] == []
 
 
 async def test_token_permissions_are_fetched_once_at_setup(

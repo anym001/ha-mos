@@ -52,14 +52,16 @@
           "enable_disks": "Enable disks",
           "enable_pools": "Enable storage pools",
           "enable_services": "Enable services",
-          "enable_system_health": "Enable system health"
+          "enable_lxc": "Enable LXC containers",
+          "enable_docker": "Enable Docker containers"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
           "enable_disks": "Create entities for physical disks.",
           "enable_pools": "Create entities for storage pools.",
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
-          "enable_system_health": "Create entities for live CPU, memory and swap usage."
+          "enable_lxc": "Create entities for each LXC container.",
+          "enable_docker": "Create entities for each Docker container."
         }
       }
     }
@@ -133,6 +135,18 @@
       },
       "swap_usage": {
         "name": "Swap usage"
+      },
+      "lxc_cpu_usage": {
+        "name": "{container_name} CPU usage"
+      },
+      "lxc_memory_usage": {
+        "name": "{container_name} memory usage"
+      },
+      "docker_installed_version": {
+        "name": "{container_name} installed version"
+      },
+      "docker_latest_version": {
+        "name": "{container_name} latest version"
       }
     },
     "binary_sensor": {
@@ -171,6 +185,18 @@
       },
       "disk_smart_warning": {
         "name": "{disk_name} SMART warning"
+      },
+      "lxc_running": {
+        "name": "{container_name} running"
+      },
+      "lxc_autostart": {
+        "name": "{container_name} autostart"
+      },
+      "docker_update_available": {
+        "name": "{container_name} update available"
+      },
+      "docker_autostart": {
+        "name": "{container_name} autostart"
       }
     }
   }

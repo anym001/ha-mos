@@ -28,8 +28,10 @@ async def test_data_sample_includes_all_resources(
     mock_disks: list[dict],
     mock_pools: list[dict],
     mock_system_load: dict,
+    mock_lxc_containers: list[dict],
+    mock_docker_containers: list[dict],
 ) -> None:
-    """The data sample surfaces services/disks/pools/system_load alongside osinfo."""
+    """The data sample surfaces every polled resource alongside osinfo."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
 
     data_sample = diagnostics["data_sample"]
@@ -37,6 +39,8 @@ async def test_data_sample_includes_all_resources(
     assert data_sample["disks"] == mock_disks
     assert data_sample["pools"] == mock_pools
     assert data_sample["system_load"] == mock_system_load
+    assert data_sample["lxc_containers"] == mock_lxc_containers
+    assert data_sample["docker_containers"] == mock_docker_containers
     assert data_sample["osinfo"]["hostname"] == "sirius"
 
 

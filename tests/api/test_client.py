@@ -64,6 +64,36 @@ async def test_system_load_uses_root_path(
     assert await client.async_get_system_load() == {"cpu": {"load": 42.35}}
 
 
+async def test_lxc_containers_uses_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """lxc_containers is fetched from the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/lxc/containers/usage",
+        json=[{"name": "database", "state": "running"}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_lxc_containers() == [{"name": "database", "state": "running"}]
+
+
+async def test_docker_containers_uses_root_path(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """docker_containers is fetched from the /api/v1 root, not /api/v1/mos."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/docker/mos/containers",
+        json=[{"name": "PushBits", "update_available": True}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_docker_containers() == [{"name": "PushBits", "update_available": True}]
+
+
 async def test_token_permissions_use_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

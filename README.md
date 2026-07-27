@@ -15,7 +15,9 @@
 - **Physical Disks**: Power status, temperature status, and SMART warnings per disk
 - **Services**: Docker, VM, SSH, Samba, NFS, Tailscale, and Netbird status
 - **System Health**: Live CPU load/temperature, memory usage, and swap usage
-- **Selective Categories**: Turn disks, pools, services, or system health on/off entirely via the options flow
+- **LXC Containers**: Per-container CPU/memory usage, running state, and autostart
+- **Docker Containers**: Per-container installed/latest version, update-available status, and autostart
+- **Selective Categories**: Turn disks, pools, services, LXC, or Docker containers on/off entirely via the options flow
 - **Reconfigurable**: Change connection details anytime without removing the integration
 - **Reauthentication**: Prompted automatically if the API token is rejected
 - **Diagnostics**: Download a full diagnostics report for troubleshooting
@@ -24,10 +26,10 @@ All entities live on a single MOS device — there's no per-disk or per-pool dev
 
 **This integration sets up the following platforms.**
 
-| Platform        | Description                                                                       |
-| --------------- | --------------------------------------------------------------------------------- |
-| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature |
-| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status             |
+| Platform        | Description                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info |
+| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state        |
 
 ## 🚀 Quick Start
 
@@ -69,7 +71,7 @@ If you prefer not to use HACS:
 After setup, click **Configure** on the integration to adjust:
 
 - **Update interval**: How often to poll the MOS API (10–3600 seconds, default 30)
-- **Enable disks / storage pools / services / system health**: Turn any of these entity categories off entirely if you don't want them (e.g. no VMs configured, so hide the services entities)
+- **Enable disks / storage pools / services / LXC / Docker**: Turn any of these entity categories off entirely if you don't want them (e.g. no LXC containers configured, so hide the LXC entities)
 
 Changing an option reloads the integration automatically.
 
@@ -87,14 +89,18 @@ Find all entities in **Settings** → **Devices & Services** → **MOS** → cli
 - **System health**: CPU load (%), CPU temperature, memory usage (%), memory used, swap usage (%)
 - **Storage pools** (per pool): Usage (%), free space
 - **Physical disks** (per disk): Power status, temperature status
+- **LXC containers** (per container): CPU usage (%), memory usage
+- **Docker containers** (per container): Installed version, latest version
 
 ### Binary Sensors
 
 - **Services**: Docker running, VM running, SSH enabled, Samba enabled, NFS enabled, Tailscale online, Netbird online
 - **Storage pools** (per pool): Problem (health issue - _Diagnostic_), scrub running, balance running, parity running (only the operations that apply to that pool's filesystem type)
 - **Physical disks** (per disk): SMART warning (_Diagnostic_)
+- **LXC containers** (per container): Running, autostart
+- **Docker containers** (per container): Update available (_Diagnostic_), autostart
 
-Disks and pools appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
+Disks, pools, and LXC/Docker containers appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
 
 ## Configuration Options
 
@@ -119,7 +125,10 @@ You can change these anytime by clicking **Configure**:
 | Enable disks         | On      | Create entities for physical disks                            |
 | Enable storage pools | On      | Create entities for storage pools                             |
 | Enable services      | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
-| Enable system health | On      | Create entities for live CPU/memory/swap usage                |
+| Enable LXC containers   | On   | Create entities for each LXC container                        |
+| Enable Docker containers | On  | Create entities for each Docker container                     |
+
+System health (CPU load/temperature, memory, swap) is always enabled and has no toggle.
 
 ## Troubleshooting
 
