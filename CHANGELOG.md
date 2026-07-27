@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/anym001/ha-mos/compare/v0.1.2...v0.1.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* **api:** raise Docker/LXC start/stop timeout to avoid false stop failures ([#28](https://github.com/anym001/ha-mos/issues/28)) ([5cd7ca4](https://github.com/anym001/ha-mos/commit/5cd7ca46bc984ac78900965b6b3977f2883f11f2))
+* **deps:** remove stale dev target-branch from dependabot config ([#29](https://github.com/anym001/ha-mos/issues/29)) ([6b72b06](https://github.com/anym001/ha-mos/commit/6b72b06e2ea27b0846987310678c56e010d96759))
+
 ## [0.1.2](https://github.com/anym001/ha-mos/compare/v0.1.1...v0.1.2) (2026-07-27)
 
 
