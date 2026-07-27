@@ -2,23 +2,13 @@ name: HA Version Sync Check
 
 on:
   pull_request:
-    paths:
-      - hacs.json
-      - requirements_test.txt
-      - .devcontainer/.env
-      - .github/workflows/*.yml
-      - script/ha-version-sync
-      - script/setup/bootstrap
+    branches:
+      - main
+      - dev
   push:
     branches:
       - main
-    paths:
-      - hacs.json
-      - requirements_test.txt
-      - .devcontainer/.env
-      - .github/workflows/*.yml
-      - script/ha-version-sync
-      - script/setup/bootstrap
+      - dev
 
 permissions: {}
 
