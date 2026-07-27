@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.2](https://github.com/anym001/ha-mos/compare/v0.1.1...v0.1.2) (2026-07-27)
+
+
+### Features
+
+* add LXC/Docker container and VM entities with power switches ([c1c5124](https://github.com/anym001/ha-mos/commit/c1c5124262d211138f72078a6f45a50ff573c3e5))
+* **mos:** add brand dark icon assets ([5bd573e](https://github.com/anym001/ha-mos/commit/5bd573e0388b771d29936368fed4cc7e10d3baba))
+* **mos:** add brand icon assets ([2c8ca85](https://github.com/anym001/ha-mos/commit/2c8ca85234280abe353b5ca43f151e7d6116123c))
+* **mos:** add brand icon assets ([8c56030](https://github.com/anym001/ha-mos/commit/8c56030b2bf2d102695e5e692c86749ce04e884d))
+* **mos:** introspect token permission scope once at coordinator setup ([9be6f5c](https://github.com/anym001/ha-mos/commit/9be6f5c9a9685bb83c4f10559c34436403e426cd))
+* **mos:** introspect token permission scope once at coordinator setup ([130969a](https://github.com/anym001/ha-mos/commit/130969ade36ddcf5fe8a4e6154f5db4fbd43d89e))
+* **sensor,binary_sensor:** add LXC and Docker container entities ([164f289](https://github.com/anym001/ha-mos/commit/164f289f9e79105529dd70d8776c27581969c7ea))
+* **sensor:** add live system health sensors ([cbfaeb7](https://github.com/anym001/ha-mos/commit/cbfaeb73cde7ff4d189e12c911537df96c01a502))
+* **sensor:** add live system health sensors ([bb24629](https://github.com/anym001/ha-mos/commit/bb24629883d96daf2e449783da659bfa85e99e95))
+* **switch:** add Docker container power switch, gate writes on token permissions ([37037b7](https://github.com/anym001/ha-mos/commit/37037b7a18d7ee6fceaddecde463e89ad708b1cf))
+* **vm:** add per-VM devices with CPU/memory sensors, autostart, and power switch ([814a717](https://github.com/anym001/ha-mos/commit/814a717a12bf07be71cd3f7cb7645b2e2ec408d6))
+
 ## [0.1.1](https://github.com/anym001/ha-mos/compare/v0.1.0...v0.1.1) (2026-07-27)
 
 
