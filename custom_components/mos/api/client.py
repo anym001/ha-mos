@@ -22,10 +22,10 @@ import aiohttp
 from custom_components.mos.const import (
     API_BASE_PATH,
     API_ROOT_PATH,
+    CONTAINER_ACTION_TIMEOUT,
     DEFAULT_PORT_HTTP,
     DEFAULT_PORT_HTTPS,
     DEFAULT_TIMEOUT,
-    DOCKER_ACTION_TIMEOUT,
 )
 
 
@@ -233,7 +233,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"lxc/containers/{name}/start", base_url=self._root_base_url)
+        return await self._post(
+            f"lxc/containers/{name}/start",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_stop_lxc_container(self, name: str) -> dict[str, Any]:
         """
@@ -248,7 +252,11 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"lxc/containers/{name}/stop", base_url=self._root_base_url)
+        return await self._post(
+            f"lxc/containers/{name}/stop",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
 
     async def async_get_docker_containers(self) -> list[dict[str, Any]]:
         """
@@ -310,7 +318,7 @@ class MOSApiClient:
         await self._post(
             f"docker/containers/{name}/start",
             base_url=self._root_base_url,
-            timeout=DOCKER_ACTION_TIMEOUT,
+            timeout=CONTAINER_ACTION_TIMEOUT,
         )
 
     async def async_stop_docker_container(self, name: str) -> None:
@@ -329,7 +337,7 @@ class MOSApiClient:
         await self._post(
             f"docker/containers/{name}/stop",
             base_url=self._root_base_url,
-            timeout=DOCKER_ACTION_TIMEOUT,
+            timeout=CONTAINER_ACTION_TIMEOUT,
         )
 
     async def async_get_vm_machines(self) -> list[dict[str, Any]]:
