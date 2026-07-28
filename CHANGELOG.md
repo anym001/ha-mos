@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.4](https://github.com/anym001/ha-mos/compare/v0.1.3...v0.1.4) (2026-07-28)
+
+
+### Bug Fixes
+
+* **coordinator:** don't trigger reauth while the server is unavailable ([71ed432](https://github.com/anym001/ha-mos/commit/71ed432eae1a0b90b87b656546afbe8355aa5171))
+* **coordinator:** keep the auth grace period across setup and reloads ([a7b352a](https://github.com/anym001/ha-mos/commit/a7b352a7e01acf64b48aee258c38ee27854d592a))
+* **coordinator:** stop prompting for reauth when the token is not the problem ([aad4327](https://github.com/anym001/ha-mos/commit/aad4327578c16b2b6ef6f88ea3c2eb36d192b8cb))
+* **coordinator:** stop treating a 403 as an invalid API token ([7ae18de](https://github.com/anym001/ha-mos/commit/7ae18debe2040f522224706bb3b40209369fec3d))
+
+
+### Performance
+
+* **coordinator:** raise minimum scan interval to 30s ([63e4348](https://github.com/anym001/ha-mos/commit/63e4348d97a09b5d0e3d28a4445cc642154d2ac1))
+
 ## [0.1.3](https://github.com/anym001/ha-mos/compare/v0.1.2...v0.1.3) (2026-07-27)
 
 
