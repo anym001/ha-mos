@@ -18,7 +18,6 @@ Home Assistant integration for a MOS server: monitors the system, its storage, c
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Permission-aware writes** — start/stop checks the token's scope first and fails with a clear message instead of a raw 401/403
 - **Selective categories** — turn disks, pools, services, LXC, Docker or VMs off entirely
-- **Robust** — reconfigurable anytime, reauthentication only when the token is really gone, full diagnostics download
 
 | Platform        | Entities                                                                                       |
 | --------------- | ---------------------------------------------------------------------------------------------- |
