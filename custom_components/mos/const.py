@@ -51,12 +51,20 @@ MAX_SCAN_INTERVAL = 3600
 # timer) well before it elapses. Until then the failure is surfaced as a
 # retryable UpdateFailed, so entities go "unavailable" and the token is untouched.
 #
-# This applies to the *running* integration only. During initial setup a rejected
-# token is escalated to reauth immediately (the config flow just validated it).
+# The grace period applies to setup as well as to the running integration: a
+# Home Assistant restart or an entry reload can land in exactly the same window
+# where the server rejects a still-valid token, and a rejected setup that is
+# retried gets a *new* coordinator instance every time. During setup the failure
+# surfaces as ConfigEntryNotReady, so Home Assistant retries with backoff.
 #
 # Five minutes comfortably covers a typical server reboot while keeping the
 # reauth prompt reasonably prompt for a token that is genuinely gone.
 AUTH_FAILURE_GRACE_PERIOD = timedelta(minutes=5)
+
+# ``hass.data`` key holding the auth-failure streak per config entry. It cannot
+# live on the coordinator: a failing setup is retried with a fresh coordinator,
+# which would restart the grace period on every retry and never escalate.
+AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 
 # Optional resource categories - can be disabled via the options flow
 CONF_ENABLE_DISKS = "enable_disks"

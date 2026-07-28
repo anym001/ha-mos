@@ -56,7 +56,7 @@ System health (CPU, memory, swap) is always enabled. Connection details (host, t
 
 **Entities went unavailable.** Usually the server is unreachable or restarting; the integration retries on its own and recovers without any action.
 
-**Reauthentication prompt.** Appears once the server has rejected the token continuously for about five minutes — enter a new token under **Settings** → **Devices & Services**. Short rejections during a server reboot are ridden out instead, so a restart never costs you a valid token. Exception: a rejection while the integration is _starting up_ asks for reauthentication right away.
+**Reauthentication prompt.** Appears once the server has rejected the token continuously for about five minutes — enter a new token under **Settings** → **Devices & Services**. Short rejections during a server reboot are ridden out instead, so a restart never costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
 
 **Debug logging.**
 

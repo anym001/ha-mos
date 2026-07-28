@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.api import MOSApiClient
 from custom_components.mos.const import CONF_API_TOKEN, DOMAIN
+import custom_components.mos.coordinator.base as coordinator_base
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
 
@@ -20,6 +21,40 @@ pytest_plugins = "pytest_homeassistant_custom_component"
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
     """Enable custom integrations for every test in this suite."""
+
+
+class _FakeClock:
+    """Stand-in for the ``time`` module, exposing a ``monotonic()`` the test drives."""
+
+    def __init__(self, start: float = 1000.0) -> None:
+        """Start the clock at an arbitrary but stable monotonic value."""
+        self._now = start
+
+    def monotonic(self) -> float:
+        """Return the current fake monotonic time."""
+        return self._now
+
+    def advance(self, seconds: float) -> None:
+        """Move the clock forward by `seconds`."""
+        self._now += seconds
+
+
+@pytest.fixture
+def advance_auth_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], None]:
+    """Give the coordinator a controllable clock and return a way to move it forward.
+
+    Replaces the ``time`` reference inside the coordinator module rather than
+    ``time.monotonic`` itself, so the fake clock cannot leak into Home
+    Assistant's own timers - which matters for tests that run a fully set up
+    integration.
+
+    Lets grace-period tests stay independent of the scan interval and of
+    ``AUTH_FAILURE_GRACE_PERIOD``'s exact value. A callable is handed back
+    (rather than the clock object) so test modules need no cross-module import.
+    """
+    clock = _FakeClock()
+    monkeypatch.setattr(coordinator_base, "time", clock)
+    return clock.advance
 
 
 @pytest.fixture

@@ -28,6 +28,7 @@ from homeassistant.loader import async_get_loaded_integration
 
 from .api import MOSApiClient
 from .const import (
+    AUTH_FAILURE_STORE,
     CONF_API_TOKEN,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SSL,
@@ -154,6 +155,11 @@ async def async_unload_entry(
     For more information:
     https://developers.home-assistant.io/docs/config_entries_index/#unloading-entries
     """
+    # Drop this entry's auth-failure streak: it outlives the coordinator on
+    # purpose (see AUTH_FAILURE_STORE), so it has to be cleaned up explicitly or
+    # a removed entry would leave its timestamp behind.
+    hass.data.get(AUTH_FAILURE_STORE, {}).pop(entry.entry_id, None)
+
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
