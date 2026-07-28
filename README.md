@@ -36,9 +36,22 @@ The integration is not in the HACS default store yet, so add it as a custom repo
 3. **Restart Home Assistant**
 4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS"
 
-You will need the server's host name or IP and an API token (MOS web UI → **User Settings → Admin API Tokens**). Port, HTTPS and certificate verification are optional; the defaults usually work.
-
 To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
+
+### What setup asks for
+
+| Field                      | Required | Default             |
+| -------------------------- | -------- | ------------------- |
+| **Name**                   | yes      | –                   |
+| **Host**                   | yes      | –                   |
+| **API token**              | yes      | –                   |
+| **Port**                   | no       | 80 (HTTP)/443 (TLS) |
+| **Use HTTPS**              | no       | off                 |
+| **Verify TLS certificate** | no       | on                  |
+
+The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — read-only is enough for monitoring, starting and stopping needs write access to the respective resource.
+
+Connection details can be changed later via **⋮** → **Reconfigure**, without removing the integration.
 
 ## Configuration
 
@@ -49,7 +62,9 @@ Click **Configure** on the integration to change these anytime — the integrati
 | Update interval                                                   | 30s     | How often to poll the MOS API (30–3600s) |
 | Enable disks / pools / services / LXC / Docker / VMs (individual) | On      | Create entities for that category        |
 
-System health (CPU, memory, swap) is always enabled. Connection details (host, token, port, TLS) can be changed via **⋮** → **Reconfigure**. More detail: [docs/user/CONFIGURATION.md](docs/user/CONFIGURATION.md).
+System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
+
+The default of 30 seconds suits container and VM states you want to react to; 5–30 minutes is plenty if you only watch slow-moving values like disk temperature or pool usage. Start/stop switches don't wait for the next poll — the new state shows immediately.
 
 ## Troubleshooting
 
@@ -66,7 +81,9 @@ logger:
     custom_components.mos: debug
 ```
 
-**Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics**.
+**A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
+
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
 
 ## Contributing
 

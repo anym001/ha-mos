@@ -100,7 +100,7 @@ If a developer requests something that contradicts these instructions:
 
 1. **Agent Instructions** - How AI should write code (`.github/instructions/`, `AGENTS.md`)
 2. **Developer Documentation** - Architecture and design decisions (`docs/development/`)
-3. **User Documentation** - End-user guides (`docs/user/`)
+3. **User Documentation** - Everything end users need lives in `README.md` (there is no `docs/user/`; the blueprint's placeholder guides were removed)
 
 **AI Planning:** Use `.ai-scratch/` for temporary notes (never committed)
 
