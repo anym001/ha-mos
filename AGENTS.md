@@ -57,18 +57,12 @@ pkill -f "hass --config" || true && pkill -f "debugpy.*5678" || true && ./script
 
 **Context-specific instructions:**
 
-If you're using GitHub Copilot, path-specific instructions in `.github/instructions/*.instructions.md` provide additional guidance for specific file types (Python, YAML, JSON, etc.). This document serves as the primary reference for all agents.
-
-**Other agent entry points:**
-
-- **Claude Code:** See [`CLAUDE.md`](CLAUDE.md) (pointer to this file)
-- **ChatGPT Codex:** See [`CODEX.md`](CODEX.md) (pointer to this file)
-- **Gemini:** See [`GEMINI.md`](GEMINI.md) (pointer to this file)
-- **GitHub Copilot:** See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) (compact version of this file)
+Path-specific instructions in `.github/instructions/*.instructions.md` add
+guidance per file type (Python, YAML, JSON, tests, translations); each declares
+its scope in an `applyTo` frontmatter glob. This document is the primary
+reference for all agents, with [`CLAUDE.md`](CLAUDE.md) pointing here.
 
 ## Working With Developers
-
-**For workflow basics (small changes, translations, tests, session management):** See `.github/copilot-instructions.md` for quick-reference guidance.
 
 ### When Instructions Conflict With Requests
 
@@ -100,7 +94,7 @@ If a developer requests something that contradicts these instructions:
 
 1. **Agent Instructions** - How AI should write code (`.github/instructions/`, `AGENTS.md`)
 2. **Developer Documentation** - Architecture and design decisions (`docs/development/`)
-3. **User Documentation** - End-user guides (`docs/user/`)
+3. **User Documentation** - Everything end users need lives in `README.md` (there is no `docs/user/`; the blueprint's placeholder guides were removed)
 
 **AI Planning:** Use `.ai-scratch/` for temporary notes (never committed)
 
@@ -110,8 +104,6 @@ If a developer requests something that contradicts these instructions:
 - ❌ **NEVER** create documentation in `.github/` unless it's a GitHub-specified file
 - ✅ **ALWAYS ask first** before creating permanent documentation
 - ✅ **Prefer module docstrings** over separate markdown files
-
-See `.github/copilot-instructions.md` for detailed documentation strategy.
 
 ### Session and Context Management
 
@@ -210,9 +202,8 @@ This integration uses the following identifiers consistently:
   - `validators/*.py` - Config flow validation functions
   - `schemas/*.py` - Data schemas for config flow steps
 - `entity/` - Base entity classes
-- `entity_utils/` - Entity-specific helpers (device_info, state formatting)
-- `[platform]/` - Entity platforms (sensor, switch, etc.)
-- `service_actions/` - Service action implementations
+- `entity_utils/` - Entity-specific helpers (dynamic entities, permissions, state formatting)
+- `[platform]/` - Entity platforms (sensor, binary_sensor, switch)
 - `utils/` - Integration-wide utilities (string helpers, general validators)
 
 **Do NOT create:**
@@ -327,15 +318,6 @@ python3 -m script.scaffold config_flow_oauth2     # OAuth2 flow
 
 See `.github/instructions/blueprint.config_flow.instructions.md` for comprehensive patterns.
 
-**Service actions:**
-
-- Define in `services.yaml` with full descriptions (legacy filename)
-- Implement handlers in `service_actions/` directory
-- **Register in `async_setup()`** - NOT in `async_setup_entry()` (Quality Scale!)
-- Format: `<integration_domain>.<action_name>`
-
-See `.github/instructions/blueprint.service_actions.instructions.md` for service patterns.
-
 **Coordinator:**
 
 - Entities → Coordinator → API Client (never skip layers)
@@ -351,15 +333,6 @@ See `.github/instructions/blueprint.coordinator.instructions.md` and `.github/in
 - Use `EntityDescription` for static metadata
 
 See `.github/instructions/blueprint.entities.instructions.md` for entity patterns.
-
-**Repairs:**
-
-- Create `repairs.py` in integration root (Gold Quality Scale)
-- Use `async_create_issue()` with severity levels (WARNING, ERROR, CRITICAL)
-- Implement `RepairsFlow` for guided user fixes
-- Delete issues after successful repair
-
-See `.github/instructions/blueprint.repairs.instructions.md` for comprehensive patterns.
 
 **Entity availability:**
 
@@ -598,8 +571,6 @@ See `.github/instructions/blueprint.tests.instructions.md` for comprehensive tes
 - NEVER update other language files automatically - extremely time-consuming
 - Ask before updating multiple translation files
 - Priority: Business logic first, translations later
-
-See `.github/copilot-instructions.md` for detailed workflow guidance.
 
 ## Research and Validation
 

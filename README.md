@@ -7,165 +7,74 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-## ✨ Features
+Home Assistant integration for a [MOS](https://mos-official.net/) server: monitors the system, its storage, containers and VMs — and lets you start and stop them.
 
-- **Easy Setup**: Simple configuration through the UI - no YAML required
-- **System Monitoring**: MOS/OS version, build, kernel, architecture, and CPU info
-- **Storage Pools**: Usage, free space, health, and scrub/balance/parity status per pool
-- **Physical Disks**: Power status, temperature status, and SMART warnings per disk
-- **Services**: Docker, VM, SSH, Samba, NFS, Tailscale, and Netbird status
-- **System Health**: Live CPU load/temperature, memory usage, and swap usage
-- **LXC Containers**: Per-container CPU/memory usage, autostart, and a power switch to start/stop the container
-- **Docker Containers**: Per-container installed/latest version, update-available status, autostart, and a power switch to start/stop the container (via the raw Docker Engine proxy - a deliberate MOS design choice, since Docker has no purpose-built single-container endpoint like LXC does)
-- **Virtual Machines**: Per-VM CPU/memory usage, autostart, and a power switch to start/stop the VM
-- **Permission-Aware Writes**: Start/stop actions check the API token's permission scope first and fail with a clear error if the token isn't allowed to write to that resource, instead of a raw server rejection
-- **Selective Categories**: Turn disks, pools, services, LXC, Docker containers, or VMs on/off entirely via the options flow
-- **Reconfigurable**: Change connection details anytime without removing the integration
-- **Reauthentication**: Prompted automatically if the API token is rejected
-- **Diagnostics**: Download a full diagnostics report for troubleshooting
+## Features
 
-Disks and storage pools live on the single MOS server device — there's no per-disk or per-pool device clutter; each pool/disk simply gets its own name folded into its entity ID (e.g. `sensor.mos_server_tank_usage`). LXC containers, Docker containers, and VMs, on the other hand, each get their own device (linked back to the server device via `via_device`, named `<server> LXC <container>` / `<server> Docker <container>` / `<server> VM <machine>` to stay unique across multiple configured servers and disambiguate same-named items across categories), since there can be many of them and you may want to enable/disable individual containers/VMs from their own device page.
+- **Easy setup** — configured entirely through the UI, no YAML
+- **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap
+- **Storage** — usage, free space, health and scrub/balance/parity status per pool; power/temperature status and SMART warnings per disk
+- **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
+- **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
+- **Token permissions respected** — start and stop honor what your API token is allowed to do, and say so clearly instead of showing a cryptic server error when it isn't allowed
+- **Selective categories** — turn disks, pools, services, LXC, Docker or VMs off entirely
 
-**This integration sets up the following platforms.**
+| Platform        | Entities                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| `sensor`        | System info and health, pool usage/free space, disk power/temperature, LXC/Docker/VM resources |
+| `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state         |
+| `switch`        | LXC container, Docker container and VM power                                                   |
 
-| Platform        | Description                                                                                                           |
-| --------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `sensor`        | System info, system health, storage pool usage/free space, disk power/temperature, LXC/Docker container info, VM info |
-| `binary_sensor` | Service status, pool health/maintenance operations, disk SMART status, LXC/Docker container state, VM state           |
-| `switch`        | LXC container, Docker container, and VM power (start/stop on the MOS server)                                          |
+Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Disks and pools are entities on the server device itself; each container and VM gets its own device linked back to the server.
 
-## 🚀 Quick Start
+## Installation
 
-### Step 1: Install the Integration
+The integration is not in the HACS default store yet, so add it as a custom repository:
 
-This integration is not yet in the HACS default store. Add it as a custom repository:
+1. In HACS: **⋮** → **Custom repositories** → add `https://github.com/anym001/ha-mos` as an **Integration**
+2. Find **MOS** in HACS and click **Download**
+3. **Restart Home Assistant**
+4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS"
 
-1. In HACS, open the **⋮** menu → **Custom repositories**
-2. Add `https://github.com/anym001/ha-mos` as an **Integration**
-3. Find **MOS** in HACS and click **Download**
-4. **Restart Home Assistant** (required after installation)
+To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
 
-<details>
-<summary><strong>Manual Installation (Advanced)</strong></summary>
+### What setup asks for
 
-If you prefer not to use HACS:
+| Field                      | Required | Default             |
+| -------------------------- | -------- | ------------------- |
+| **Name**                   | yes      | –                   |
+| **Host**                   | yes      | –                   |
+| **API token**              | yes      | –                   |
+| **Port**                   | no       | 80 (HTTP)/443 (TLS) |
+| **Use HTTPS**              | no       | off                 |
+| **Verify TLS certificate** | no       | on                  |
 
-1. Download the `custom_components/mos/` folder from this repository
-2. Copy it to your Home Assistant's `custom_components/` directory
-3. Restart Home Assistant
+The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — read-only is enough for monitoring, starting and stopping needs write access to the respective resource.
 
-</details>
+Connection details can be changed later via **⋮** → **Reconfigure**, without removing the integration.
 
-### Step 2: Add and Configure the Integration
+## Configuration
 
-**Important:** You must have installed the integration first (see Step 1) and restarted Home Assistant!
+Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
-1. Go to **Settings** → **Devices & Services**
-2. Click **"+ Add Integration"**
-3. Search for "MOS"
-4. Fill in the connection details:
-   - **Name**: A friendly name for this MOS server (becomes the device name)
-   - **Host**: The MOS server's IP address or hostname
-   - **API token**: Create one in the MOS web UI under **User Settings → Admin API Tokens**
-   - **Port**, **Use HTTPS**, **Verify TLS certificate**: Optional, defaults usually work
+| Option                                                            | Default | Description                              |
+| ----------------------------------------------------------------- | ------- | ---------------------------------------- |
+| Update interval                                                   | 30s     | How often to poll the MOS API (30–3600s) |
+| Enable disks / pools / services / LXC / Docker / VMs (individual) | On      | Create entities for that category        |
 
-### Step 3: Adjust Settings (Optional)
+System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
 
-After setup, click **Configure** on the integration to adjust:
-
-- **Update interval**: How often to poll the MOS API (10–3600 seconds, default 30)
-- **Enable disks / storage pools / services / LXC / Docker / VM**: Turn any of these entity categories off entirely if you don't want them (e.g. no LXC containers configured, so hide the LXC entities)
-
-Changing an option reloads the integration automatically.
-
-You can also **Reconfigure** the connection details (host, token, port, TLS) anytime without removing the integration.
-
-### Step 4: Start Using!
-
-Find all entities in **Settings** → **Devices & Services** → **MOS** → click on the device.
-
-## Available Entities
-
-### Sensors
-
-- **System info**: MOS version, update channel, build, API version, frontend version, running/recommended kernel, architecture, CPU, base OS, boot time
-- **System health**: CPU load (%), CPU temperature, memory usage (%), memory used, swap usage (%)
-- **Storage pools** (per pool): Usage (%), free space
-- **Physical disks** (per disk): Power status, temperature status
-- **LXC containers** (per container): CPU usage (%), memory usage
-- **Docker containers** (per container): Installed version, latest version
-- **VMs** (per VM): CPU usage (%), memory usage
-
-### Binary Sensors
-
-- **Services**: Docker running, VM running, SSH enabled, Samba enabled, NFS enabled, Tailscale online, Netbird online
-- **Storage pools** (per pool): Problem (health issue - _Diagnostic_), scrub running, balance running, parity running (only the operations that apply to that pool's filesystem type)
-- **Physical disks** (per disk): SMART warning (_Diagnostic_)
-- **LXC containers** (per container): Autostart
-- **Docker containers** (per container): Update available (_Diagnostic_), autostart
-- **VMs** (per VM): Autostart
-
-### Switches
-
-- **LXC containers** (per container): Power - reflects whether the container is running, and starts/stops it on the MOS server when toggled (via MOS's dedicated `/lxc/containers/{name}/start`/`stop` endpoints)
-- **Docker containers** (per container): Power - same behavior, via the raw Docker Engine proxy (`/docker/containers/{name}/start`/`stop`)
-- **VMs** (per VM): Power - same behavior, via MOS's dedicated `/vm/machines/{name}/start`/`stop` endpoints
-
-Disks, pools, LXC/Docker containers, and VMs appear/disappear automatically as they're added or removed on the MOS server - no reload needed.
-
-All three switches check the configured API token's permission scope before attempting a write. A token restricted to read-only (or "custom" scope without write access to `lxc`/`docker`/`vm`) fails with a clear error instead of a raw 401/403 from the server.
-
-## Configuration Options
-
-### During Setup
-
-| Name                   | Required | Description                                            |
-| ---------------------- | -------- | ------------------------------------------------------ |
-| Name                   | Yes      | Friendly name for this server; used as the device name |
-| Host                   | Yes      | MOS server IP address or hostname                      |
-| API token              | Yes      | Admin API token from the MOS web UI                    |
-| Port                   | No       | Defaults to 80 (HTTP) or 443 (HTTPS)                   |
-| Use HTTPS              | No       | Off by default                                         |
-| Verify TLS certificate | No       | On by default                                          |
-
-### After Setup (Options)
-
-You can change these anytime by clicking **Configure**:
-
-| Name                     | Default | Description                                                   |
-| ------------------------ | ------- | ------------------------------------------------------------- |
-| Update interval          | 30s     | How often to poll the MOS API (10–3600s)                      |
-| Enable disks             | On      | Create entities for physical disks                            |
-| Enable storage pools     | On      | Create entities for storage pools                             |
-| Enable services          | On      | Create entities for Docker/VM/SSH/Samba/NFS/Tailscale/Netbird |
-| Enable LXC containers    | On      | Create entities for each LXC container                        |
-| Enable Docker containers | On      | Create entities for each Docker container                     |
-| Enable VMs               | On      | Create entities for each VM                                   |
-
-System health (CPU load/temperature, memory, swap) is always enabled and has no toggle.
+The default of 30 seconds suits container and VM states you want to react to; 5–30 minutes is plenty if you only watch slow-moving values like disk temperature or pool usage. Start/stop switches don't wait for the next poll — the new state shows immediately.
 
 ## Troubleshooting
 
-### Reauthentication
+**Entities went unavailable.** Usually the server is unreachable or restarting; the integration retries on its own and recovers without any action.
 
-If your API token expires or is revoked, Home Assistant will prompt you to reauthenticate:
+**Reauthentication prompt.** Appears once the server has rejected the token for at least five minutes _and_ on three consecutive polls — enter a new token under **Settings** → **Devices & Services**. Both conditions have to hold, so neither a brief rejection during a server reboot nor a couple of unlucky polls on a long update interval costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
 
-1. Go to **Settings** → **Devices & Services**
-2. Look for **"Reauthenticate"** on the MOS integration
-3. Enter a new API token and submit
+**Some entities are missing.** Most likely the API token is scoped and cannot read that category. The integration skips what the token isn't allowed to read and keeps everything else working, and logs a warning naming the affected categories. Grant the token read access in the MOS web UI under **User Settings → Admin API Tokens**, then reload the integration. A missing permission never causes a reauthentication prompt — a new token with the same scope wouldn't change anything.
 
-### Manual Reconfiguration
-
-You can update the connection details anytime without waiting for an error:
-
-1. Go to **Settings** → **Devices & Services**
-2. Find **MOS**
-3. Click the **3 dots menu** → **Reconfigure**
-4. Update host, API token, port, or TLS settings
-
-### Enable Debug Logging
-
-To enable debug logging for this integration, add the following to your `configuration.yaml`:
+**Debug logging.**
 
 ```yaml
 logger:
@@ -174,125 +83,28 @@ logger:
     custom_components.mos: debug
 ```
 
-### Common Issues
+**A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
-#### Authentication Errors
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
 
-If you receive authentication errors:
+## Contributing
 
-1. Verify the API token is correct and hasn't been revoked in the MOS web UI
-2. Check that the token has admin permissions
-3. Wait for the automatic reauthentication prompt, or manually reconfigure
+Contributions are welcome — issues and pull requests alike. The repository ships a complete dev environment (Home Assistant, Python 3.14, all tooling):
 
-#### Server Not Responding
+- **GitHub Codespaces:** **Code** → **Codespaces** → **Create codespace on main** — see [docs/development/CODESPACES.md](docs/development/CODESPACES.md)
+- **Locally:** open the repository in VS Code with the Dev Containers extension → **Reopen in Container**
+- Then: `script/develop` (Home Assistant on <http://localhost:8123>), `script/check`, `script/test`
 
-If the integration shows errors updating data:
-
-1. Check that the MOS server is reachable at the configured host/port
-2. Check the integration diagnostics (Settings → Devices & Services → MOS → 3 dots → Download diagnostics)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue or pull request if you have suggestions or improvements.
-
-You have two options to set up a development environment — expand below for full details.
-
-<details>
-<summary><strong>Development Setup</strong></summary>
-
-Both options provide the same fully-configured environment with Home Assistant, Python 3.14, Node.js LTS, and all necessary tools.
-
-### Option 1: GitHub Codespaces (Recommended) ☁️
-
-Develop directly in your browser without installing anything locally!
-
-1. Click the green **"Code"** button in this repository
-2. Switch to the **"Codespaces"** tab
-3. Click **"Create codespace on main"**
-4. **Wait for setup** (2-3 minutes first time) — everything installs automatically
-5. **Review and commit** your changes in the Source Control panel (`Ctrl+Shift+G`)
-
-> [!TIP]
-> Codespaces gives you **60 hours/month free** for personal accounts. When you start Home Assistant (`script/develop`), port 8123 forwards automatically.
-
-### Option 2: Local Development with VS Code 💻
-
-#### Prerequisites
-
-You'll need these installed locally:
-
-- **A Docker-compatible container engine** — see options by platform:
-
-  | Option                                                                                                                   | 🍎 macOS | 🐧 Linux | 🪟 Windows | Notes                                                                                                                                                                                                                                     |
-  | ------------------------------------------------------------------------------------------------------------------------ | :------: | :------: | :--------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | [Docker Desktop](https://www.docker.com/products/docker-desktop/)                                                        |    ✅    |    ✅    |     ✅     | **Easiest starting point for all platforms.** GUI-based, well-documented, one installer. Uses WSL2 as default backend on Windows (Hyper-V also available). Installation requires admin rights; daily use does not. Free for personal use. |
-  | [OrbStack](https://orbstack.dev/) ⭐                                                                                     |    ✅    |    —     |     —      | **Recommended for macOS** once Docker Desktop feels slow. Starts in ~2s, much lighter on RAM/CPU, full Docker API compatibility. Free for personal use.                                                                                   |
-  | [Docker CE](https://docs.docker.com/engine/install/) (native) ⭐                                                         |    —     |    ✅    |     —      | **Recommended for Linux.** Install directly via your package manager — no VM, no GUI, no overhead. Free.                                                                                                                                  |
-  | [WSL2](https://learn.microsoft.com/windows/wsl/install) + [Docker CE](https://docs.docker.com/engine/install/ubuntu/) ⭐ |    —     |    —     |     ✅     | **Recommended for Windows** once you're comfortable with WSL2. Docker runs natively inside WSL2 — no GUI overhead. Requires one-time WSL2 setup. Free.                                                                                    |
-  | [Rancher Desktop](https://rancherdesktop.io/)                                                                            |    ✅    |    ✅    |     ✅     | Open source by SUSE. GUI-based, uses WSL2 on Windows. Good alternative to Docker Desktop. Free.                                                                                                                                           |
-  | [Colima](https://github.com/abiosoft/colima)                                                                             |    ✅    |    ✅    |     —      | CLI-only, very lightweight. Good for terminal-focused workflows. Free.                                                                                                                                                                    |
-
-- **VS Code** with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-- **Git** — macOS and Linux usually have it already; see below if not, or to get a newer version:
-  - **🍎 macOS:** The system Git (`xcode-select --install`) works fine. Recommended: `brew install git` ([Homebrew](https://brew.sh/)) for a current version.
-  - **🐧 Linux:** Usually pre-installed. If not: `sudo apt install git` (or your distro's equivalent).
-  - **🪟 Windows + WSL2 ⭐:** Install Git _inside WSL2_ with `sudo apt install git`. Git on Windows itself is not needed — VS Code clones and operates entirely within WSL2.
-  - **🪟 Windows + Docker Desktop:** Install via `winget install Git.Git` or download [Git for Windows](https://git-scm.com/download/win).
-- **Hardware** — the devcontainer runs a full Home Assistant instance including Python tooling:
-
-  |          | Minimum    | Recommended                           |
-  | -------- | ---------- | ------------------------------------- |
-  | **RAM**  | 8 GB       | 16 GB or more                         |
-  | **CPU**  | 4 cores    | 8 cores or more                       |
-  | **Disk** | 10 GB free | 20 GB free (SSD strongly recommended) |
-
-> [!TIP]
-> **Not sure which Docker option to pick?** Start with [Docker Desktop](https://www.docker.com/products/docker-desktop/) — it works on all platforms, has a GUI, and needs no extra setup. The ⭐ options are faster alternatives once you're comfortable. macOS and Linux offer the best devcontainer experience — containers run with no extra VM layer and file I/O is fast. Windows works well too; this integration uses named container volumes (files live inside WSL2, not on the Windows drive) to keep performance acceptable.
+Branching model, commit conventions and the release process are in [CONTRIBUTING.md](CONTRIBUTING.md); architecture and design decisions in [docs/development/](docs/development/).
 
 > [!NOTE]
-> **New to Dev Containers?** See the [VS Code Dev Containers documentation](https://code.visualstudio.com/docs/devcontainers/containers#_system-requirements) for system requirements and how to install the extension. **Once the extension is installed, you're done** — this repository already ships a complete devcontainer configuration. You don't need to follow the rest of the VS Code guide; the setup steps below are all that's needed.
+> **Transparency:** This integration was developed with the help of AI coding agents (GitHub Copilot, Claude and others). It follows Home Assistant Core standards, but AI-generated code may not be reviewed and tested to the same extent as hand-written code. If something behaves unexpectedly, please [open an issue](../../issues).
 
-#### Setup Steps
+## License
 
-1. **Clone in a Dev Container:**
+MIT — see [LICENSE](LICENSE).
 
-   **🍎 macOS / 🐧 Linux:** Clone the repository and open the folder in VS Code → click **"Reopen in Container"** when prompted (or `F1` → **"Dev Containers: Reopen in Container"**).
-
-   **🪟 Windows:** In VS Code, press `F1` → **"Dev Containers: Clone Repository in Named Container Volume..."** and enter the repository URL. This keeps files inside WSL2 for best I/O performance.
-
-2. Wait for the container to build (2-3 minutes first time)
-
-3. **Review and commit** changes in Source Control (`Ctrl+Shift+G`)
-
-4. **Start developing**:
-
-   ```bash
-   script/develop  # Home Assistant runs at http://localhost:8123
-   ```
-
-> [!NOTE]
-> Both Codespaces and local DevContainer provide the exact same experience. The only difference is where the container runs (GitHub's cloud vs. your machine).
-
-</details>
-
----
-
-## 🤖 AI-Assisted Development
-
-> [!NOTE]
-> **Transparency Notice:** This integration was developed with assistance from AI coding agents (GitHub Copilot, Claude, and others). While the codebase follows Home Assistant Core standards, AI-generated code may not be reviewed or tested to the same extent as manually written code. AI tools were used to generate boilerplate code, implement standard integration features (config flow, coordinator, entities), ensure code quality and type safety, and write documentation. If you encounter unexpected behavior, please [open an issue](../../issues) on GitHub.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Made with ❤️ by [@anym001][user_profile]**
-
----
+Maintained by [@anym001][user_profile].
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos/commits/main

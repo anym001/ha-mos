@@ -36,10 +36,13 @@
     "error": {
       "auth": "The API token was rejected.",
       "connection": "Unable to connect to the server.",
+      "permission": "The API token is valid but not authorized to read system information. Grant it read access in the MOS web UI under User Settings > Admin API Tokens.",
       "unknown": "Unknown error occurred."
     },
     "abort": {
-      "already_configured": "This MOS server is already configured."
+      "already_configured": "This MOS server is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "options": {
@@ -72,6 +75,9 @@
     "authentication_failed": {
       "message": "Authentication failed during data update."
     },
+    "authentication_failed_transient": {
+      "message": "The server rejected the API token, but this may be temporary (e.g. the server is restarting). Retrying before requiring re-authentication."
+    },
     "update_failed": {
       "message": "Failed to update data from the server."
     },
@@ -95,6 +101,9 @@
     },
     "insufficient_write_permission": {
       "message": "The configured API token does not have write access to {resource}."
+    },
+    "insufficient_read_permission": {
+      "message": "The configured API token does not have read access to {resource}, which this integration always needs. Grant it read access in the MOS web UI under User Settings > Admin API Tokens."
     }
   },
   "entity": {

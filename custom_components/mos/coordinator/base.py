@@ -12,10 +12,16 @@ https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass, field
+import time
 from typing import TYPE_CHECKING, Any
 
-from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
+from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError, MOSApiClientPermissionError
 from custom_components.mos.const import (
+    ALWAYS_FETCHED_RESOURCES,
+    AUTH_FAILURE_GRACE_PERIOD,
+    AUTH_FAILURE_MIN_FAILURES,
+    AUTH_FAILURE_STORE,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -29,13 +35,39 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_SERVICES,
     DEFAULT_ENABLE_VM,
     LOGGER,
+    READ_PERMISSION_RESOURCES,
 )
-from custom_components.mos.entity_utils import has_write_access
+from custom_components.mos.entity_utils import has_read_access, has_write_access
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
     from custom_components.mos.data import MOSConfigEntry
+
+
+@dataclass
+class _AuthFailureStreak:
+    """
+    An unbroken run of polls whose authentication was rejected with a 401.
+
+    Both halves of the escalation guard are tracked: `started_at` for the
+    elapsed-time half (AUTH_FAILURE_GRACE_PERIOD) and `failures` for the
+    observation-count half (AUTH_FAILURE_MIN_FAILURES). See the commentary on
+    those constants for why neither is sufficient alone.
+    """
+
+    started_at: float
+    failures: int = 0
+
+
+@dataclass
+class _UpdateOutcome:
+    """One poll cycle's results, split by how the coordinator has to react."""
+
+    payload: dict[str, Any] = field(default_factory=dict)
+    auth_errors: list[BaseException] = field(default_factory=list)
+    permission_errors: dict[str, BaseException] = field(default_factory=dict)
+    other_errors: list[BaseException] = field(default_factory=list)
 
 
 def _merge_docker_engine_state(
@@ -90,6 +122,51 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     config_entry: MOSConfigEntry
     token_permissions: dict[str, Any] | None = None
 
+    # Optional resources the token may not read. Seeded at setup from the token's
+    # permission scope and extended whenever a poll gets a 403, so a denied
+    # resource is asked for at most once. Deliberately per-coordinator and not
+    # persisted: a reload re-probes, so fixing the token's scope is picked up by
+    # reloading the entry rather than needing the integration re-added.
+    #
+    # Rebound rather than mutated (hence frozenset) - a mutable class attribute
+    # would be shared by every coordinator instance in the process.
+    forbidden_resources: frozenset[str] = frozenset()
+
+    @property
+    def _auth_failure_streak(self) -> _AuthFailureStreak | None:
+        """
+        The current unbroken run of 401-rejected polls, if any.
+
+        ``None`` when the last poll did not fail with a 401. Cleared on any
+        successful poll and on communication errors (which are inconclusive
+        about the token's validity). Only once authentication has been rejected
+        for both ``AUTH_FAILURE_GRACE_PERIOD`` and ``AUTH_FAILURE_MIN_FAILURES``
+        consecutive polls does the coordinator escalate to a reauth flow - see
+        ``_async_update_data``.
+        """
+        store: dict[str, _AuthFailureStreak] = self.hass.data.get(AUTH_FAILURE_STORE, {})
+        return store.get(self.config_entry.entry_id)
+
+    def _record_auth_failure(self) -> _AuthFailureStreak:
+        """
+        Start or continue the auth-failure streak and return it.
+
+        The streak is kept in ``hass.data``, keyed by config entry, rather than
+        on the coordinator itself: when setup fails it is retried with a *new*
+        coordinator instance, so instance state would reset the grace period on
+        every retry and never escalate to reauth.
+        """
+        store: dict[str, _AuthFailureStreak] = self.hass.data.setdefault(AUTH_FAILURE_STORE, {})
+        streak = store.setdefault(self.config_entry.entry_id, _AuthFailureStreak(started_at=time.monotonic()))
+        streak.failures += 1
+        return streak
+
+    def _clear_auth_failure(self) -> None:
+        """Forget the current auth-failure streak, so the grace period restarts from zero."""
+        store: dict[str, _AuthFailureStreak] | None = self.hass.data.get(AUTH_FAILURE_STORE)
+        if store is not None:
+            store.pop(self.config_entry.entry_id, None)
+
     async def _async_setup(self) -> None:
         """
         Set up the coordinator.
@@ -117,6 +194,28 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         except MOSApiClientError as exception:
             LOGGER.debug("Token permission introspection unavailable - %s", exception)
             self.token_permissions = None
+        self._seed_forbidden_resources()
+
+    def _seed_forbidden_resources(self) -> None:
+        """
+        Drop resources the token's scope already says it cannot read, before the first poll.
+
+        Purely an optimisation over discovering the same thing through a 403 on
+        every reload: it saves the request and gets the warning into the log at
+        setup, where a user looking for "why are my VM entities missing" will
+        find it. Correctness does not depend on it - see ``has_read_access`` for
+        why this only acts on an explicit denial.
+        """
+        scope = (self.token_permissions or {}).get("permissions")
+        denied = {key for key, resource in READ_PERMISSION_RESOURCES.items() if not has_read_access(scope, resource)}
+        if denied:
+            LOGGER.warning(
+                "API token has no read access to %s - those entities will not be created. "
+                "Grant the token read access in the MOS web UI and reload the integration, "
+                "or disable the categories in the integration options",
+                ", ".join(sorted(denied)),
+            )
+        self.forbidden_resources = frozenset(denied)
 
     def _optimistically_set_container_state(self, resource_key: str, name: str, state: str) -> None:
         """
@@ -267,6 +366,178 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         await client.async_stop_vm_machine(name)
         await self.async_request_refresh()
 
+    def _build_update_tasks(self) -> dict[str, Any]:
+        """
+        Build the per-resource fetch coroutines for one poll cycle.
+
+        Resources disabled in the options flow, and those in
+        ``forbidden_resources``, are left out entirely. ``osinfo`` and
+        ``system_load`` are always included, so a token whose scope is later
+        widened recovers on the next reload without any special handling.
+
+        Returns:
+            Coroutines keyed by the data key their result belongs under.
+
+        """
+        client = self.config_entry.runtime_data.client
+        options = self.config_entry.options
+        forbidden = self.forbidden_resources
+
+        def wanted(option: str, default: bool, key: str) -> bool:
+            return bool(options.get(option, default)) and key not in forbidden
+
+        tasks: dict[str, Any] = {
+            "osinfo": client.async_get_osinfo(),
+            "system_load": client.async_get_system_load(),
+        }
+        if wanted(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES, "services"):
+            tasks["services"] = client.async_get_services()
+        if wanted(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS, "disks"):
+            tasks["disks"] = client.async_get_disks()
+        if wanted(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS, "pools"):
+            tasks["pools"] = client.async_get_pools()
+        if wanted(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC, "lxc_containers"):
+            tasks["lxc_containers"] = client.async_get_lxc_containers()
+        if wanted(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER, "docker_containers"):
+            tasks["docker_containers"] = client.async_get_docker_containers()
+        # Checked separately from the container list: the raw Docker Engine proxy
+        # is a different endpoint and can be denied on its own, in which case the
+        # containers still appear, just without live running state.
+        if wanted(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER, "docker_engine_containers"):
+            tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
+        if wanted(CONF_ENABLE_VM, DEFAULT_ENABLE_VM, "vm_machines"):
+            tasks["vm_machines"] = client.async_get_vm_machines()
+        return tasks
+
+    def _triage_results(self, tasks: dict[str, Any], results: list[Any]) -> _UpdateOutcome:
+        """
+        Split one cycle's gather results into successful payloads and failure classes.
+
+        Returns:
+            The results grouped by the reaction they call for.
+
+        Raises:
+            BaseException: Anything that is not an API error - notably
+                ``asyncio.CancelledError``, which ``return_exceptions`` captures
+                like any other and which must never be swallowed.
+
+        """
+        outcome = _UpdateOutcome()
+        for key, result in zip(tasks.keys(), results, strict=True):
+            if not isinstance(result, BaseException):
+                outcome.payload[key] = result
+            elif isinstance(result, MOSApiClientAuthenticationError):
+                outcome.auth_errors.append(result)
+            elif isinstance(result, MOSApiClientPermissionError):
+                outcome.permission_errors[key] = result
+            elif isinstance(result, MOSApiClientError):
+                outcome.other_errors.append(result)
+            else:
+                raise result
+        return outcome
+
+    def _handle_denied_resources(self, outcome: _UpdateOutcome) -> None:
+        """
+        Record 403-denied resources so they are not requested again.
+
+        Raises:
+            UpdateFailed: If an always-fetched resource was denied. Deliberately
+                not ``ConfigEntryAuthFailed``: the token is valid, it just lacks
+                the scope, and a reauth flow would validate it successfully and
+                land straight back here on the next poll.
+
+        """
+        if not outcome.permission_errors:
+            return
+
+        denied = set(outcome.permission_errors)
+        newly_denied = denied - self.forbidden_resources - ALWAYS_FETCHED_RESOURCES
+        if newly_denied:
+            LOGGER.warning(
+                "API token is not authorized to read %s - skipping %s until the integration is reloaded. "
+                "This is a token permission problem, not an invalid token; grant read access in the "
+                "MOS web UI under User Settings > Admin API Tokens",
+                ", ".join(sorted(newly_denied)),
+                "it" if len(newly_denied) == 1 else "them",
+            )
+            self.forbidden_resources = self.forbidden_resources | newly_denied
+
+        denied_required = denied & ALWAYS_FETCHED_RESOURCES
+        if denied_required:
+            exception = outcome.permission_errors[next(iter(sorted(denied_required)))]
+            LOGGER.error(
+                "API token is not authorized to read %s, which the integration always needs: %s",
+                ", ".join(sorted(denied_required)),
+                exception,
+            )
+            raise UpdateFailed(
+                translation_domain="mos",
+                translation_key="insufficient_read_permission",
+                translation_placeholders={"resource": ", ".join(sorted(denied_required))},
+            ) from exception
+
+    def _handle_failed_resources(self, outcome: _UpdateOutcome) -> None:
+        """
+        Apply the auth-failure grace period and surface communication errors.
+
+        Raises:
+            ConfigEntryAuthFailed: If authentication has been rejected for longer
+                than ``AUTH_FAILURE_GRACE_PERIOD`` *and* for at least
+                ``AUTH_FAILURE_MIN_FAILURES`` consecutive polls.
+            UpdateFailed: For communication errors, and for an authentication
+                rejection that is still inside the grace period.
+
+        """
+        # Communication errors are checked first and win over a 401 in the same
+        # cycle: a server answering some requests and dropping others is
+        # unstable, which says nothing about the token. Resetting the streak here
+        # keeps a flapping server from accumulating its way into a spurious reauth.
+        if outcome.other_errors:
+            exception = outcome.other_errors[0]
+            self._clear_auth_failure()
+            LOGGER.error("Error communicating with API: %s", exception)
+            raise UpdateFailed(
+                translation_domain="mos",
+                translation_key="update_failed",
+            ) from exception
+
+        if not outcome.auth_errors:
+            return
+
+        exception = outcome.auth_errors[0]
+        streak = self._record_auth_failure()
+        elapsed = time.monotonic() - streak.started_at
+        if elapsed >= AUTH_FAILURE_GRACE_PERIOD.total_seconds() and streak.failures >= AUTH_FAILURE_MIN_FAILURES:
+            LOGGER.warning(
+                "Authentication rejected on %d consecutive polls over %.0fs - triggering reauth: %s",
+                streak.failures,
+                elapsed,
+                exception,
+            )
+            raise ConfigEntryAuthFailed(
+                translation_domain="mos",
+                translation_key="authentication_failed",
+            ) from exception
+        # A 401 is more likely a server that is rebooting or otherwise briefly
+        # unavailable than a genuinely invalid token. Keep the entry
+        # authenticated and retry until both halves of the guard are satisfied,
+        # so the token is not thrown away over a transient blip. During setup
+        # this becomes ConfigEntryNotReady, so Home Assistant retries with
+        # backoff instead of prompting for reauthentication.
+        LOGGER.warning(
+            "Authentication rejected (%d/%d failures, %.0fs/%.0fs before reauth) - "
+            "retrying, server may be unavailable: %s",
+            streak.failures,
+            AUTH_FAILURE_MIN_FAILURES,
+            elapsed,
+            AUTH_FAILURE_GRACE_PERIOD.total_seconds(),
+            exception,
+        )
+        raise UpdateFailed(
+            translation_domain="mos",
+            translation_key="authentication_failed_transient",
+        ) from exception
+
     async def _async_update_data(self) -> Any:
         """
         Fetch data from the MOS API.
@@ -300,47 +571,32 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         Returns:
             The data from the API as a dictionary keyed by resource.
 
+        Resources are fetched concurrently and evaluated individually: a
+        resource the token is not authorized to read (403) is dropped and the
+        rest of the poll still succeeds, so a narrowly scoped token yields fewer
+        entities rather than none.
+
         Raises:
-            ConfigEntryAuthFailed: If authentication fails, triggers reauthentication.
-            UpdateFailed: If data fetching fails for other reasons.
+            ConfigEntryAuthFailed: If the token has been rejected (401) for longer
+                than ``AUTH_FAILURE_GRACE_PERIOD`` and on at least
+                ``AUTH_FAILURE_MIN_FAILURES`` consecutive polls; triggers
+                reauthentication.
+            UpdateFailed: If data fetching fails for other reasons - a
+                communication error, an authentication rejection still inside the
+                grace period, or a denied always-fetched resource.
         """
-        client = self.config_entry.runtime_data.client
-        options = self.config_entry.options
+        tasks = self._build_update_tasks()
+        # return_exceptions so one resource cannot take the whole poll down with
+        # it: a token scoped to some resources but not others would otherwise
+        # make every cycle fail on the first 403, leaving the integration with no
+        # data at all even though most endpoints answered fine.
+        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+        outcome = self._triage_results(tasks, results)
+        self._handle_denied_resources(outcome)
+        self._handle_failed_resources(outcome)
 
-        tasks: dict[str, Any] = {
-            "osinfo": client.async_get_osinfo(),
-            "system_load": client.async_get_system_load(),
-        }
-        if options.get(CONF_ENABLE_SERVICES, DEFAULT_ENABLE_SERVICES):
-            tasks["services"] = client.async_get_services()
-        if options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
-            tasks["disks"] = client.async_get_disks()
-        if options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
-            tasks["pools"] = client.async_get_pools()
-        if options.get(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC):
-            tasks["lxc_containers"] = client.async_get_lxc_containers()
-        if options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
-            tasks["docker_containers"] = client.async_get_docker_containers()
-            tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
-        if options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
-            tasks["vm_machines"] = client.async_get_vm_machines()
-
-        try:
-            results = await asyncio.gather(*tasks.values())
-        except MOSApiClientAuthenticationError as exception:
-            LOGGER.warning("Authentication error - %s", exception)
-            raise ConfigEntryAuthFailed(
-                translation_domain="mos",
-                translation_key="authentication_failed",
-            ) from exception
-        except MOSApiClientError as exception:
-            LOGGER.exception("Error communicating with API")
-            raise UpdateFailed(
-                translation_domain="mos",
-                translation_key="update_failed",
-            ) from exception
-
-        data: dict[str, Any] = dict(zip(tasks.keys(), results, strict=True))
+        self._clear_auth_failure()
+        data: dict[str, Any] = outcome.payload
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])

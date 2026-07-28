@@ -14,6 +14,7 @@ https://developers.home-assistant.io/docs/api_lib_index
 from __future__ import annotations
 
 import asyncio
+from http import HTTPStatus
 import socket
 from typing import Any
 
@@ -42,7 +43,22 @@ class MOSApiClientCommunicationError(
 class MOSApiClientAuthenticationError(
     MOSApiClientError,
 ):
-    """Exception to indicate an authentication error with the API."""
+    """Exception to indicate the server rejected the API token (HTTP 401)."""
+
+
+class MOSApiClientPermissionError(
+    MOSApiClientError,
+):
+    """
+    Exception to indicate the token is valid but not authorized for a resource (HTTP 403).
+
+    Deliberately *not* a subclass of ``MOSApiClientAuthenticationError``. A 403
+    means the server accepted the token and refused the resource, so prompting
+    for reauthentication cannot fix it - the user would enter the same (valid)
+    token, the flow would succeed, and the next poll would fail again. The
+    coordinator drops the affected resource instead; see
+    ``MOSDataUpdateCoordinator._async_update_data``.
+    """
 
 
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
@@ -55,13 +71,19 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
         response: The aiohttp ClientResponse to verify.
 
     Raises:
-        MOSApiClientAuthenticationError: For 401/403 errors.
+        MOSApiClientAuthenticationError: For 401 (token rejected).
+        MOSApiClientPermissionError: For 403 (token accepted, resource denied).
         aiohttp.ClientResponseError: For other HTTP errors.
 
     """
-    if response.status in (401, 403):
+    if response.status == HTTPStatus.UNAUTHORIZED:
         msg = "Invalid API token"
         raise MOSApiClientAuthenticationError(
+            msg,
+        )
+    if response.status == HTTPStatus.FORBIDDEN:
+        msg = f"API token is not authorized for {response.url.path}"
+        raise MOSApiClientPermissionError(
             msg,
         )
     response.raise_for_status()
@@ -507,7 +529,10 @@ class MOSApiClient:
                     return None
                 return await response.json()
 
-        except MOSApiClientAuthenticationError:
+        except MOSApiClientAuthenticationError, MOSApiClientPermissionError:
+            # Both are already the precise exception for this response; let them
+            # past the catch-all below instead of being flattened into a generic
+            # MOSApiClientError.
             raise
         except TimeoutError as exception:
             msg = f"Timeout error fetching information - {exception}"

@@ -13,6 +13,7 @@ from custom_components.mos.api.client import (
     MOSApiClientAuthenticationError,
     MOSApiClientCommunicationError,
     MOSApiClientError,
+    MOSApiClientPermissionError,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -297,19 +298,36 @@ async def test_float_port_is_coerced_to_int(
     assert aioclient_mock.call_count == 1
 
 
-@pytest.mark.parametrize("status", [401, 403])
-async def test_auth_error_status_codes_raise_authentication_error(
+async def test_401_raises_authentication_error(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
-    status: int,
 ) -> None:
-    """401 and 403 responses are translated into MOSApiClientAuthenticationError."""
-    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=status)
+    """A 401 means the token itself was rejected."""
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=401)
 
     client = MOSApiClient(host="10.0.1.30", token="bad-token", session=async_get_clientsession(hass))
 
     with pytest.raises(MOSApiClientAuthenticationError):
         await client.async_get_osinfo()
+
+
+async def test_403_raises_permission_error_not_authentication_error(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A 403 is a scope problem, and must not be mistaken for an invalid token.
+
+    Conflating the two is what produced the reauth loop: the token is valid, so
+    the reauth flow succeeds, and the very next poll fails again the same way.
+    """
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=403)
+
+    client = MOSApiClient(host="10.0.1.30", token="scoped-token", session=async_get_clientsession(hass))
+
+    with pytest.raises(MOSApiClientPermissionError):
+        await client.async_get_osinfo()
+
+    assert not issubclass(MOSApiClientPermissionError, MOSApiClientAuthenticationError)
 
 
 async def test_other_http_error_raises_communication_error(

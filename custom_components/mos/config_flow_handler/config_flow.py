@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 ERROR_MAP = {
     "MOSApiClientAuthenticationError": "auth",
     "MOSApiClientCommunicationError": "connection",
+    # A 403 on /osinfo means the token is genuine but too narrowly scoped, so
+    # "the token was rejected" would send the user looking for the wrong problem.
+    "MOSApiClientPermissionError": "permission",
 }
 
 

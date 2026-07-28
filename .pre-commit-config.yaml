@@ -91,7 +91,7 @@ repos:
         language: system
         types_or: [python, markdown, rst]
         exclude_types: [csv, json, html]
-        files: ^(custom_components/|tests/|script/|README\.md|CONTRIBUTING\.md|DEPENDENCIES\.md)
+        files: ^(custom_components/|tests/|script/|README\.md|CONTRIBUTING\.md)
         pass_filenames: true
 
       # yamllint disable rule:comments-indentation
