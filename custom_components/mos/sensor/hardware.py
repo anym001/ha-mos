@@ -26,8 +26,14 @@ if TYPE_CHECKING:
 _DEVICE_CLASS_BY_SUBTYPE: dict[str, SensorDeviceClass] = {
     "temperature": SensorDeviceClass.TEMPERATURE,
     "voltage": SensorDeviceClass.VOLTAGE,
-    "power": SensorDeviceClass.POWER,
+    "wattage": SensorDeviceClass.POWER,
 }
+
+# The full set of subtypes MOS reports (voltage, wattage, temperature, speed,
+# percentage, mode). All but "mode" are numeric measurements; "mode" is a
+# textual/enum-like reading (e.g. a PSU's operating mode), so it gets no
+# state_class - HA expects state_class-tagged sensors to be numeric.
+_MEASUREMENT_SUBTYPES = frozenset({"voltage", "wattage", "temperature", "speed", "percentage"})
 
 _ICON_BY_CATEGORY: dict[str, str] = {
     "fan": "mdi:fan",
@@ -88,11 +94,12 @@ class MOSHardwareSensor(SensorEntity, MOSEntity):
         """Initialize the hardware sensor."""
         self._key = key
         item = _find_sensor(coordinator, key) or {}
+        subtype = item.get("subtype", "")
         entity_description = SensorEntityDescription(
             key=key,
-            device_class=_DEVICE_CLASS_BY_SUBTYPE.get(item.get("subtype", "")),
+            device_class=_DEVICE_CLASS_BY_SUBTYPE.get(subtype),
             native_unit_of_measurement=item.get("unit"),
-            state_class=SensorStateClass.MEASUREMENT,
+            state_class=SensorStateClass.MEASUREMENT if subtype in _MEASUREMENT_SUBTYPES else None,
             icon=_ICON_BY_CATEGORY.get(item.get("category", ""), "mdi:chip"),
         )
         super().__init__(
