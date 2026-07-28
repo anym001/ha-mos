@@ -15,44 +15,42 @@ custom_components/mos/
 │   ├── data_processing.py   # Data validation and transformation
 │   ├── error_handling.py    # Error recovery and retry logic
 │   └── listeners.py         # Entity callbacks and event listeners
-├── data.py                  # Data classes and type definitions
+├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
-├── entity/                  # Base entity package
-│   ├── __init__.py          # Exports MOSEntity
-│   └── base.py              # Base entity class implementation
 ├── manifest.json            # Integration metadata
-├── repairs.py               # Repair flows for fixing issues
-├── services.yaml            # Service action definitions (legacy filename)
 ├── api/                     # External API communication
-│   ├── __init__.py
+│   ├── __init__.py          # Exception hierarchy and exports
 │   └── client.py            # API client implementation
 ├── config_flow_handler/     # Config flow implementation
 │   ├── __init__.py          # Package exports
-│   ├── handler.py           # Backward compatibility wrapper
+│   ├── handler.py           # Shared handler base
 │   ├── config_flow.py       # Main config flow (user, reauth, reconfigure)
 │   ├── options_flow.py      # Options flow
-│   ├── subentry_flow.py     # Subentry flow template
 │   ├── schemas/             # Voluptuous schemas
-│   │   ├── __init__.py      # Schema exports
 │   │   ├── config.py        # Config flow schemas
 │   │   └── options.py       # Options flow schemas
 │   └── validators/          # Input validation
-│       ├── __init__.py      # Validator exports
-│       ├── credentials.py   # Credential validation
-│       └── sanitizers.py    # Input sanitizers
+│       └── credentials.py   # Credential validation
+├── entity/                  # Base entity package
+│   ├── __init__.py          # Exports MOSEntity
+│   └── base.py              # Base entity class implementation
 ├── entity_utils/            # Entity helper utilities
-│   ├── __init__.py
-│   ├── device_info.py       # Device information helpers
+│   ├── dynamic_entities.py  # Add/remove entities as server resources change
+│   ├── permissions.py       # API token permission checks
 │   └── state_helpers.py     # State management utilities
-├── service_actions/         # Service action implementations
-│   ├── __init__.py
-│   └── example_service.py   # Example service action handler
+├── utils/                   # Generic helpers
+│   ├── string_helpers.py    # Naming and slug helpers
+│   └── validators.py        # Value validation
+├── brand/                   # Integration icons
 ├── translations/            # Localization files
 │   └── en.json              # English translations
-└── <platform>/              # Platform-specific implementations
+└── <platform>/              # sensor, binary_sensor, switch
     ├── __init__.py          # Platform setup
-    └── <entity>.py          # Individual entity implementations
+    └── <resource>.py        # Entities per resource type (disks, pools, lxc, …)
 ```
+
+The integration ships no `services.yaml`, no `repairs.py` and no service
+actions — it is monitoring plus switches, driven entirely by the coordinator.
 
 ## Core Components
 
@@ -116,14 +114,13 @@ is organized modularly to support complex flows without becoming monolithic.
 - `options_flow.py`: Options flow for post-setup configuration
 - `schemas/`: Voluptuous schemas for all forms
 - `validators/`: Validation logic separated from flow logic
-- `subentry_flow.py`: Template for multi-device/location support
 
 **Supported flows:**
 
 - Initial user setup with validation
-- Options flow for reconfiguration
-- Reauthentication flow for expired credentials
-- Ready for subentry flows (multi-device support)
+- Options flow for post-setup configuration
+- Reauthentication flow for a rejected API token
+- Reconfigure flow for changing host, port and TLS settings
 
 **Key classes:**
 
@@ -185,72 +182,10 @@ Platform entities inherit from both:
 
 ## AI Agent Instructions
 
-This project includes comprehensive instruction files for AI coding assistants (GitHub Copilot, Claude, etc.) to ensure consistent code generation that follows Home Assistant patterns and project conventions.
-
-### Instruction File Architecture
-
-**Layered approach:**
-
-1. **`AGENTS.md`** - High-level "survival guide" for all AI agents (project overview, workflow, validation)
-2. **`.github/instructions/*.instructions.md`** - Detailed path-specific patterns (applied based on file being edited)
-3. **`.github/copilot-instructions.md`** - GitHub Copilot-specific workflow guidance
-
-### Available Instruction Files
-
-| File                                           | Applies To                                            | Purpose                                                                        |
-| ---------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `blueprint.python.instructions.md`             | `**/*.py`                                             | Python code style, imports, type hints, async patterns, linting                |
-| `blueprint.yaml.instructions.md`               | `**/*.yaml`, `**/*.yml`                               | YAML formatting, Home Assistant YAML conventions                               |
-| `blueprint.json.instructions.md`               | `**/*.json`                                           | JSON formatting, schema validation, no trailing commas                         |
-| `blueprint.markdown.instructions.md`           | `**/*.md`                                             | Markdown formatting, documentation structure, linting                          |
-| `blueprint.manifest.instructions.md`           | `**/manifest.json`                                    | Integration manifest requirements, quality scale, IoT class                    |
-| `blueprint.configuration_yaml.instructions.md` | `**/configuration.yaml`                               | Home Assistant configuration patterns (deprecated for device integrations)     |
-| `blueprint.config_flow.instructions.md`        | `**/config_flow_handler/**/*.py`, `**/config_flow.py` | Config flow patterns, discovery, reauth, reconfigure, unique IDs               |
-| `blueprint.service_actions.instructions.md`    | `**/service_actions/**/*.py`                          | Service action implementation, registration in `async_setup()`, error handling |
-| `blueprint.services_yaml.instructions.md`      | `**/services.yaml`                                    | Service action definitions, schema, descriptions, examples (legacy filename)   |
-| `blueprint.entities.instructions.md`           | Entity platform files                                 | Entity implementation, EntityDescription, device info, state management        |
-| `blueprint.coordinator.instructions.md`        | `**/coordinator/**/*.py`, `**/api/**/*.py`            | DataUpdateCoordinator patterns, error handling, caching, pull vs push          |
-| `blueprint.api.instructions.md`                | `**/api/**/*.py`, `**/coordinator/**/*.py`            | API client implementation, exceptions, rate limiting, pagination               |
-| `blueprint.diagnostics.instructions.md`        | `**/diagnostics.py`                                   | Diagnostics data collection, `async_redact_data()` for sensitive data          |
-| `blueprint.repairs.instructions.md`            | `**/repairs.py`                                       | Repair flows, issue creation, severity levels, fix flows                       |
-| `blueprint.translations.instructions.md`       | `**/translations/*.json`                              | Translation file structure, placeholders, nested keys                          |
-| `blueprint.tests.instructions.md`              | `tests/**/*.py`                                       | Test patterns, fixtures, mocking, pytest conventions                           |
-
-> [!NOTE]
-> Entity platform files include: `alarm_control_panel/**/*.py`, `binary_sensor/**/*.py`, `button/**/*.py`, `camera/**/*.py`, `climate/**/*.py`, `cover/**/*.py`, `fan/**/*.py`, `humidifier/**/*.py`, `light/**/*.py`, `lock/**/*.py`, `number/**/*.py`, `select/**/*.py`, `sensor/**/*.py`, `siren/**/*.py`, `switch/**/*.py`, `vacuum/**/*.py`, `water_heater/**/*.py`, `entity/**/*.py`, `entity_utils/**/*.py`
-
-### Instruction File Application
-
-**GitHub Copilot:**
-
-Uses frontmatter `applyTo` patterns to automatically apply instructions based on file being edited:
-
-```yaml
----
-applyTo:
-  - "**/*.py"
----
-```
-
-**Other AI Agents:**
-
-Typically read `AGENTS.md` for project overview and may use path-specific instructions when available.
-
-### Benefits
-
-- ✅ **Consistent code quality** - AI generates code that passes validation on first run
-- ✅ **Home Assistant patterns** - Follows Core development standards and best practices
-- ✅ **Context-aware** - File-specific instructions ensure appropriate patterns
-- ✅ **Reduced iteration** - Fewer validation errors and corrections needed
-- ✅ **Knowledge transfer** - Instructions document project conventions and decisions
-
-### Maintaining Instructions
-
-- Keep `AGENTS.md` concise (high-level guidance only, ~30,000 ft view)
-- Put detailed patterns in path-specific `.instructions.md` files
-- Update instructions when patterns change or new conventions emerge
-- Remove outdated rules to prevent bloat
-- Document major architectural decisions in `DECISIONS.md`
+Coding agents read `AGENTS.md` for project-wide rules and the path-specific
+`.github/instructions/*.instructions.md` files for per-file-type patterns; each
+of those declares its own scope in an `applyTo` frontmatter glob. Keep
+`AGENTS.md` high-level and put detailed patterns in the instruction files.
 
 ## Key Design Decisions
 
@@ -267,15 +202,9 @@ To add new functionality:
 3. Create entity classes inheriting from platform base + `MOSEntity`
 4. Add platform to `PLATFORMS` in `const.py`
 
-### Adding a New Service Action
-
-1. Create service action handler in `service_actions/<service_name>.py`
-2. Define service action in `services.yaml` (legacy filename) with schema
-3. Register service action in `__init__.py:async_setup()` (NOT `async_setup_entry`)
-
 ### Modifying Data Structure
 
-1. Update coordinator data type in `coordinator.py`
+1. Update the coordinator data type in `coordinator/base.py`
 2. Adjust API client response parsing in `api/client.py`
 3. Update entity property implementations to match new structure
 
@@ -292,6 +221,6 @@ Tests mirror the source structure under `tests/`.
 Core dependencies (see `manifest.json`):
 
 - `aiohttp` - Async HTTP client
-- Home Assistant 2025.7.0+ - Platform requirements
+- Home Assistant 2026.4.0+ (see `hacs.json`) - Platform requirements
 
 Development dependencies (see `requirements_dev.txt`, `requirements_test.txt`).

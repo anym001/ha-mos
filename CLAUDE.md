@@ -32,5 +32,5 @@ Consult the relevant instruction file when working on specific file types:
 - `blueprint.config_flow.instructions.md` — Config flow, reauth, discovery
 - `blueprint.coordinator.instructions.md` — DataUpdateCoordinator patterns
 - `blueprint.api.instructions.md` — API client, exception hierarchy
-- `blueprint.services_yaml.instructions.md` — Service action definitions
+- `blueprint.tests.instructions.md` — Test patterns, fixtures, mocking
 - `blueprint.translations.instructions.md` — Translation file structure

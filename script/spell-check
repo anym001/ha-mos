@@ -31,7 +31,6 @@ codespell \
     custom_components/ \
     README.md \
     CONTRIBUTING.md \
-    DEPENDENCIES.md \
     script/ \
     tests/
 

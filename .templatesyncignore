@@ -52,6 +52,10 @@ LICENSE
 initialize.sh
 hacs.json
 CONTRIBUTING.md
+
+# Deleted here — the blueprint's DEPENDENCIES.md only restates what
+# requirements*.txt, package.json and manifest.json already say. Listed so sync
+# does not re-add it.
 DEPENDENCIES.md
 
 # ── AI agent instruction files ───────────────────────────────
@@ -63,7 +67,24 @@ AGENTS.md
 CODEX.md
 CLAUDE.md
 GEMINI.md
+
+# GitHub Copilot is not used on this project: AGENTS.md serves the agents we do
+# use. Both paths are deleted here, so they are ignored to keep sync from
+# re-adding them.
 .github/copilot-instructions.md
+.github/prompts/
+
+# Instruction files for features this integration does not have — there is no
+# services.yaml, no repairs.py and no service_actions/, and the integration is
+# config-flow only (never configured from configuration.yaml). Restore any of
+# them with `git checkout blueprint/main -- <path>` if that ever changes.
+.github/instructions/blueprint.services_yaml.instructions.md
+.github/instructions/blueprint.service_actions.instructions.md
+.github/instructions/blueprint.repairs.instructions.md
+.github/instructions/blueprint.configuration_yaml.instructions.md
+
+# Schema for the services.yaml this integration does not ship.
+schemas/yaml/services_schema.yaml
 
 # ── GitHub project settings ──────────────────────────────────
 # Ownership, funding, and other per-project settings

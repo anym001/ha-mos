@@ -32,7 +32,6 @@ codespell \
     custom_components/ \
     README.md \
     CONTRIBUTING.md \
-    DEPENDENCIES.md \
     script/ \
     tests/ 2>&1 || true
 

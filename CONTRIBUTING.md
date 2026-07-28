@@ -109,38 +109,39 @@ system, not "classic").
 ## Keeping in sync with the blueprint
 
 This repository was generated from
-[jpawlowski/hacs.integration_blueprint](https://github.com/jpawlowski/hacs.integration_blueprint)
-via GitHub's **"Use this template"**. That records the template on GitHub but
-starts a **fresh git history with no common ancestor** — so there is no `git
-merge` or "Sync fork" path to pull in later blueprint improvements. Adoption is
-manual and deliberate, which is what you want for a project whose integration
-code (`custom_components/mos/`) has diverged from the template.
+[jpawlowski/hacs.integration_blueprint](https://github.com/jpawlowski/hacs.integration_blueprint).
+The [`Sync from Blueprint Template`](.github/workflows/template-sync.yml)
+workflow runs every Monday at 07:00 UTC and opens a pull request whenever the
+blueprint has new commits, so adopting scaffolding improvements is a normal PR
+review — nothing has to be merged that we don't want.
 
-Use the helper to see what changed in the generic scaffolding:
+**What sync may touch.** Only paths _not_ listed in
+[`.templatesyncignore`](.templatesyncignore): `script/`, `.devcontainer/`,
+`.github/workflows/`, `.github/instructions/`, `schemas/` and similar generic
+scaffolding. Our own work — `custom_components/`, `tests/`, `docs/`,
+`README.md`, this file, `AGENTS.md`, `pyproject.toml`, `config/` — is excluded
+and never overwritten.
+
+**Deleting a synced file requires an ignore entry.** Sync restores anything that
+exists upstream but is missing here, so `git rm` alone does not stick. Add the
+path to `.templatesyncignore` in the same commit, with a comment saying why.
+That is how the Copilot files and the instruction files for features this
+integration doesn't have (service actions, repairs) stay deleted.
+
+**Updating workflow files** needs a repository secret named
+`TEMPLATE_SYNC_TARGET_PAT` with `contents: write`, `pull requests: write`,
+`workflows: write` and `metadata: read`. Without it the run still syncs
+everything else and skips only `.github/workflows/*`.
+
+To inspect or adopt something outside the weekly PR:
 
 ```shell
 ./script/compare-blueprint          # full diff of scaffolding paths vs. blueprint/main
 ./script/compare-blueprint --stat   # just the changed files
-./script/compare-blueprint --paths  # list the tracked scaffolding paths
+git checkout blueprint/main -- <path>   # take a single file back from the blueprint
 ```
 
-It adds a read-only `blueprint` remote (local git config only), fetches it, and
-diffs a curated set of scaffolding paths (`script/`, `.github/workflows/`,
-`.github/instructions/`, `.pre-commit-config.yaml`, `.devcontainer/`,
-`pyproject.toml`, `hacs.json`). It deliberately **excludes**
-`custom_components/` and `translations/` — that is our own code.
-
-To adopt an upstream change:
-
-```shell
-git checkout blueprint/main -- <path>   # take a whole file you have not customized
-git cherry-pick <sha>                   # apply a single blueprint commit (resolve conflicts if any)
-```
-
-Do this on a branch off `main`, then open a PR against `main` like any other
-change. Tip: **Watch → Custom → Releases** on the blueprint repo to get notified,
-then run the helper every few months — scaffolding improvements are rarely
-time-critical.
+The helper adds a read-only `blueprint` remote in local git config only.
 
 ## Any contributions you make will be under the MIT Software License
 
@@ -178,15 +179,29 @@ Run `script/check` to lint and type-check your code before submitting, or `scrip
 
 ## Code Quality
 
-This blueprint follows Home Assistant's [integration quality standards](https://developers.home-assistant.io/docs/core/integration-quality-scale/) as best practices. The code includes:
+The integration follows Home Assistant's [integration quality standards](https://developers.home-assistant.io/docs/core/integration-quality-scale/):
+full type hints, docstrings that link the relevant Home Assistant docs, a config
+flow with reauth and reconfigure support, the coordinator pattern for data
+fetching, and explicit error handling that maps API failures onto entity
+availability. Keep new code at that level — `script/check` and `script/test`
+enforce the mechanical part of it.
 
-- ✅ Comprehensive docstrings with links to official documentation
-- ✅ Full type hints for better IDE support
-- ✅ Config flow with reauthentication support
-- ✅ Proper error handling and entity unavailability
-- ✅ Coordinator pattern for efficient data fetching
+## Adding a dependency
 
-**Don't worry!** You don't need to maintain all of this. The blueprint gives you a solid, well-documented starting point. Feel free to simplify or adapt anything to your needs - the goal is to help you get started quickly with good patterns, not to overwhelm you with requirements.
+Four requirements files, each with one job:
+
+| Add to                                     | For                                                                              |
+| ------------------------------------------ | -------------------------------------------------------------------------------- |
+| `manifest.json` **and** `requirements.txt` | A runtime dependency end users need — keep both in sync, same version constraint |
+| `requirements_dev.txt`                     | A Python development tool (type checker, dev-script helpers)                     |
+| `requirements_test.txt`                    | A testing tool (pytest plugins, test utilities)                                  |
+| `package.json`                             | A Node.js tool (Markdown formatting and linting)                                 |
+
+Home Assistant core's own `requirements_test.txt` already brings ruff,
+pre-commit, codespell, pylint, pytest and its usual plugins — `script/setup/bootstrap`
+installs those automatically, so don't duplicate them here. After changing a
+requirements file, run `uv lock` (the lockfile is maintained manually to keep
+sync PRs quiet).
 
 ## Test your code modification
 
