@@ -15,11 +15,9 @@ async def test_disk_sensor_values(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Each disk gets its own power_status/temperature_status sensors."""
+    """Each disk gets its own power_status sensor."""
     assert hass.states.get("sensor.sirius_disk_vda_power_status").state == "active"
     assert hass.states.get("sensor.sirius_disk_vdb_power_status").state == "standby"
-    # temperatureStatus is null in the sample payload (unverified real shape).
-    assert hass.states.get("sensor.sirius_disk_vda_temperature_status").state == "unknown"
 
 
 async def test_disk_temperature_values(
@@ -83,7 +81,6 @@ async def test_new_disk_appearing_creates_its_sensors(
         "serial": "S3",
         "name": "vdc",
         "powerStatus": "active",
-        "temperatureStatus": None,
         "smartWarning": False,
     }
     mock_client.async_get_disks.return_value = [*mock_disks, new_disk]

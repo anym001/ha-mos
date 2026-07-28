@@ -159,9 +159,6 @@
       "disk_power_status": {
         "name": "Power status"
       },
-      "disk_temperature_status": {
-        "name": "Temperature status"
-      },
       "disk_temperature": {
         "name": "Temperature"
       },

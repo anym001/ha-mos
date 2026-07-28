@@ -5,12 +5,6 @@ entities are added/removed via ``async_setup_dynamic_entities`` rather than a
 static ENTITY_DESCRIPTIONS tuple. Each disk gets its own device (linked back
 to the main server device via ``via_device``), same as LXC/Docker/VM items
 (e.g. ``sensor.mos_server_disk_vda_power_status``).
-
-Note: ``temperatureStatus`` was ``null`` on every disk of the test system used
-to build this (a VM with virtual disks), so its real shape (a numeric reading
-vs. a status string) is unverified. The sensor below is deliberately generic
-(no fixed device_class/unit) until that's confirmed on real hardware. The
-separate ``temperature`` field is the actual numeric Celsius reading.
 """
 
 from __future__ import annotations
@@ -47,12 +41,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         translation_key="disk_power_status",
         icon="mdi:power",
         value_fn=lambda disk: disk.get("powerStatus"),
-    ),
-    MOSDiskSensorEntityDescription(
-        key="temperature_status",
-        translation_key="disk_temperature_status",
-        icon="mdi:thermometer",
-        value_fn=lambda disk: disk.get("temperatureStatus"),
     ),
     MOSDiskSensorEntityDescription(
         key="temperature",
