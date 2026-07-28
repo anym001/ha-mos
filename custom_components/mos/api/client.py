@@ -192,6 +192,8 @@ class MOSApiClient:
         """
         Get storage pool information from ``/pools``.
 
+        Requests ``includeMetrics=true`` for the pool usage/performance figures.
+
         Returns:
             The parsed ``pools`` payload.
 
@@ -201,7 +203,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._get("pools", base_url=self._root_base_url)
+        return await self._get("pools?includeMetrics=true", base_url=self._root_base_url)
 
     async def async_get_system_load(self) -> dict[str, Any]:
         """
