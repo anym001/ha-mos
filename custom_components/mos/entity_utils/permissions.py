@@ -43,3 +43,39 @@ def has_write_access(token_permissions: dict[str, Any] | None, resource: str) ->
         return resources.get(resource) == "write"
     # "full" (or any unrecognized future mode) - unrestricted.
     return True
+
+
+def has_read_access(token_permissions: dict[str, Any] | None, resource: str) -> bool:
+    """
+    Return whether the token backing this integration may read `resource`.
+
+    Deliberately more optimistic than `has_write_access`: only an explicit
+    ``"none"`` counts as denied. A resource that is simply absent from a
+    ``"custom"`` scope is treated as readable and left for the server to refuse
+    with a 403, which the coordinator handles per resource.
+
+    The asymmetry is on purpose. For writes, guessing wrong means one switch
+    reports a clear error instead of a cryptic one. For reads, guessing wrong
+    means silently disabling whole categories of entities - and the resource
+    names here are only partly confirmed against the MOS API (see
+    ``READ_PERMISSION_RESOURCES``). Being permissive keeps a mismatched name
+    harmless.
+
+    Args:
+        token_permissions: The token's permission scope, i.e. the ``permissions``
+            payload of ``GET /auth/admin-tokens/me``. ``None`` when
+            introspection is unavailable - treated as unrestricted.
+        resource: A MOS API resource name as used in ``TokenPermissions.resources``.
+
+    Returns:
+        True unless the scope explicitly denies reading `resource`.
+
+    """
+    if token_permissions is None:
+        return True
+
+    # "readonly" grants reads; only "custom" can withhold them per resource.
+    if token_permissions.get("mode", "full") == "custom":
+        resources = token_permissions.get("resources") or {}
+        return resources.get(resource) != "none"
+    return True

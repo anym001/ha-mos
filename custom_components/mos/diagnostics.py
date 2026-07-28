@@ -79,6 +79,9 @@ async def async_get_config_entry_diagnostics(
         "root_base_url": client._root_base_url,  # noqa: SLF001
         "has_token": bool(client._token),  # noqa: SLF001
         "token_permissions": coordinator.token_permissions,
+        # Resources dropped because the server answered 403. The fastest way to
+        # tell "my entities are missing" apart from "my token is too narrow".
+        "forbidden_resources": sorted(coordinator.forbidden_resources),
     }
 
     # Integration information

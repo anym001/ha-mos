@@ -61,10 +61,52 @@ MAX_SCAN_INTERVAL = 3600
 # reauth prompt reasonably prompt for a token that is genuinely gone.
 AUTH_FAILURE_GRACE_PERIOD = timedelta(minutes=5)
 
+# How many consecutive polls must have been rejected before escalating, on top
+# of AUTH_FAILURE_GRACE_PERIOD having elapsed.
+#
+# The grace period alone is only half the guard. It is checked when a poll fails,
+# so at a long scan interval it collapses to almost nothing: at the 3600 s
+# maximum the *second* failed poll is already an hour into the streak, meaning
+# two unlucky polls - a rate limiter, a proxy hiccup, a momentary 401 - are
+# enough to tear the user into a reauth prompt. Requiring a minimum number of
+# failures as well makes the guard "sustained *and* repeatedly observed",
+# which behaves sensibly across the whole 30 s - 3600 s range:
+#
+#     30 s interval  -> grace period binds:   11 failures over 5 min
+#     600 s interval -> failure count binds:   3 failures over 20 min
+#
+# Three is enough that a single flaky window cannot trip it, while a genuinely
+# revoked token still surfaces within a few poll cycles.
+AUTH_FAILURE_MIN_FAILURES = 3
+
 # ``hass.data`` key holding the auth-failure streak per config entry. It cannot
 # live on the coordinator: a failing setup is retried with a fresh coordinator,
 # which would restart the grace period on every retry and never escalate.
 AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
+
+# Resources fetched on every poll regardless of the options flow. A 403 on one of
+# these is fatal for the update - there is nothing meaningful left to show - so it
+# surfaces as UpdateFailed rather than silently dropping the resource.
+ALWAYS_FETCHED_RESOURCES = frozenset({"osinfo", "system_load"})
+
+# Maps a coordinator data key to the resource name MOS uses in a token's
+# permission scope (``GET /auth/admin-tokens/me`` → ``permissions.resources``),
+# so a scoped token's read restrictions can be honoured before the first poll
+# rather than being discovered through a 403.
+#
+# Only "lxc", "docker" and "vm" are confirmed against the MOS API; the rest are
+# best-effort. That is safe because ``has_read_access`` only treats an *explicit*
+# ``"none"`` as denied - a name MOS spells differently simply won't match, and
+# the resource is probed normally and dropped on a 403 like before.
+READ_PERMISSION_RESOURCES = {
+    "services": "services",
+    "disks": "disks",
+    "pools": "pools",
+    "lxc_containers": "lxc",
+    "docker_containers": "docker",
+    "docker_engine_containers": "docker",
+    "vm_machines": "vm",
+}
 
 # Optional resource categories - can be disabled via the options flow
 CONF_ENABLE_DISKS = "enable_disks"

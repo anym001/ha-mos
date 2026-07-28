@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
 from custom_components.mos.const import (
     AUTH_FAILURE_GRACE_PERIOD,
+    AUTH_FAILURE_MIN_FAILURES,
     CONF_ENABLE_DISKS,
     DOMAIN,
     MAX_SCAN_INTERVAL,
@@ -59,6 +60,11 @@ async def test_setup_entry_auth_failure_retries_before_asking_for_reauth(
 
         assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
         assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+
+        for _ in range(AUTH_FAILURE_MIN_FAILURES - 2):
+            await hass.config_entries.async_reload(mock_config_entry.entry_id)
+            await hass.async_block_till_done()
+            assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
 
         advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
         await hass.config_entries.async_reload(mock_config_entry.entry_id)
@@ -207,9 +213,10 @@ async def test_runtime_auth_failure_starts_reauth_after_grace_period(
     coordinator = setup_integration.runtime_data.coordinator
     mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
 
-    await coordinator.async_refresh()
-    await hass.async_block_till_done()
-    assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    for _ in range(AUTH_FAILURE_MIN_FAILURES - 1):
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
 
     advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
     await coordinator.async_refresh()

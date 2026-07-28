@@ -70,7 +70,9 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 **Entities went unavailable.** Usually the server is unreachable or restarting; the integration retries on its own and recovers without any action.
 
-**Reauthentication prompt.** Appears once the server has rejected the token continuously for about five minutes — enter a new token under **Settings** → **Devices & Services**. Short rejections during a server reboot are ridden out instead, so a restart never costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
+**Reauthentication prompt.** Appears once the server has rejected the token for at least five minutes _and_ on three consecutive polls — enter a new token under **Settings** → **Devices & Services**. Both conditions have to hold, so neither a brief rejection during a server reboot nor a couple of unlucky polls on a long update interval costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
+
+**Some entities are missing.** Most likely the API token is scoped and cannot read that category. The integration skips what the token isn't allowed to read and keeps everything else working, and logs a warning naming the affected categories. Grant the token read access in the MOS web UI under **User Settings → Admin API Tokens**, then reload the integration. A missing permission never causes a reauthentication prompt — a new token with the same scope wouldn't change anything.
 
 **Debug logging.**
 

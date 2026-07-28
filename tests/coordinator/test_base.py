@@ -10,9 +10,14 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
+from custom_components.mos.api import (
+    MOSApiClientAuthenticationError,
+    MOSApiClientCommunicationError,
+    MOSApiClientPermissionError,
+)
 from custom_components.mos.const import (
     AUTH_FAILURE_GRACE_PERIOD,
+    AUTH_FAILURE_MIN_FAILURES,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -351,8 +356,11 @@ async def test_auth_failure_streak_survives_a_new_coordinator(
     mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
 
-    with pytest.raises(ConfigEntryNotReady):
-        await _make_coordinator(hass, mock_client, entry).async_config_entry_first_refresh()
+    # Every retry gets a fresh coordinator, so the failure count can only reach
+    # the escalation threshold if it is tracked per entry rather than per instance.
+    for _ in range(AUTH_FAILURE_MIN_FAILURES - 1):
+        with pytest.raises(ConfigEntryNotReady):
+            await _make_coordinator(hass, mock_client, entry).async_config_entry_first_refresh()
 
     advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
 
@@ -394,14 +402,41 @@ async def test_authentication_error_triggers_reauth_after_grace_period(
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
-    # First failure starts the clock - still retryable.
-    with pytest.raises(UpdateFailed):
-        await coordinator._async_update_data()
+    # Escalation needs both halves of the guard, so poll until one short of the
+    # failure threshold - all still retryable.
+    for _ in range(AUTH_FAILURE_MIN_FAILURES - 1):
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
 
-    # Jump past the grace period; the next failure now escalates.
+    # Jump past the grace period; the next failure satisfies both and escalates.
     advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+async def test_long_scan_interval_does_not_collapse_the_grace_period(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    advance_auth_clock: Callable[[float], None],
+) -> None:
+    """Two failed polls never trigger reauth, however far apart they are.
+
+    The grace period is only checked when a poll fails, so on its own it shrinks
+    to nothing at a long scan interval: at 600s the second failed poll is already
+    ten minutes into the streak. That let two unlucky polls - a rate limiter, a
+    proxy hiccup - produce a reauth prompt, which is exactly what users hit.
+    AUTH_FAILURE_MIN_FAILURES is what keeps that from happening.
+    """
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    for _ in range(2):
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        # An interval far longer than the grace period, as a user polling every
+        # 10 minutes (or the 3600s maximum) would have.
+        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() * 2)
 
 
 async def test_auth_failure_timer_resets_after_success(
@@ -417,11 +452,11 @@ async def test_auth_failure_timer_resets_after_success(
     mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
-    assert coordinator._auth_failure_since is not None
+    assert coordinator._auth_failure_streak is not None
 
     mock_client.async_get_osinfo.side_effect = None
     await coordinator._async_update_data()
-    assert coordinator._auth_failure_since is None
+    assert coordinator._auth_failure_streak is None
 
     # A later failure - even past the original grace window - starts a fresh timer.
     advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
@@ -445,12 +480,12 @@ async def test_communication_error_resets_auth_failure_timer(
         mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
         with pytest.raises(UpdateFailed):
             await coordinator._async_update_data()
-        assert coordinator._auth_failure_since is not None
+        assert coordinator._auth_failure_streak is not None
 
         mock_client.async_get_osinfo.side_effect = MOSApiClientCommunicationError("down")
         with pytest.raises(UpdateFailed):
             await coordinator._async_update_data()
-        assert coordinator._auth_failure_since is None
+        assert coordinator._auth_failure_streak is None
 
         advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds())
 
@@ -465,3 +500,174 @@ async def test_communication_error_is_retryable(hass: HomeAssistant, mock_client
         await coordinator.async_config_entry_first_refresh()
 
     assert coordinator.last_update_success is False
+
+
+async def test_denied_resource_is_dropped_without_failing_the_poll(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A 403 on one resource costs that resource, not the whole update.
+
+    Before, gather() propagated the first exception, so a token scoped to
+    everything-but-VMs produced no data at all - every poll died on the VM
+    endpoint even though the other eight answered fine.
+    """
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no vm scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
+    assert coordinator.data["vm_machines"] == []
+
+
+async def test_denied_resource_is_not_requested_again(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """Once denied, a resource is dropped for the coordinator's lifetime.
+
+    Re-asking every cycle would be a guaranteed-failing request forever, and the
+    server would log a 403 for each one.
+    """
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no vm scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+    assert mock_client.async_get_vm_machines.call_count == 1
+    assert "vm_machines" in coordinator.forbidden_resources
+
+    await coordinator.async_refresh()
+    assert mock_client.async_get_vm_machines.call_count == 1
+
+
+async def test_denied_resource_never_triggers_reauth(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    advance_auth_clock: Callable[[float], None],
+) -> None:
+    """A permanently denied resource must never escalate to a reauth prompt.
+
+    This is the reported bug: 403 was treated as "invalid token", so a scoped
+    token produced a reauth prompt, the user entered the same valid token, the
+    flow validated it against /osinfo (which it *can* read) and succeeded - and
+    the next poll asked again. Forever.
+    """
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no vm scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    for _ in range(AUTH_FAILURE_MIN_FAILURES + 2):
+        await coordinator._async_update_data()
+        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+
+    assert coordinator._auth_failure_streak is None
+
+
+async def test_denied_required_resource_fails_the_update_without_reauth(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    advance_auth_clock: Callable[[float], None],
+) -> None:
+    """A 403 on an always-fetched resource is fatal for the poll, but still not a token problem."""
+    mock_client.async_get_osinfo.side_effect = MOSApiClientPermissionError("no read scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    for _ in range(AUTH_FAILURE_MIN_FAILURES + 2):
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+
+    # Always-fetched resources keep being probed, so widening the token's scope
+    # and reloading is enough to recover.
+    assert mock_client.async_get_osinfo.call_count == AUTH_FAILURE_MIN_FAILURES + 2
+    assert "osinfo" not in coordinator.forbidden_resources
+
+
+async def test_read_scope_is_honoured_before_the_first_poll(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A scope that explicitly denies a resource skips it without a doomed request."""
+    mock_client.async_get_token_permissions.return_value = {
+        "id": "1",
+        "permissions": {"mode": "custom", "resources": {"vm": "none", "lxc": "read"}},
+    }
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_vm_machines.assert_not_called()
+    mock_client.async_get_lxc_containers.assert_called_once()
+    assert coordinator.data["vm_machines"] == []
+
+
+async def test_unknown_resource_names_in_scope_are_not_pre_denied(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A custom scope that simply omits a resource is still probed.
+
+    READ_PERMISSION_RESOURCES only partly matches MOS's own naming, so treating
+    "absent" as "denied" would silently disable entities whenever a name differs.
+    Absent means "ask the server", and a 403 handles it from there.
+    """
+    mock_client.async_get_token_permissions.return_value = {
+        "id": "1",
+        "permissions": {"mode": "custom", "resources": {"lxc": "write"}},
+    }
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_vm_machines.assert_called_once()
+    mock_client.async_get_disks.assert_called_once()
+    assert coordinator.forbidden_resources == frozenset()
+
+
+async def test_denied_docker_engine_proxy_keeps_the_container_list(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """The Docker Engine proxy and the MOS container list are denied independently.
+
+    Losing live running state should not cost the containers themselves.
+    """
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("no proxy scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["docker_containers"] == mock_client.async_get_docker_containers.return_value
+
+
+async def test_communication_error_wins_over_a_concurrent_auth_error(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    advance_auth_clock: Callable[[float], None],
+) -> None:
+    """A server answering some requests and dropping others is unstable, not unauthenticated.
+
+    Treating the 401 as authoritative here would let a half-down server
+    accumulate its way to a reauth prompt, which is the failure mode the grace
+    period exists to prevent.
+    """
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    mock_client.async_get_disks.side_effect = MOSApiClientCommunicationError("down")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    for _ in range(AUTH_FAILURE_MIN_FAILURES + 2):
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+
+    assert coordinator._auth_failure_streak is None

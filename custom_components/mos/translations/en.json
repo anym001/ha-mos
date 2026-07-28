@@ -36,6 +36,7 @@
     "error": {
       "auth": "The API token was rejected.",
       "connection": "Unable to connect to the server.",
+      "permission": "The API token is valid but not authorized to read system information. Grant it read access in the MOS web UI under User Settings > Admin API Tokens.",
       "unknown": "Unknown error occurred."
     },
     "abort": {
@@ -100,6 +101,9 @@
     },
     "insufficient_write_permission": {
       "message": "The configured API token does not have write access to {resource}."
+    },
+    "insufficient_read_permission": {
+      "message": "The configured API token does not have read access to {resource}, which this integration always needs. Grant it read access in the MOS web UI under User Settings > Admin API Tokens."
     }
   },
   "entity": {
