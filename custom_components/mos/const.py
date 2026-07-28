@@ -32,7 +32,7 @@ PARALLEL_UPDATES = 1
 
 # Polling (seconds)
 DEFAULT_SCAN_INTERVAL = 30
-MIN_SCAN_INTERVAL = 10
+MIN_SCAN_INTERVAL = 30
 MAX_SCAN_INTERVAL = 3600
 
 # How long authentication may be rejected *continuously* before the coordinator

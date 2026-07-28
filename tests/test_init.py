@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
-from custom_components.mos.const import CONF_ENABLE_DISKS
+from custom_components.mos.const import CONF_ENABLE_DISKS, MIN_SCAN_INTERVAL
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 
 
@@ -91,3 +93,27 @@ async def test_options_update_reloads_entry(
     assert setup_integration.state is ConfigEntryState.LOADED
     coordinator = setup_integration.runtime_data.coordinator
     assert coordinator.data["disks"] == []
+
+
+async def test_scan_interval_below_minimum_is_clamped(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """An entry stored with a scan interval below the current minimum is clamped, not honored.
+
+    Older entries can carry a value saved before MIN_SCAN_INTERVAL was raised;
+    the coordinator must not poll faster than the current minimum allows.
+    """
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        options={CONF_SCAN_INTERVAL: 10},
+    )
+
+    with patch("custom_components.mos.MOSApiClient", return_value=mock_client):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    coordinator = mock_config_entry.runtime_data.coordinator
+    assert coordinator.update_interval == timedelta(seconds=MIN_SCAN_INTERVAL)

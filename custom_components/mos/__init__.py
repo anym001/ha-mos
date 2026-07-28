@@ -27,7 +27,16 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import MOSApiClient
-from .const import CONF_API_TOKEN, DEFAULT_SCAN_INTERVAL, DEFAULT_SSL, DEFAULT_VERIFY_SSL, DOMAIN, LOGGER
+from .const import (
+    CONF_API_TOKEN,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SSL,
+    DEFAULT_VERIFY_SSL,
+    DOMAIN,
+    LOGGER,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
+)
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
 
@@ -89,8 +98,14 @@ async def async_setup_entry(
         port=entry.data.get(CONF_PORT),
     )
 
-    # Initialize coordinator with config_entry
-    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    # Initialize coordinator with config_entry. The options form enforces the
+    # MIN/MAX bounds, but an entry saved before MIN_SCAN_INTERVAL was raised can
+    # still carry a value below the current minimum, so clamp it here rather than
+    # polling faster than we now allow.
+    scan_interval = max(
+        MIN_SCAN_INTERVAL,
+        min(entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL), MAX_SCAN_INTERVAL),
+    )
     coordinator = MOSDataUpdateCoordinator(
         hass=hass,
         logger=LOGGER,
