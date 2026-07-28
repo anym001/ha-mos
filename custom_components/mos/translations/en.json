@@ -39,7 +39,9 @@
       "unknown": "Unknown error occurred."
     },
     "abort": {
-      "already_configured": "This MOS server is already configured."
+      "already_configured": "This MOS server is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "options": {
@@ -71,6 +73,9 @@
   "exceptions": {
     "authentication_failed": {
       "message": "Authentication failed during data update."
+    },
+    "authentication_failed_transient": {
+      "message": "The server rejected the API token, but this may be temporary (e.g. the server is restarting). Retrying before requiring re-authentication."
     },
     "update_failed": {
       "message": "Failed to update data from the server."

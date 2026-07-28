@@ -12,7 +12,14 @@ Exception hierarchy:
     └── MOSApiClientAuthenticationError (401/403)
 
 Coordinator exception mapping:
-    ApiClientAuthenticationError → ConfigEntryAuthFailed (triggers reauth)
+    ApiClientAuthenticationError → at runtime: UpdateFailed (auto-retry) while
+        transient, escalating to ConfigEntryAuthFailed (reauth) only after auth
+        has been rejected continuously for AUTH_FAILURE_GRACE_PERIOD, so a
+        rebooting/unreachable server that briefly returns 401/403 does not throw
+        away a still-valid token (the grace period is a duration, not a
+        poll-cycle count, so it does not shrink when the scan interval is short).
+        During initial setup it maps straight to ConfigEntryAuthFailed, since the
+        token was just validated by the config flow.
     ApiClientCommunicationError → UpdateFailed (auto-retry)
     ApiClientError             → UpdateFailed (auto-retry)
 """

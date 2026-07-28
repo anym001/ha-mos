@@ -259,9 +259,9 @@ def mock_client(
     client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
-    client._base_url = "http://10.0.1.30:80/api/v1/mos"  # noqa: SLF001
-    client._root_base_url = "http://10.0.1.30:80/api/v1"  # noqa: SLF001
-    client._token = "test-token"  # noqa: SLF001
+    client._base_url = "http://10.0.1.30:80/api/v1/mos"
+    client._root_base_url = "http://10.0.1.30:80/api/v1"
+    client._token = "test-token"
     return client
 
 

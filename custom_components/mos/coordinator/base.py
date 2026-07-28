@@ -12,10 +12,12 @@ https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError
 from custom_components.mos.const import (
+    AUTH_FAILURE_GRACE_PERIOD,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -31,6 +33,7 @@ from custom_components.mos.const import (
     LOGGER,
 )
 from custom_components.mos.entity_utils import has_write_access
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -89,6 +92,14 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: MOSConfigEntry
     token_permissions: dict[str, Any] | None = None
+
+    # Monotonic timestamp (``time.monotonic()``) of the first authentication
+    # failure in the current unbroken streak, or ``None`` when the last poll did
+    # not fail with an auth error. Cleared on any successful poll and on
+    # communication errors (which are inconclusive about the token's validity).
+    # Only once auth has been rejected continuously for ``AUTH_FAILURE_GRACE_PERIOD``
+    # does the coordinator escalate to a reauth flow - see ``_async_update_data``.
+    _auth_failure_since: float | None = None
 
     async def _async_setup(self) -> None:
         """
@@ -328,18 +339,59 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             results = await asyncio.gather(*tasks.values())
         except MOSApiClientAuthenticationError as exception:
-            LOGGER.warning("Authentication error - %s", exception)
-            raise ConfigEntryAuthFailed(
+            # During initial setup the entry is not LOADED yet. The config flow
+            # just validated this token, so a rejection now is a genuine auth
+            # problem: escalate immediately and let HA start a reauth flow (this
+            # is also the documented setup-failure behavior). The transient-blip
+            # grace period below only applies once the integration is running,
+            # where a rebooting/unavailable server is the far likelier cause.
+            if self.config_entry.state is not ConfigEntryState.LOADED:
+                LOGGER.warning("Authentication rejected during setup - triggering reauth: %s", exception)
+                raise ConfigEntryAuthFailed(
+                    translation_domain="mos",
+                    translation_key="authentication_failed",
+                ) from exception
+
+            now = time.monotonic()
+            if self._auth_failure_since is None:
+                self._auth_failure_since = now
+            elapsed = now - self._auth_failure_since
+            if elapsed >= AUTH_FAILURE_GRACE_PERIOD.total_seconds():
+                LOGGER.warning(
+                    "Authentication rejected continuously for %.0fs - triggering reauth: %s",
+                    elapsed,
+                    exception,
+                )
+                raise ConfigEntryAuthFailed(
+                    translation_domain="mos",
+                    translation_key="authentication_failed",
+                ) from exception
+            # A 401/403 is more likely a server that is rebooting or otherwise
+            # briefly unavailable than a genuinely invalid token. Keep the entry
+            # authenticated and retry until the grace period elapses, so the token
+            # is not thrown away over a transient blip.
+            LOGGER.warning(
+                "Authentication rejected (%.0fs/%.0fs before reauth) - retrying, server may be unavailable: %s",
+                elapsed,
+                AUTH_FAILURE_GRACE_PERIOD.total_seconds(),
+                exception,
+            )
+            raise UpdateFailed(
                 translation_domain="mos",
-                translation_key="authentication_failed",
+                translation_key="authentication_failed_transient",
             ) from exception
         except MOSApiClientError as exception:
+            # Communication error: we could not reach the server at all, so this
+            # says nothing about the token's validity. Reset the auth streak so a
+            # flapping server never accumulates its way into a spurious reauth.
+            self._auth_failure_since = None
             LOGGER.exception("Error communicating with API")
             raise UpdateFailed(
                 translation_domain="mos",
                 translation_key="update_failed",
             ) from exception
 
+        self._auth_failure_since = None
         data: dict[str, Any] = dict(zip(tasks.keys(), results, strict=True))
         data.setdefault("services", {})
         data.setdefault("disks", [])

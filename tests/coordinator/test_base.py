@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientCommunicationError
 from custom_components.mos.const import (
+    AUTH_FAILURE_GRACE_PERIOD,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -21,9 +22,11 @@ from custom_components.mos.const import (
     LOGGER,
 )
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
+import custom_components.mos.coordinator.base as base_module
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigEntry) -> MOSDataUpdateCoordinator:
@@ -313,17 +316,127 @@ async def test_token_permissions_lookup_failure_does_not_block_setup(
     assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
 
 
-async def test_authentication_error_raises_config_entry_auth_failed(
+async def test_authentication_error_during_setup_escalates_immediately(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """An authentication error is mapped to ConfigEntryAuthFailed to trigger reauth."""
+    """Before the entry is LOADED, an auth failure goes straight to reauth.
+
+    At setup the config flow just validated the token, so a rejection is a
+    genuine auth problem - the transient-blip grace period is a runtime concept.
+    """
     mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
     with pytest.raises(ConfigEntryAuthFailed):
-        await coordinator.async_config_entry_first_refresh()
+        await coordinator._async_update_data()
+
+
+async def test_authentication_error_stays_retryable_within_grace_period(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """At runtime, auth failures keep retrying for the whole grace period, not reauth.
+
+    Uses a controllable clock so the test is independent of the scan interval and
+    of AUTH_FAILURE_GRACE_PERIOD's exact value: even many failures spanning almost
+    the entire grace period must not escalate to reauth.
+    """
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(base_module.time, "monotonic", lambda: clock["t"])
+
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    grace = AUTH_FAILURE_GRACE_PERIOD.total_seconds()
+    # Poll repeatedly, advancing time up to just before the grace period elapses.
+    for _ in range(10):
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        clock["t"] += grace / 20  # stays strictly below `grace` across 10 steps
+
+
+async def test_authentication_error_triggers_reauth_after_grace_period(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """At runtime, auth rejection sustained past the grace period escalates to reauth."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(base_module.time, "monotonic", lambda: clock["t"])
+
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # First failure starts the clock - still retryable.
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    # Jump past the grace period; the next failure now escalates.
+    clock["t"] += AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_auth_failure_timer_resets_after_success(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful poll clears the streak, so the grace period restarts from zero."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(base_module.time, "monotonic", lambda: clock["t"])
+
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # Fail, then recover well before the grace period would elapse.
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    assert coordinator._auth_failure_since is not None
+
+    mock_client.async_get_osinfo.side_effect = None
+    await coordinator._async_update_data()
+    assert coordinator._auth_failure_since is None
+
+    # A later failure - even past the original grace window - starts a fresh timer.
+    clock["t"] += AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1
+    mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+async def test_communication_error_resets_auth_failure_timer(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A flapping server (auth errors interleaved with unreachability) never reauths."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(base_module.time, "monotonic", lambda: clock["t"])
+
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # Well over the grace period elapses in total, but each auth failure is
+    # interrupted by a connection error that resets the timer.
+    for _ in range(10):
+        mock_client.async_get_osinfo.side_effect = MOSApiClientAuthenticationError("bad token")
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        assert coordinator._auth_failure_since is not None
+
+        mock_client.async_get_osinfo.side_effect = MOSApiClientCommunicationError("down")
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        assert coordinator._auth_failure_since is None
+
+        clock["t"] += AUTH_FAILURE_GRACE_PERIOD.total_seconds()
 
 
 async def test_communication_error_is_retryable(hass: HomeAssistant, mock_client: AsyncMock) -> None:
