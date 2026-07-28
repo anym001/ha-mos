@@ -57,7 +57,8 @@
           "enable_services": "Enable services",
           "enable_lxc": "Enable LXC containers",
           "enable_docker": "Enable Docker containers",
-          "enable_vm": "Enable VMs"
+          "enable_vm": "Enable VMs",
+          "enable_sensors": "Enable hardware sensors"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
@@ -66,7 +67,8 @@
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
           "enable_lxc": "Create entities for each LXC container.",
           "enable_docker": "Create entities for each Docker container.",
-          "enable_vm": "Create entities for each VM."
+          "enable_vm": "Create entities for each VM.",
+          "enable_sensors": "Create entities for hardware readings (fans, temperatures, voltages, ...)."
         }
       }
     }

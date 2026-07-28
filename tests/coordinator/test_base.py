@@ -52,6 +52,7 @@ async def test_fetches_all_resources_by_default(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     mock_docker_containers: list[dict],
+    mock_sensors: dict[str, list[dict]],
 ) -> None:
     """With no options set, all resources are fetched; docker_containers gets a merged "state"."""
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
@@ -71,6 +72,7 @@ async def test_fetches_all_resources_by_default(
             {**mock_docker_containers[1], "state": "exited"},
         ],
         "vm_machines": mock_client.async_get_vm_machines.return_value,
+        "sensors": [{**item, "category": category} for category, items in mock_sensors.items() for item in items],
     }
 
 
