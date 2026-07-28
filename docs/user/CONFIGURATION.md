@@ -1,249 +1,102 @@
 # Configuration Reference
 
-This document describes all configuration options and settings available in the MOS custom integration.
+Every setting the MOS integration offers, and what it does. For installation and first setup, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 
-## Integration Configuration
+## Connection Settings
 
-### Initial Setup Options
+Asked during setup, changeable later via **⋮** → **Reconfigure** on the integration.
 
-These options are configured during initial setup via the Home Assistant UI.
+| Option                     | Type    | Required | Default             | Description                                            |
+| -------------------------- | ------- | -------- | ------------------- | ------------------------------------------------------ |
+| **Name**                   | string  | Yes      | –                   | Friendly name for this server; becomes the device name |
+| **Host**                   | string  | Yes      | –                   | Hostname or IP address of the MOS server               |
+| **API token**              | string  | Yes      | –                   | Admin API token, created in the MOS web UI             |
+| **Port**                   | integer | No       | 80 (HTTP)/443 (TLS) | Port the MOS API listens on                            |
+| **Use HTTPS**              | boolean | No       | off                 | Connect via TLS                                        |
+| **Verify TLS certificate** | boolean | No       | on                  | Turn off only for a self-signed certificate you trust  |
 
-#### Connection Settings
+Create the API token in the MOS web UI under **User Settings → Admin API Tokens**. A read-only token is enough for monitoring; starting and stopping containers or VMs needs write access to the respective resource.
 
-| Option      | Type    | Required | Default | Description                                  |
-| ----------- | ------- | -------- | ------- | -------------------------------------------- |
-| **Host**    | string  | Yes      | -       | Hostname or IP address of the device/service |
-| **Port**    | integer | No       | 8080    | Connection port                              |
-| **API Key** | string  | Yes\*    | -       | Authentication key or token                  |
-| **Use SSL** | boolean | No       | false   | Enable HTTPS connection                      |
+## Options
 
-\*Required if the device/service requires authentication.
+Click **Configure** on the integration to change these at any time. The integration reloads itself, so changes take effect immediately.
 
-#### Update Settings
+| Option                       | Type              | Default | Description                                        |
+| ---------------------------- | ----------------- | ------- | -------------------------------------------------- |
+| **Update interval**          | integer (seconds) | 30      | How often to poll the MOS API (30–3600 seconds)    |
+| **Enable disks**             | boolean           | on      | Create entities for physical disks                 |
+| **Enable storage pools**     | boolean           | on      | Create entities for storage pools                  |
+| **Enable services**          | boolean           | on      | Docker, VM, SSH, Samba, NFS, Tailscale, Netbird    |
+| **Enable LXC containers**    | boolean           | on      | Create entities and switches for LXC containers    |
+| **Enable Docker containers** | boolean           | on      | Create entities and switches for Docker containers |
+| **Enable VMs**               | boolean           | on      | Create entities and switches for virtual machines  |
 
-| Option              | Type              | Required | Default  | Description                                         |
-| ------------------- | ----------------- | -------- | -------- | --------------------------------------------------- |
-| **Update Interval** | integer (seconds) | No       | 300      | How often to poll for updates (minimum: 30 seconds) |
-| **Name**            | string            | No       | "Device" | Friendly name for the integration instance          |
+System info and system health (CPU load and temperature, memory, swap) are always enabled and have no toggle.
 
-### Options Flow (Reconfiguration)
-
-After initial setup, you can modify settings:
-
-1. Go to **Settings** → **Devices & Services**
-2. Find "MOS"
-3. Click **Configure**
-4. Modify settings
-5. Click **Submit**
-
-**Available options:**
-
-- Update interval
-- Name/identifier
-- Connection timeout
-- Additional features (device-specific)
-
-## Entity Configuration
-
-### Entity Customization
-
-Customize entities via the UI or `configuration.yaml`:
-
-#### Via Home Assistant UI
-
-1. Go to **Settings** → **Devices & Services** → **Entities**
-2. Find and click the entity
-3. Click the settings icon
-4. Modify:
-   - Entity ID
-   - Name
-   - Icon
-   - Device class (for applicable entities)
-   - Area assignment
-
-#### Via configuration.yaml
-
-```yaml
-homeassistant:
-  customize:
-    sensor.device_name_sensor:
-      friendly_name: "Custom Sensor Name"
-      icon: mdi:custom-icon
-      unit_of_measurement: "units"
-```
-
-### Disabling Entities
-
-If you don't need certain entities:
-
-1. Go to **Settings** → **Devices & Services** → **Entities**
-2. Find the entity
-3. Click it, then click **Settings** icon
-4. Toggle **Enable entity** off
-
-Disabled entities won't update or consume resources.
-
-## Services
-
-The integration provides the following services:
-
-### `mos.example_service`
-
-Execute an example service action on the device.
-
-**Service data:**
-
-| Parameter   | Type           | Required | Description                                      |
-| ----------- | -------------- | -------- | ------------------------------------------------ |
-| `entity_id` | string or list | No       | Target entity/entities (if omitted, targets all) |
-| `parameter` | string         | Yes      | Service-specific parameter                       |
-| `value`     | integer        | No       | Numeric value for the action                     |
-
-**Example:**
-
-```yaml
-service: mos.example_service
-target:
-  entity_id: switch.device_name_switch
-data:
-  parameter: "setting_name"
-  value: 42
-```
-
-### Using Services in Automations
-
-```yaml
-automation:
-  - alias: "Call service at sunset"
-    trigger:
-      - trigger: sun
-        event: sunset
-    action:
-      - action: mos.example_service
-        target:
-          entity_id: switch.device_name_switch
-        data:
-          parameter: "mode"
-          value: 1
-```
-
-## Advanced Configuration
-
-### Multiple Instances
-
-You can add multiple instances of this integration for different devices:
-
-1. Go to **Settings** → **Devices & Services**
-2. Click **+ Add Integration**
-3. Search for "MOS"
-4. Configure with different connection details
-
-Each instance creates separate entities with unique entity IDs.
-
-### Network Configuration
-
-If the device is on a different network or behind a firewall:
-
-- Ensure ports are open (default: 8080)
-- Configure port forwarding if needed
-- Consider VPN for remote access
-- Some devices may require static IP addresses
+Turning a category off means it is not fetched at all — useful if you don't run LXC or VMs, or want to keep the entity list short.
 
 ### Polling Behavior
 
-The integration uses polling to fetch updates:
+The integration polls; there is no push from the server.
 
-- **Minimum interval:** 30 seconds (prevents overloading the device)
-- **Recommended interval:** 5 minutes (default)
-- **Longer intervals:** Save resources but reduce responsiveness
+- **Minimum:** 30 seconds — anything faster mostly adds load without adding information
+- **Default:** 30 seconds, a good fit for container and VM states you want to react to
+- **Longer intervals** (5–30 minutes) are fine if you only track slow-moving values like disk temperature or pool usage
 
-Adjust based on your needs:
+Start/stop switches don't wait for the next poll: the new state is shown immediately and confirmed by the following update.
 
-- Real-time monitoring: 30-60 seconds
-- Regular updates: 5 minutes
-- Slow-changing values: 15-30 minutes
+## Behavior When the Server Is Unreachable
 
-## Diagnostic Data
+If the MOS server doesn't answer, entities become **unavailable** and the integration keeps retrying. Nothing needs to be done — the entities come back on their own.
 
-The integration provides diagnostic data for troubleshooting:
+The same holds when a restarting server briefly rejects the API token: the integration rides that out for about five minutes before it asks you to re-authenticate. Only a token that stays rejected — expired, revoked, deleted — leads to a reauthentication prompt under **Settings** → **Devices & Services**.
 
-1. Go to **Settings** → **Devices & Services**
-2. Find "MOS"
-3. Click on the device
-4. Click **Download Diagnostics**
+## Entities
 
-Diagnostic data includes:
+### Renaming, Icons, Areas
 
-- Connection status
-- Last update timestamp
-- API response data
-- Entity states
-- Error history
+Entities are customized like any other Home Assistant entity: **Settings** → **Devices & Services** → **Entities**, click the entity, then the gear icon to change entity ID, name, icon or area.
 
-**Privacy note:** Diagnostic data may contain sensitive information. Review before sharing.
+### Disabling Individual Entities
 
-## Blueprints
+Entities you don't need can be disabled in the same dialog via **Enabled**. Disabled entities are no longer updated. To remove a whole category at once, use the options above instead.
 
-The integration works with Home Assistant Blueprints for reusable automations:
+Disks, pools, containers and VMs appear and disappear on their own as they change on the server — no reload needed.
 
-### Example Blueprint
+## Multiple Servers
 
-```yaml
-blueprint:
-  name: MOS Alert
-  description: Send notification when sensor exceeds threshold
-  domain: automation
-  input:
-    sensor_entity:
-      name: Sensor
-      selector:
-        entity:
-          domain: sensor
-          integration: mos
-    threshold:
-      name: Threshold
-      selector:
-        number:
-          min: 0
-          max: 100
+Add the integration more than once to monitor several MOS servers. Each server becomes its own device with its own entities; the name you give during setup keeps the entity IDs apart.
 
-trigger:
-  - trigger: numeric_state
-    entity_id: !input sensor_entity
-    above: !input threshold
+## Diagnostics
 
-action:
-  - action: notify.notify
-    data:
-      message: "Sensor exceeded threshold!"
-```
+**Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics** produces a JSON file containing:
 
-## Configuration Examples
+- Config entry data (host, port, TLS settings — the API token is redacted)
+- Coordinator status: last update successful, update interval, fetched resource categories
+- The token's permission scope
+- Devices and entities created by the integration, including disabled ones
+- Integration and Home Assistant version
 
-See [EXAMPLES.md](./EXAMPLES.md) for complete automation and dashboard examples.
+**Privacy note:** the file contains host names and your container, VM, pool and disk names. The API token is redacted, but review the file before posting it publicly.
 
-## Troubleshooting Configuration
+## Troubleshooting
 
-### Config Entry Fails to Load
+### Integration Won't Load
 
-If the integration fails to load after configuration:
+1. Is the MOS server reachable from Home Assistant at the configured host and port?
+2. Is the API token still valid in the MOS web UI?
+3. Check the log — enable debug logging as described in the [README](../../README.md#troubleshooting)
 
-1. Check Home Assistant logs for errors
-2. Verify connection details are correct
-3. Test connectivity from Home Assistant to the device
-4. Try removing and re-adding the integration
+### A Switch Reports Missing Permissions
+
+The API token has no write access to that resource. Create a token with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
 ### Options Don't Save
 
-If configuration changes aren't persisted:
-
-1. Check for validation errors in the UI
-2. Ensure values are within allowed ranges
-3. Review logs for detailed error messages
-4. Try restarting Home Assistant
+Check the value range (update interval 30–3600 seconds) and the log for validation errors.
 
 ## Related Documentation
 
-- [Getting Started](./GETTING_STARTED.md) - Installation and initial setup
-- [Examples](./EXAMPLES.md) - Automation and dashboard examples
-- [GitHub Issues](https://github.com/anym001/ha-mos/issues) - Report problems
+- [Getting Started](./GETTING_STARTED.md) — installation and initial setup
+- [Examples](./EXAMPLES.md) — automation and dashboard examples
+- [GitHub Issues](https://github.com/anym001/ha-mos/issues) — report problems
