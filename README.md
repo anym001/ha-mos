@@ -16,7 +16,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Storage** — usage, free space, health and scrub/balance/parity status per pool; power/temperature status and SMART warnings per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
-- **Clear messages** — if your API token isn't allowed to start or stop something, you get told exactly that instead of a cryptic server error
+- **Token permissions respected** — start and stop honor what your API token is allowed to do, and say so clearly instead of showing a cryptic server error when it isn't allowed
 - **Selective categories** — turn disks, pools, services, LXC, Docker or VMs off entirely
 
 | Platform        | Entities                                                                                       |
@@ -38,7 +38,7 @@ The integration is not in the HACS default store yet, so add it as a custom repo
 
 You will need the server's host name or IP and an API token (MOS web UI → **User Settings → Admin API Tokens**). Port, HTTPS and certificate verification are optional; the defaults usually work.
 
-To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart. Full walkthrough: [docs/user/GETTING_STARTED.md](docs/user/GETTING_STARTED.md).
+To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
 
 ## Configuration
 

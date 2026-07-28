@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Every setting the MOS integration offers, and what it does. For installation and first setup, see [GETTING_STARTED.md](./GETTING_STARTED.md).
+Every setting the MOS integration offers, and what it does. For installation and first setup, see the [README](../../README.md).
 
 ## Connection Settings
 
@@ -97,6 +97,5 @@ Check the value range (update interval 30–3600 seconds) and the log for valida
 
 ## Related Documentation
 
-- [Getting Started](./GETTING_STARTED.md) — installation and initial setup
-- [Examples](./EXAMPLES.md) — automation and dashboard examples
+- [README](../../README.md) — installation, entity overview, troubleshooting
 - [GitHub Issues](https://github.com/anym001/ha-mos/issues) — report problems
