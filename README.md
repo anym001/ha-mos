@@ -7,7 +7,7 @@
 [![hacs][hacsbadge]][hacs]
 ![Project Maintenance][maintenance-shield]
 
-Home Assistant integration for a MOS server: monitors the system, its storage, containers and VMs — and lets you start and stop them.
+Home Assistant integration for a [MOS](https://mos-official.net/) server: monitors the system, its storage, containers and VMs — and lets you start and stop them.
 
 ## Features
 
