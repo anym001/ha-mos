@@ -21,6 +21,18 @@ async def test_pool_sensor_values(
 
     free_space = hass.states.get("sensor.sirius_pool_test1_free_space")
     assert free_space is not None
+    assert usage.attributes["type"] == "xfs"
+
+
+async def test_pool_total_and_used_space_values(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Each pool gets its own total_space/used_space sensors."""
+    assert hass.states.get("sensor.sirius_pool_test1_total_space") is not None
+    assert hass.states.get("sensor.sirius_pool_test1_used_space") is not None
+    assert hass.states.get("sensor.sirius_pool_test2_total_space") is not None
+    assert hass.states.get("sensor.sirius_pool_test2_used_space") is not None
 
 
 async def test_pool_removed_from_api_removes_its_sensors(

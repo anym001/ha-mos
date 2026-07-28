@@ -33,6 +33,7 @@ class MOSPoolSensorEntityDescription(SensorEntityDescription):
     """Describe a MOS pool sensor, including how to derive its value from a pool payload."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
+    attributes_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
@@ -43,6 +44,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda pool: (pool.get("status") or {}).get("usagePercent"),
+        attributes_fn=lambda pool: {"type": pool.get("type")},
     ),
     MOSPoolSensorEntityDescription(
         key="free_space",
@@ -53,6 +55,26 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda pool: (pool.get("status") or {}).get("freeSpace"),
+    ),
+    MOSPoolSensorEntityDescription(
+        key="total_space",
+        translation_key="pool_total_space",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda pool: (pool.get("status") or {}).get("totalSpace"),
+    ),
+    MOSPoolSensorEntityDescription(
+        key="used_space",
+        translation_key="pool_used_space",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda pool: (pool.get("status") or {}).get("usedSpace"),
     ),
 )
 
@@ -88,6 +110,16 @@ class MOSPoolSensor(SensorEntity, MOSEntity):
         if pool is None:
             return None
         return self.entity_description.value_fn(pool)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra descriptive attributes, if the entity description defines any."""
+        if self.entity_description.attributes_fn is None or not self.coordinator.last_update_success:
+            return None
+        pool = _find_pool(self.coordinator, self._pool_id)
+        if pool is None:
+            return None
+        return self.entity_description.attributes_fn(pool)
 
 
 def build_pool_sensors(coordinator: MOSDataUpdateCoordinator, pool_id: str) -> list[MOSPoolSensor]:

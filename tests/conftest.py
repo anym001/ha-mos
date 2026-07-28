@@ -130,8 +130,11 @@ def mock_pools() -> list[dict[str, Any]]:
         {
             "id": 1,
             "name": "Test1",
+            "type": "xfs",
             "status": {
                 "usagePercent": 42,
+                "totalSpace": 987654321,
+                "usedSpace": 864197532,
                 "freeSpace": 123456789,
                 "health": "healthy",
                 "scrub_operation": False,
@@ -141,8 +144,11 @@ def mock_pools() -> list[dict[str, Any]]:
         {
             "id": 2,
             "name": "Test2",
+            "type": "btrfs",
             "status": {
                 "usagePercent": 10,
+                "totalSpace": 1111111111,
+                "usedSpace": 123456790,
                 "freeSpace": 987654321,
                 "health": "degraded",
                 "parity_operation": False,

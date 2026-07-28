@@ -147,6 +147,12 @@
       "pool_free_space": {
         "name": "Free space"
       },
+      "pool_total_space": {
+        "name": "Total space"
+      },
+      "pool_used_space": {
+        "name": "Used space"
+      },
       "disk_power_status": {
         "name": "Power status"
       },

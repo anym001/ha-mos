@@ -17,7 +17,7 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 
 - **Easy setup** — configured entirely through the UI, no YAML
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap
-- **Storage** — usage, free space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
+- **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Token permissions respected** — start and stop honor what your API token is allowed to do, and say so clearly instead of showing a cryptic server error when it isn't allowed
@@ -25,7 +25,7 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 
 | Platform        | Entities                                                                                       |
 | --------------- | ---------------------------------------------------------------------------------------------- |
-| `sensor`        | System info and health, pool usage/free space, disk power/temperature/model/size, LXC/Docker/VM resources |
+| `sensor`        | System info and health, pool usage/space, disk power/temperature/model/size, LXC/Docker/VM resources |
 | `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state         |
 | `switch`        | LXC container, Docker container and VM power                                                   |
 
