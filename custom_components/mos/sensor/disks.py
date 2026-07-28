@@ -10,7 +10,8 @@ name via ``translation_placeholders`` so entity_ids stay unique per disk
 Note: ``temperatureStatus`` was ``null`` on every disk of the test system used
 to build this (a VM with virtual disks), so its real shape (a numeric reading
 vs. a status string) is unverified. The sensor below is deliberately generic
-(no fixed device_class/unit) until that's confirmed on real hardware.
+(no fixed device_class/unit) until that's confirmed on real hardware. The
+separate ``temperature`` field is the actual numeric Celsius reading.
 """
 
 from __future__ import annotations
@@ -20,7 +21,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -52,6 +54,14 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         translation_key="disk_temperature_status",
         icon="mdi:thermometer",
         value_fn=lambda disk: disk.get("temperatureStatus"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="temperature",
+        translation_key="disk_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda disk: disk.get("temperature"),
     ),
 )
 

@@ -101,14 +101,18 @@ def mock_disks() -> list[dict[str, Any]]:
             "name": "vda",
             "powerStatus": "active",
             "temperatureStatus": None,
+            "temperature": 32,
             "smartWarning": False,
+            "preclearRunning": False,
         },
         {
             "serial": "S2",
             "name": "vdb",
             "powerStatus": "standby",
             "temperatureStatus": None,
+            "temperature": 41,
             "smartWarning": True,
+            "preclearRunning": True,
         },
     ]
 

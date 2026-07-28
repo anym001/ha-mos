@@ -44,6 +44,12 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskBinarySensorEntityDescription, ...] = (
         device_class=BinarySensorDeviceClass.PROBLEM,
         value_fn=lambda disk: disk.get("smartWarning"),
     ),
+    MOSDiskBinarySensorEntityDescription(
+        key="preclear_running",
+        translation_key="disk_preclear_running",
+        icon="mdi:progress-clock",
+        value_fn=lambda disk: disk.get("preclearRunning"),
+    ),
 )
 
 

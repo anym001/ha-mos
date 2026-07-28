@@ -153,6 +153,9 @@
       "disk_temperature_status": {
         "name": "{disk_name} temperature status"
       },
+      "disk_temperature": {
+        "name": "{disk_name} temperature"
+      },
       "cpu_load": {
         "name": "CPU load"
       },
@@ -223,6 +226,9 @@
       },
       "disk_smart_warning": {
         "name": "{disk_name} SMART warning"
+      },
+      "disk_preclear_running": {
+        "name": "{disk_name} preclear running"
       },
       "lxc_autostart": {
         "name": "Autostart"

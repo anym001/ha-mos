@@ -21,6 +21,15 @@ async def test_disk_sensor_values(
     assert hass.states.get("sensor.sirius_vda_temperature_status").state == "unknown"
 
 
+async def test_disk_temperature_values(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Each disk gets its own numeric temperature sensor."""
+    assert hass.states.get("sensor.sirius_vda_temperature").state == "32"
+    assert hass.states.get("sensor.sirius_vdb_temperature").state == "41"
+
+
 async def test_disk_removed_from_api_removes_its_sensors(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
