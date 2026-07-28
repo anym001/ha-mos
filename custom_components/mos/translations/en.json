@@ -153,6 +153,9 @@
       "pool_used_space": {
         "name": "Used space"
       },
+      "pool_type": {
+        "name": "Type"
+      },
       "disk_power_status": {
         "name": "Power status"
       },
@@ -167,6 +170,9 @@
       },
       "disk_size": {
         "name": "Size"
+      },
+      "disk_type": {
+        "name": "Type"
       },
       "cpu_load": {
         "name": "CPU load"

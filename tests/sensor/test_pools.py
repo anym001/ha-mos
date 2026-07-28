@@ -21,7 +21,6 @@ async def test_pool_sensor_values(
 
     free_space = hass.states.get("sensor.sirius_pool_test1_free_space")
     assert free_space is not None
-    assert usage.attributes["type"] == "xfs"
 
 
 async def test_pool_total_and_used_space_values(
@@ -33,6 +32,19 @@ async def test_pool_total_and_used_space_values(
     assert hass.states.get("sensor.sirius_pool_test1_used_space") is not None
     assert hass.states.get("sensor.sirius_pool_test2_total_space") is not None
     assert hass.states.get("sensor.sirius_pool_test2_used_space") is not None
+
+
+async def test_pool_type_value_and_is_not_diagnostic(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Each pool gets its own type sensor, which is a regular sensor."""
+    assert hass.states.get("sensor.sirius_pool_test1_type").state == "xfs"
+    assert hass.states.get("sensor.sirius_pool_test2_type").state == "btrfs"
+
+    registry = er.async_get(hass)
+    entry = registry.async_get("sensor.sirius_pool_test1_type")
+    assert entry.entity_category is None
 
 
 async def test_pool_removed_from_api_removes_its_sensors(

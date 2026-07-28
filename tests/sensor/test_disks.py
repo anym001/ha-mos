@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
@@ -32,27 +31,25 @@ async def test_disk_temperature_values(
     assert hass.states.get("sensor.sirius_disk_vdb_temperature").state == "41"
 
 
-async def test_disk_model_and_size_values(
+async def test_disk_model_size_and_type_values(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Each disk gets its own model/size sensors, with type as an attribute on model."""
-    model_state = hass.states.get("sensor.sirius_disk_vda_model")
-    assert model_state.state == "Samsung SSD 970"
-    assert model_state.attributes["type"] == "ssd"
-
-    assert hass.states.get("sensor.sirius_disk_vdb_model").attributes["type"] == "hdd"
+    """Each disk gets its own model/size/type sensors."""
+    assert hass.states.get("sensor.sirius_disk_vda_model").state == "Samsung SSD 970"
+    assert hass.states.get("sensor.sirius_disk_vda_type").state == "ssd"
+    assert hass.states.get("sensor.sirius_disk_vdb_type").state == "hdd"
     assert float(hass.states.get("sensor.sirius_disk_vda_size").state) == pytest.approx(2.147483648)
 
 
-async def test_disk_model_is_diagnostic(
+async def test_disk_model_and_type_are_not_diagnostic(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Model is diagnostic, unlike the other disk sensors."""
+    """Model and type are regular sensors, unlike smart_warning."""
     registry = er.async_get(hass)
-    entry = registry.async_get("sensor.sirius_disk_vda_model")
-    assert entry.entity_category is EntityCategory.DIAGNOSTIC
+    assert registry.async_get("sensor.sirius_disk_vda_model").entity_category is None
+    assert registry.async_get("sensor.sirius_disk_vda_type").entity_category is None
 
 
 async def test_disk_removed_from_api_removes_its_sensors(

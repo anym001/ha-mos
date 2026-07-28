@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
-from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfTemperature
+from homeassistant.const import UnitOfInformation, UnitOfTemperature
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -39,7 +39,6 @@ class MOSDiskSensorEntityDescription(SensorEntityDescription):
     """Describe a MOS disk sensor, including how to derive its value from a disk payload."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
-    attributes_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
@@ -67,9 +66,13 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         key="model",
         translation_key="disk_model",
         icon="mdi:harddisk",
-        entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda disk: disk.get("model"),
-        attributes_fn=lambda disk: {"type": disk.get("type")},
+    ),
+    MOSDiskSensorEntityDescription(
+        key="type",
+        translation_key="disk_type",
+        icon="mdi:harddisk",
+        value_fn=lambda disk: disk.get("type"),
     ),
     MOSDiskSensorEntityDescription(
         key="size",
@@ -115,16 +118,6 @@ class MOSDiskSensor(SensorEntity, MOSEntity):
         if disk is None:
             return None
         return self.entity_description.value_fn(disk)
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return extra descriptive attributes, if the entity description defines any."""
-        if self.entity_description.attributes_fn is None or not self.coordinator.last_update_success:
-            return None
-        disk = _find_disk(self.coordinator, self._serial)
-        if disk is None:
-            return None
-        return self.entity_description.attributes_fn(disk)
 
 
 def build_disk_sensors(coordinator: MOSDataUpdateCoordinator, serial: str) -> list[MOSDiskSensor]:
