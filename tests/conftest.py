@@ -99,6 +99,9 @@ def mock_disks() -> list[dict[str, Any]]:
         {
             "serial": "S1",
             "name": "vda",
+            "model": "Samsung SSD 970",
+            "size": 2147483648,
+            "type": "ssd",
             "powerStatus": "active",
             "temperatureStatus": None,
             "temperature": 32,
@@ -108,6 +111,9 @@ def mock_disks() -> list[dict[str, Any]]:
         {
             "serial": "S2",
             "name": "vdb",
+            "model": "Seagate ST4000",
+            "size": 21474836480,
+            "type": "hdd",
             "powerStatus": "standby",
             "temperatureStatus": None,
             "temperature": 41,

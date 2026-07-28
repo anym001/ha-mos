@@ -156,6 +156,12 @@
       "disk_temperature": {
         "name": "Temperature"
       },
+      "disk_model": {
+        "name": "Model"
+      },
+      "disk_size": {
+        "name": "Size"
+      },
       "cpu_load": {
         "name": "CPU load"
       },
