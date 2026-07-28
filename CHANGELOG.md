@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.5](https://github.com/anym001/ha-mos/compare/v0.1.4...v0.1.5) (2026-07-28)
+
+
+### Features
+
+* **api:** request includeMetrics for /pools ([a5dc160](https://github.com/anym001/ha-mos/commit/a5dc160e91804321e2b32b416b595a18dc1bfc16))
+* **api:** request performance and skipStandby params for /disks ([ffff325](https://github.com/anym001/ha-mos/commit/ffff3255ae38fbab12187d7f9441be111dbf8c15))
+* **disks,pools:** expose type as its own sensor, not diagnostic ([2852667](https://github.com/anym001/ha-mos/commit/28526671255308c4cfa658e58bff93871820cc05))
+* **disks:** add model and size sensors per disk ([827631b](https://github.com/anym001/ha-mos/commit/827631bb03360330442b164b91004e09fb0a8cc2))
+* **entity:** give disks and pools their own device ([4036ff0](https://github.com/anym001/ha-mos/commit/4036ff038d714069fdcbbf16efbe80e0f1e73417))
+* **pools:** add total/used space sensors and type attribute ([ae426d7](https://github.com/anym001/ha-mos/commit/ae426d7f5838eaef5d5e7650505c96c5ff3d77b7))
+* **sensor,binary_sensor:** add disk temperature and preclear running sensors ([2dea2b8](https://github.com/anym001/ha-mos/commit/2dea2b81174cc27a115048d148fb4354a026efa8))
+
+
+### Bug Fixes
+
+* **disks:** remove the unverified temperature_status sensor ([175dcdc](https://github.com/anym001/ha-mos/commit/175dcdc52653f7714c74c8ba7a3acc46f69459e7))
+
 ## [0.1.4](https://github.com/anym001/ha-mos/compare/v0.1.3...v0.1.4) (2026-07-28)
 
 
