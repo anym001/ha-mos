@@ -9,14 +9,14 @@
 
 Home Assistant integration for a MOS server: monitors the system, its storage, containers and VMs — and lets you start and stop them.
 
-## ✨ Features
+## Features
 
 - **Easy setup** — configured entirely through the UI, no YAML
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap
 - **Storage** — usage, free space, health and scrub/balance/parity status per pool; power/temperature status and SMART warnings per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
-- **Permission-aware writes** — start/stop checks the token's scope first and fails with a clear message instead of a raw 401/403
+- **Clear messages** — if your API token isn't allowed to start or stop something, you get told exactly that instead of a cryptic server error
 - **Selective categories** — turn disks, pools, services, LXC, Docker or VMs off entirely
 
 | Platform        | Entities                                                                                       |
@@ -27,7 +27,7 @@ Home Assistant integration for a MOS server: monitors the system, its storage, c
 
 Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Disks and pools are entities on the server device itself; each container and VM gets its own device linked back to the server.
 
-## 🚀 Installation
+## Installation
 
 The integration is not in the HACS default store yet, so add it as a custom repository:
 
@@ -40,7 +40,7 @@ You will need the server's host name or IP and an API token (MOS web UI → **Us
 
 To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart. Full walkthrough: [docs/user/GETTING_STARTED.md](docs/user/GETTING_STARTED.md).
 
-## ⚙️ Configuration
+## Configuration
 
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
@@ -51,7 +51,7 @@ Click **Configure** on the integration to change these anytime — the integrati
 
 System health (CPU, memory, swap) is always enabled. Connection details (host, token, port, TLS) can be changed via **⋮** → **Reconfigure**. More detail: [docs/user/CONFIGURATION.md](docs/user/CONFIGURATION.md).
 
-## 🩺 Troubleshooting
+## Troubleshooting
 
 **Entities went unavailable.** Usually the server is unreachable or restarting; the integration retries on its own and recovers without any action.
 
@@ -68,7 +68,7 @@ logger:
 
 **Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics**.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome — issues and pull requests alike. The repository ships a complete dev environment (Home Assistant, Python 3.14, all tooling):
 
@@ -81,11 +81,11 @@ Branching model, commit conventions and the release process are in [CONTRIBUTING
 > [!NOTE]
 > **Transparency:** This integration was developed with the help of AI coding agents (GitHub Copilot, Claude and others). It follows Home Assistant Core standards, but AI-generated code may not be reviewed and tested to the same extent as hand-written code. If something behaves unexpectedly, please [open an issue](../../issues).
 
-## 📄 License
+## License
 
 MIT — see [LICENSE](LICENSE).
 
-**Made with ❤️ by [@anym001][user_profile]**
+Maintained by [@anym001][user_profile].
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos/commits/main
