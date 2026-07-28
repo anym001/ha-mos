@@ -14,6 +14,7 @@ from custom_components.mos.api.client import (
     MOSApiClientCommunicationError,
     MOSApiClientError,
     MOSApiClientPermissionError,
+    MOSApiClientRateLimitError,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -328,6 +329,27 @@ async def test_403_raises_permission_error_not_authentication_error(
         await client.async_get_osinfo()
 
     assert not issubclass(MOSApiClientPermissionError, MOSApiClientAuthenticationError)
+
+
+async def test_429_raises_rate_limit_error(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A 429 is rate limiting - a "retry later", not a token or scope problem.
+
+    It must stay distinct from both a communication error and a permission
+    error so the coordinator can keep the resource's last-known state and retry,
+    rather than tearing its entities down.
+    """
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=429)
+
+    client = MOSApiClient(host="10.0.1.30", token="tok", session=async_get_clientsession(hass))
+
+    with pytest.raises(MOSApiClientRateLimitError):
+        await client.async_get_osinfo()
+
+    assert not issubclass(MOSApiClientRateLimitError, MOSApiClientPermissionError)
+    assert not issubclass(MOSApiClientRateLimitError, MOSApiClientCommunicationError)
 
 
 async def test_other_http_error_raises_communication_error(
