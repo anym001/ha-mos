@@ -111,6 +111,28 @@ def _merge_docker_engine_state(
     return merged
 
 
+def _carry_forward_docker_engine_state(
+    containers: list[dict[str, Any]],
+    previous_containers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Preserve the last-known Docker ``state`` when the engine proxy is absent.
+
+    ``docker_engine_containers`` is merged into ``docker_containers`` and then
+    dropped every poll, so it never lands in ``self.data`` where
+    ``_retain_last_known_good`` could carry it forward. When the raw Docker
+    Engine proxy is transiently unavailable (403/429) while the MOS container
+    list itself still answers, re-attach each container's ``state`` from the
+    previously merged data (keyed by name) instead of letting every container's
+    running-state blank out to ``None`` for a cycle. Containers unknown last
+    poll (or on the first poll) get ``None``, so no stale value is invented.
+    """
+    state_by_name: dict[str, Any] = {
+        name: container.get("state") for container in previous_containers if (name := container.get("name"))
+    }
+    return [{**container, "state": state_by_name.get(container.get("name") or "")} for container in containers]
+
+
 class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     """
     Class to manage fetching data from the API.
@@ -722,5 +744,12 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],
                 data.pop("docker_engine_containers"),
+            )
+        elif data["docker_containers"]:
+            # Engine proxy was transiently unavailable this poll; keep the
+            # last-known running state instead of blanking every container.
+            data["docker_containers"] = _carry_forward_docker_engine_state(
+                data["docker_containers"],
+                (self.data or {}).get("docker_containers") or [],
             )
         return data

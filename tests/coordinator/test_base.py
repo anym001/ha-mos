@@ -708,10 +708,12 @@ async def test_unknown_resource_names_in_scope_are_not_pre_denied(
 async def test_denied_docker_engine_proxy_keeps_the_container_list(
     hass: HomeAssistant,
     mock_client: AsyncMock,
+    mock_docker_containers: list[dict],
 ) -> None:
     """The Docker Engine proxy and the MOS container list are denied independently.
 
-    Losing live running state should not cost the containers themselves.
+    Losing live running state should not cost the containers themselves. With no
+    prior poll to carry a state from, the running-state is simply unknown (None).
     """
     mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("no proxy scope")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
@@ -720,7 +722,43 @@ async def test_denied_docker_engine_proxy_keeps_the_container_list(
     await coordinator.async_config_entry_first_refresh()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["docker_containers"] == mock_client.async_get_docker_containers.return_value
+    assert coordinator.data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": None},
+        {**mock_docker_containers[1], "state": None},
+    ]
+
+
+async def test_denied_docker_engine_proxy_retains_last_known_state(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict],
+) -> None:
+    """A transient Engine-proxy 403 keeps the last-known running state per container.
+
+    The engine payload is merged into ``docker_containers`` and then dropped
+    every poll, so it never reaches the generic last-known-good retention. When
+    the proxy briefly 403s while the container list still answers, each
+    container must keep the ``state`` it had last poll instead of blanking to
+    None and flapping the running binary sensors for a cycle.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # A good first poll establishes the live running/exited state.
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": "running"},
+        {**mock_docker_containers[1], "state": "exited"},
+    ]
+
+    # The next poll loses only the engine proxy; the container list still answers.
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("transient 403")
+    data = await coordinator._async_update_data()
+
+    assert data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": "running"},
+        {**mock_docker_containers[1], "state": "exited"},
+    ]
 
 
 async def test_communication_error_wins_over_a_concurrent_auth_error(
