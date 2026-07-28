@@ -142,16 +142,34 @@
         "name": "Base OS"
       },
       "pool_usage": {
-        "name": "{pool_name} usage"
+        "name": "Usage"
       },
       "pool_free_space": {
-        "name": "{pool_name} free space"
+        "name": "Free space"
+      },
+      "pool_total_space": {
+        "name": "Total space"
+      },
+      "pool_used_space": {
+        "name": "Used space"
+      },
+      "pool_type": {
+        "name": "Type"
       },
       "disk_power_status": {
-        "name": "{disk_name} power status"
+        "name": "Power status"
       },
-      "disk_temperature_status": {
-        "name": "{disk_name} temperature status"
+      "disk_temperature": {
+        "name": "Temperature"
+      },
+      "disk_model": {
+        "name": "Model"
+      },
+      "disk_size": {
+        "name": "Size"
+      },
+      "disk_type": {
+        "name": "Type"
       },
       "cpu_load": {
         "name": "CPU load"
@@ -210,19 +228,22 @@
         "name": "Netbird online"
       },
       "pool_problem": {
-        "name": "{pool_name} problem"
+        "name": "Problem"
       },
       "pool_scrub_running": {
-        "name": "{pool_name} scrub running"
+        "name": "Scrub running"
       },
       "pool_balance_running": {
-        "name": "{pool_name} balance running"
+        "name": "Balance running"
       },
       "pool_parity_running": {
-        "name": "{pool_name} parity running"
+        "name": "Parity running"
       },
       "disk_smart_warning": {
-        "name": "{disk_name} SMART warning"
+        "name": "SMART warning"
+      },
+      "disk_preclear_running": {
+        "name": "Preclear running"
       },
       "lxc_autostart": {
         "name": "Autostart"

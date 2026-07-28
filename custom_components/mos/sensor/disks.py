@@ -2,15 +2,9 @@
 
 Disks are a dynamic list (they can be plugged/unplugged at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
-static ENTITY_DESCRIPTIONS tuple. They live on the main server device
-alongside the system sensors; the disk's own name is folded into the entity
-name via ``translation_placeholders`` so entity_ids stay unique per disk
-(e.g. ``sensor.mos_server_vda_power_status``).
-
-Note: ``temperatureStatus`` was ``null`` on every disk of the test system used
-to build this (a VM with virtual disks), so its real shape (a numeric reading
-vs. a status string) is unverified. The sensor below is deliberately generic
-(no fixed device_class/unit) until that's confirmed on real hardware.
+static ENTITY_DESCRIPTIONS tuple. Each disk gets its own device (linked back
+to the main server device via ``via_device``), same as LXC/Docker/VM items
+(e.g. ``sensor.mos_server_disk_vda_power_status``).
 """
 
 from __future__ import annotations
@@ -20,7 +14,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.const import UnitOfInformation, UnitOfTemperature
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -48,10 +43,34 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         value_fn=lambda disk: disk.get("powerStatus"),
     ),
     MOSDiskSensorEntityDescription(
-        key="temperature_status",
-        translation_key="disk_temperature_status",
-        icon="mdi:thermometer",
-        value_fn=lambda disk: disk.get("temperatureStatus"),
+        key="temperature",
+        translation_key="disk_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda disk: disk.get("temperature"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="model",
+        translation_key="disk_model",
+        icon="mdi:harddisk",
+        value_fn=lambda disk: disk.get("model"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="type",
+        translation_key="disk_type",
+        icon="mdi:harddisk",
+        value_fn=lambda disk: disk.get("type"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="size",
+        translation_key="disk_size",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda disk: disk.get("size"),
     ),
 )
 
@@ -75,7 +94,7 @@ class MOSDiskSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_disk_{serial}_{entity_description.key}",
-            translation_placeholders={"disk_name": disk.get("name") or serial},
+            container_device=(f"disk_{serial}", f"Disk {disk.get('name') or serial}"),
         )
 
     @property

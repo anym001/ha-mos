@@ -57,6 +57,7 @@ async def async_setup_entry(
             data_key="disks",
             id_fn=lambda disk: disk["serial"],
             entity_factory=build_disk_binary_sensors,
+            device_identifiers_fn=lambda serial: (entry.domain, f"{entry.entry_id}_disk_{serial}"),
         )
     if entry.options.get(CONF_ENABLE_POOLS, DEFAULT_ENABLE_POOLS):
         async_setup_dynamic_entities(
@@ -66,6 +67,7 @@ async def async_setup_entry(
             data_key="pools",
             id_fn=lambda pool: str(pool["id"]),
             entity_factory=build_pool_binary_sensors,
+            device_identifiers_fn=lambda pool_id: (entry.domain, f"{entry.entry_id}_pool_{pool_id}"),
         )
     if entry.options.get(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC):
         async_setup_dynamic_entities(

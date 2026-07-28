@@ -41,8 +41,8 @@ async def test_disks_and_pools_use_root_path(
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
     """disks/pools are fetched directly from the /api/v1 root, not /api/v1/mos."""
-    aioclient_mock.get("http://10.0.1.30:80/api/v1/disks", json=[{"serial": "S1"}])
-    aioclient_mock.get("http://10.0.1.30:80/api/v1/pools", json=[{"id": 1}])
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/disks?performance=true&skipStandby=true", json=[{"serial": "S1"}])
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/pools?includeMetrics=true", json=[{"id": 1}])
 
     client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
 

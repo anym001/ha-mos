@@ -187,7 +187,7 @@ async def test_runtime_auth_failure_keeps_entry_loaded_and_recovers(
     assert setup_integration.state is ConfigEntryState.LOADED
     assert coordinator.last_update_success is False
     assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
-    assert hass.states.get("sensor.sirius_vda_power_status").state == STATE_UNAVAILABLE
+    assert hass.states.get("sensor.sirius_disk_vda_power_status").state == STATE_UNAVAILABLE
 
     # Server is back: no reauth ever happened and the entities repopulate.
     mock_client.async_get_osinfo.side_effect = None
@@ -196,7 +196,7 @@ async def test_runtime_auth_failure_keeps_entry_loaded_and_recovers(
 
     assert coordinator.last_update_success is True
     assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
-    assert hass.states.get("sensor.sirius_vda_power_status").state == "active"
+    assert hass.states.get("sensor.sirius_disk_vda_power_status").state == "active"
 
 
 async def test_runtime_auth_failure_starts_reauth_after_grace_period(

@@ -14,8 +14,8 @@ async def test_disk_smart_warning_values(
     setup_integration: MockConfigEntry,
 ) -> None:
     """SMART warning reflects each disk's smartWarning flag."""
-    assert hass.states.get("binary_sensor.sirius_vda_smart_warning").state == "off"
-    assert hass.states.get("binary_sensor.sirius_vdb_smart_warning").state == "on"
+    assert hass.states.get("binary_sensor.sirius_disk_vda_smart_warning").state == "off"
+    assert hass.states.get("binary_sensor.sirius_disk_vdb_smart_warning").state == "on"
 
 
 async def test_disk_smart_warning_is_diagnostic(
@@ -24,5 +24,24 @@ async def test_disk_smart_warning_is_diagnostic(
 ) -> None:
     """SMART warning is one of the two entities that IS diagnostic."""
     registry = er.async_get(hass)
-    entry = registry.async_get("binary_sensor.sirius_vda_smart_warning")
+    entry = registry.async_get("binary_sensor.sirius_disk_vda_smart_warning")
     assert entry.entity_category is EntityCategory.DIAGNOSTIC
+
+
+async def test_disk_preclear_running_values(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Preclear running reflects each disk's preclearRunning flag."""
+    assert hass.states.get("binary_sensor.sirius_disk_vda_preclear_running").state == "off"
+    assert hass.states.get("binary_sensor.sirius_disk_vdb_preclear_running").state == "on"
+
+
+async def test_disk_preclear_running_is_not_diagnostic(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Preclear running is a main entity, unlike SMART warning."""
+    registry = er.async_get(hass)
+    entry = registry.async_get("binary_sensor.sirius_disk_vda_preclear_running")
+    assert entry.entity_category is None

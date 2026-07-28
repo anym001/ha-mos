@@ -99,16 +99,24 @@ def mock_disks() -> list[dict[str, Any]]:
         {
             "serial": "S1",
             "name": "vda",
+            "model": "Samsung SSD 970",
+            "size": 2147483648,
+            "type": "ssd",
             "powerStatus": "active",
-            "temperatureStatus": None,
+            "temperature": 32,
             "smartWarning": False,
+            "preclearRunning": False,
         },
         {
             "serial": "S2",
             "name": "vdb",
+            "model": "Seagate ST4000",
+            "size": 21474836480,
+            "type": "hdd",
             "powerStatus": "standby",
-            "temperatureStatus": None,
+            "temperature": 41,
             "smartWarning": True,
+            "preclearRunning": True,
         },
     ]
 
@@ -120,8 +128,11 @@ def mock_pools() -> list[dict[str, Any]]:
         {
             "id": 1,
             "name": "Test1",
+            "type": "xfs",
             "status": {
                 "usagePercent": 42,
+                "totalSpace": 987654321,
+                "usedSpace": 864197532,
                 "freeSpace": 123456789,
                 "health": "healthy",
                 "scrub_operation": False,
@@ -131,8 +142,11 @@ def mock_pools() -> list[dict[str, Any]]:
         {
             "id": 2,
             "name": "Test2",
+            "type": "btrfs",
             "status": {
                 "usagePercent": 10,
+                "totalSpace": 1111111111,
+                "usedSpace": 123456790,
                 "freeSpace": 987654321,
                 "health": "degraded",
                 "parity_operation": False,

@@ -7,11 +7,10 @@ container gets removed, and so on. This module provides a single, reusable
 way for a platform (sensor, binary_sensor, ...) to keep its entities in sync
 with such a list, including removing the entity when an item disappears.
 
-Disks and pools live on the main server device (see entity/base.py's
-``translation_placeholders``), so there is no per-item device to clean up.
-LXC/Docker containers get their own device (``container_device``); when a
-container disappears, its now-entity-less device is removed too, via the
-optional ``device_identifiers_fn``.
+Each item gets its own device (``container_device`` in entity/base.py),
+linked back to the main server device; when an item disappears, its
+now-entity-less device is removed too, via the optional
+``device_identifiers_fn``.
 
 Used by sensor/disks.py, sensor/pools.py, sensor/lxc.py, sensor/docker.py,
 their binary_sensor counterparts, and switch/lxc.py to avoid duplicating the

@@ -174,6 +174,9 @@ class MOSApiClient:
         """
         Get physical disk information from ``/disks``.
 
+        Requests ``performance=true`` for I/O throughput figures and
+        ``skipStandby=true`` so spun-down disks aren't woken just to be polled.
+
         Returns:
             The parsed ``disks`` payload.
 
@@ -183,11 +186,13 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._get("disks", base_url=self._root_base_url)
+        return await self._get("disks?performance=true&skipStandby=true", base_url=self._root_base_url)
 
     async def async_get_pools(self) -> list[dict[str, Any]]:
         """
         Get storage pool information from ``/pools``.
+
+        Requests ``includeMetrics=true`` for the pool usage/performance figures.
 
         Returns:
             The parsed ``pools`` payload.
@@ -198,7 +203,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._get("pools", base_url=self._root_base_url)
+        return await self._get("pools?includeMetrics=true", base_url=self._root_base_url)
 
     async def async_get_system_load(self) -> dict[str, Any]:
         """

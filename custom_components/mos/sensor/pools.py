@@ -2,10 +2,9 @@
 
 Pools are a dynamic list (they can be created/deleted at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
-static ENTITY_DESCRIPTIONS tuple. They live on the main server device
-alongside the system sensors; the pool's own name is folded into the entity
-name via ``translation_placeholders`` so entity_ids stay unique per pool
-(e.g. ``sensor.mos_server_test1_usage``).
+static ENTITY_DESCRIPTIONS tuple. Each pool gets its own device (linked back
+to the main server device via ``via_device``), same as LXC/Docker/VM items
+(e.g. ``sensor.mos_server_pool_test1_usage``).
 """
 
 from __future__ import annotations
@@ -55,6 +54,32 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda pool: (pool.get("status") or {}).get("freeSpace"),
     ),
+    MOSPoolSensorEntityDescription(
+        key="total_space",
+        translation_key="pool_total_space",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda pool: (pool.get("status") or {}).get("totalSpace"),
+    ),
+    MOSPoolSensorEntityDescription(
+        key="used_space",
+        translation_key="pool_used_space",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda pool: (pool.get("status") or {}).get("usedSpace"),
+    ),
+    MOSPoolSensorEntityDescription(
+        key="type",
+        translation_key="pool_type",
+        icon="mdi:harddisk",
+        value_fn=lambda pool: pool.get("type"),
+    ),
 )
 
 
@@ -77,7 +102,7 @@ class MOSPoolSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_pool_{pool_id}_{entity_description.key}",
-            translation_placeholders={"pool_name": pool.get("name") or pool_id},
+            container_device=(f"pool_{pool_id}", f"Pool {pool.get('name') or pool_id}"),
         )
 
     @property
