@@ -163,6 +163,10 @@ def mock_system_load() -> dict[str, Any]:
         "temperature": {"main": 55.0},
         "memory": {
             "used": 1899659264,
+            "total": 8589934592,
+            "free": 6690275328,
+            "installed": 8724152320,
+            "reserved": 134217728,
             "percentage": {"used": 20, "actuallyUsed": 18},
         },
         "swap": {"percentage": 0},
