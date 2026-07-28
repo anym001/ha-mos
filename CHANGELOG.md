@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/anym001/ha-mos/compare/v0.1.5...v0.1.6) (2026-07-28)
+
+
+### Bug Fixes
+
+* **coordinator:** retain last-known docker state on transient engine 403 ([1866d0f](https://github.com/anym001/ha-mos/commit/1866d0fd5cd0f0f2664f901ef7143f2f0008e644))
+* **coordinator:** retain resources on transient 403/429 failures ([9c7720c](https://github.com/anym001/ha-mos/commit/9c7720c249ec92f50b2d0ad197f59ef179c27033))
+* **coordinator:** stop Docker/LXC/VM entities disappearing on transient 403/429 ([723265a](https://github.com/anym001/ha-mos/commit/723265ac0150b54238ed7a0cd1e45db00cdf461f))
+
 ## [0.1.5](https://github.com/anym001/ha-mos/compare/v0.1.4...v0.1.5) (2026-07-28)
 
 
