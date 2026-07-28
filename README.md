@@ -23,11 +23,11 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 - **Token permissions respected** — start and stop honor what your API token is allowed to do, and say so clearly instead of showing a cryptic server error when it isn't allowed
 - **Selective categories** — turn disks, pools, services, LXC, Docker or VMs off entirely
 
-| Platform        | Entities                                                                                       |
-| --------------- | ---------------------------------------------------------------------------------------------- |
+| Platform        | Entities                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
 | `sensor`        | System info and health, pool usage/space, disk power/temperature/model/size, LXC/Docker/VM resources |
-| `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state         |
-| `switch`        | LXC container, Docker container and VM power                                                   |
+| `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state               |
+| `switch`        | LXC container, Docker container and VM power                                                         |
 
 Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server.
 
