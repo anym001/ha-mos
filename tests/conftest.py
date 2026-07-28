@@ -252,6 +252,62 @@ def mock_vm_machines() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_sensors() -> dict[str, list[dict[str, Any]]]:
+    """Return a realistic ``/sensors`` payload."""
+    return {
+        "fan": [
+            {
+                "id": "1767081453997",
+                "index": 0,
+                "name": "CPU",
+                "manufacturer": "Noctua",
+                "model": "NH-U14S",
+                "subtype": "speed",
+                "value": 593,
+                "unit": "rpm",
+            },
+            {
+                "id": "1767081531271",
+                "index": 1,
+                "name": "CPU",
+                "manufacturer": "Noctua",
+                "model": "NH-U14S",
+                "subtype": "percentage",
+                "value": 76.5,
+                "unit": "%",
+            },
+        ],
+        "temperature": [
+            {
+                "id": "1767081945017",
+                "index": 0,
+                "name": "CPU Env.",
+                "manufacturer": "Intel",
+                "model": "i9-10900",
+                "subtype": "temperature",
+                "value": 30.5,
+                "unit": "°C",
+            },
+        ],
+        "power": [],
+        "voltage": [
+            {
+                "id": "1767082414584",
+                "index": 0,
+                "name": "CPU Vcore",
+                "manufacturer": "Intel",
+                "model": "i9-10900",
+                "subtype": "voltage",
+                "value": 0.78,
+                "unit": "V",
+            },
+        ],
+        "psu": [],
+        "other": [],
+    }
+
+
+@pytest.fixture
 def mock_token_permissions() -> dict[str, Any]:
     """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
     return {
@@ -293,6 +349,7 @@ def mock_client(
     mock_docker_containers: list[dict[str, Any]],
     mock_docker_engine_containers: list[dict[str, Any]],
     mock_vm_machines: list[dict[str, Any]],
+    mock_sensors: dict[str, list[dict[str, Any]]],
     mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
@@ -306,6 +363,7 @@ def mock_client(
     client.async_get_docker_containers.return_value = mock_docker_containers
     client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
     client.async_get_vm_machines.return_value = mock_vm_machines
+    client.async_get_sensors.return_value = mock_sensors
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"

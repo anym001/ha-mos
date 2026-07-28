@@ -31,12 +31,14 @@ from custom_components.mos.const import (
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
     CONF_ENABLE_POOLS,
+    CONF_ENABLE_SENSORS,
     CONF_ENABLE_SERVICES,
     CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
     DEFAULT_ENABLE_POOLS,
+    DEFAULT_ENABLE_SENSORS,
     DEFAULT_ENABLE_SERVICES,
     DEFAULT_ENABLE_VM,
     LOGGER,
@@ -109,6 +111,17 @@ def _merge_docker_engine_state(
         engine_container = engine_by_name.get(name) or {}
         merged.append({**container, "state": engine_container.get("State")})
     return merged
+
+
+def _flatten_sensors(raw_sensors: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """
+    Flatten the ``/sensors`` payload's per-category dict into one flat list.
+
+    ``/sensors`` groups readings by category (``fan``, ``temperature``, ...);
+    each reading is tagged with its category here so downstream consumers
+    (naming, unique_id) don't need the original grouping to know it.
+    """
+    return [{**item, "category": category} for category, items in raw_sensors.items() for item in items]
 
 
 def _carry_forward_docker_engine_state(
@@ -456,6 +469,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
         if wanted(CONF_ENABLE_VM, DEFAULT_ENABLE_VM, "vm_machines"):
             tasks["vm_machines"] = client.async_get_vm_machines()
+        if wanted(CONF_ENABLE_SENSORS, DEFAULT_ENABLE_SENSORS, "sensors"):
+            tasks["sensors"] = client.async_get_sensors()
         return tasks
 
     def _triage_results(self, tasks: dict[str, Any], results: list[Any]) -> _UpdateOutcome:
@@ -692,6 +707,9 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                                           # with "state" merged in from the raw Docker
                                           # Engine proxy (/docker/containers/json)
             "vm_machines": [...],      # VMs from /vm/machines/usage
+            "sensors": [...],       # Hardware readings from /sensors, flattened
+                                     # from their per-category grouping into one
+                                     # list, each item tagged with "category"
         }
 
         ``osinfo`` and ``system_load`` are always fetched. The other resources
@@ -725,6 +743,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # data at all even though most endpoints answered fine.
         results = await asyncio.gather(*tasks.values(), return_exceptions=True)
         outcome = self._triage_results(tasks, results)
+        if "sensors" in outcome.payload:
+            outcome.payload["sensors"] = _flatten_sensors(outcome.payload["sensors"])
         transient = self._classify_transient_resource_failures(outcome)
         self._handle_failed_resources(outcome)
 
@@ -740,6 +760,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("lxc_containers", [])
         data.setdefault("docker_containers", [])
         data.setdefault("vm_machines", [])
+        data.setdefault("sensors", [])
         if "docker_engine_containers" in data:
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],

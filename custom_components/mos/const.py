@@ -106,6 +106,9 @@ READ_PERMISSION_RESOURCES = {
     "docker_containers": "docker",
     "docker_engine_containers": "docker",
     "vm_machines": "vm",
+    # Sensors have no permission scope of their own - they are covered by the
+    # general "mos" scope.
+    "sensors": "mos",
 }
 
 # Optional resource categories - can be disabled via the options flow
@@ -115,9 +118,11 @@ CONF_ENABLE_SERVICES = "enable_services"
 CONF_ENABLE_LXC = "enable_lxc"
 CONF_ENABLE_DOCKER = "enable_docker"
 CONF_ENABLE_VM = "enable_vm"
+CONF_ENABLE_SENSORS = "enable_sensors"
 DEFAULT_ENABLE_DISKS = True
 DEFAULT_ENABLE_POOLS = True
 DEFAULT_ENABLE_SERVICES = True
 DEFAULT_ENABLE_LXC = True
 DEFAULT_ENABLE_DOCKER = True
 DEFAULT_ENABLE_VM = True
+DEFAULT_ENABLE_SENSORS = True

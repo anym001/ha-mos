@@ -248,6 +248,23 @@ class MOSApiClient:
         """
         return await self._get("system/load", base_url=self._root_base_url)
 
+    async def async_get_sensors(self) -> dict[str, list[dict[str, Any]]]:
+        """
+        Get hardware sensor readings from ``/sensors``.
+
+        Returns:
+            The parsed ``sensors`` payload: a dict keyed by category (``fan``,
+            ``temperature``, ``power``, ``voltage``, ``psu``, ``other``), each a
+            list of individual readings.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("sensors")
+
     async def async_get_lxc_containers(self) -> list[dict[str, Any]]:
         """
         Get LXC container status and resource usage from ``/lxc/containers/usage``.
