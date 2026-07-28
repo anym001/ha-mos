@@ -16,7 +16,12 @@ from dataclasses import dataclass, field
 import time
 from typing import TYPE_CHECKING, Any
 
-from custom_components.mos.api import MOSApiClientAuthenticationError, MOSApiClientError, MOSApiClientPermissionError
+from custom_components.mos.api import (
+    MOSApiClientAuthenticationError,
+    MOSApiClientError,
+    MOSApiClientPermissionError,
+    MOSApiClientRateLimitError,
+)
 from custom_components.mos.const import (
     ALWAYS_FETCHED_RESOURCES,
     AUTH_FAILURE_GRACE_PERIOD,
@@ -67,7 +72,19 @@ class _UpdateOutcome:
     payload: dict[str, Any] = field(default_factory=dict)
     auth_errors: list[BaseException] = field(default_factory=list)
     permission_errors: dict[str, BaseException] = field(default_factory=dict)
+    rate_limit_errors: dict[str, BaseException] = field(default_factory=dict)
     other_errors: list[BaseException] = field(default_factory=list)
+
+    def transient_resource_errors(self) -> dict[str, BaseException]:
+        """
+        Per-resource failures that should not tear the resource down (403 / 429).
+
+        Both are transient from the coordinator's point of view: the resource
+        keeps its last-known-good data and is retried on the next poll. Merged
+        here so the update flow has a single view of "which resources failed but
+        must be preserved".
+        """
+        return {**self.permission_errors, **self.rate_limit_errors}
 
 
 def _merge_docker_engine_state(
@@ -92,6 +109,28 @@ def _merge_docker_engine_state(
         engine_container = engine_by_name.get(name) or {}
         merged.append({**container, "state": engine_container.get("State")})
     return merged
+
+
+def _carry_forward_docker_engine_state(
+    containers: list[dict[str, Any]],
+    previous_containers: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Preserve the last-known Docker ``state`` when the engine proxy is absent.
+
+    ``docker_engine_containers`` is merged into ``docker_containers`` and then
+    dropped every poll, so it never lands in ``self.data`` where
+    ``_retain_last_known_good`` could carry it forward. When the raw Docker
+    Engine proxy is transiently unavailable (403/429) while the MOS container
+    list itself still answers, re-attach each container's ``state`` from the
+    previously merged data (keyed by name) instead of letting every container's
+    running-state blank out to ``None`` for a cycle. Containers unknown last
+    poll (or on the first poll) get ``None``, so no stale value is invented.
+    """
+    state_by_name: dict[str, Any] = {
+        name: container.get("state") for container in previous_containers if (name := container.get("name"))
+    }
+    return [{**container, "state": state_by_name.get(container.get("name") or "")} for container in containers]
 
 
 class MOSDataUpdateCoordinator(DataUpdateCoordinator):
@@ -122,15 +161,25 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     config_entry: MOSConfigEntry
     token_permissions: dict[str, Any] | None = None
 
-    # Optional resources the token may not read. Seeded at setup from the token's
-    # permission scope and extended whenever a poll gets a 403, so a denied
-    # resource is asked for at most once. Deliberately per-coordinator and not
-    # persisted: a reload re-probes, so fixing the token's scope is picked up by
-    # reloading the entry rather than needing the integration re-added.
+    # Optional resources the token's scope explicitly denies reading. Seeded once
+    # at setup from the token's permission scope (see ``_seed_forbidden_resources``)
+    # and never extended at runtime: a 403 that still reaches a poll is, by
+    # construction, on a resource the scope did *not* explicitly deny, so it is
+    # treated as transient rather than a permanent denial (see
+    # ``_classify_transient_resource_failures``). Fixing the token's scope is
+    # picked up by reloading the entry.
     #
     # Rebound rather than mutated (hence frozenset) - a mutable class attribute
     # would be shared by every coordinator instance in the process.
     forbidden_resources: frozenset[str] = frozenset()
+
+    # Resources whose last poll failed transiently (403 on a scope-allowed
+    # resource, or a 429 rate limit) and are currently being served from
+    # last-known-good data. Used only to throttle logging - warn once when a
+    # resource starts failing, stay quiet while it keeps failing, note when it
+    # recovers - so a persistently flaky server does not flood the log every
+    # poll. Rebound rather than mutated, for the same reason as above.
+    _degraded_resources: frozenset[str] = frozenset()
 
     @property
     def _auth_failure_streak(self) -> _AuthFailureStreak | None:
@@ -430,41 +479,59 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 outcome.auth_errors.append(result)
             elif isinstance(result, MOSApiClientPermissionError):
                 outcome.permission_errors[key] = result
+            elif isinstance(result, MOSApiClientRateLimitError):
+                outcome.rate_limit_errors[key] = result
             elif isinstance(result, MOSApiClientError):
                 outcome.other_errors.append(result)
             else:
                 raise result
         return outcome
 
-    def _handle_denied_resources(self, outcome: _UpdateOutcome) -> None:
+    def _classify_transient_resource_failures(self, outcome: _UpdateOutcome) -> set[str]:
         """
-        Record 403-denied resources so they are not requested again.
+        Decide how to react to per-resource 403/429 failures, and return the ones to preserve.
+
+        A 403 or 429 that reaches here is transient: the token's *explicit* scope
+        denials are seeded into ``forbidden_resources`` before the first poll and
+        never requested, so anything the server refuses at runtime is on a
+        resource the scope allowed (or was silent about). Rather than dropping it
+        - which would empty the resource and make the dynamic-entity sync tear
+        down its devices until a reload - the coordinator keeps that resource's
+        last-known-good data (see ``_retain_last_known_good``) and retries it on
+        the next poll.
+
+        The one exception is an always-fetched resource (osinfo, system_load):
+        there is nothing meaningful to show without it, so the whole cycle fails
+        (retryable) instead.
+
+        Returns:
+            The optional resource keys that failed transiently this cycle and
+            whose previous data must be carried forward.
 
         Raises:
-            UpdateFailed: If an always-fetched resource was denied. Deliberately
-                not ``ConfigEntryAuthFailed``: the token is valid, it just lacks
-                the scope, and a reauth flow would validate it successfully and
-                land straight back here on the next poll.
+            UpdateFailed: If an always-fetched resource was denied (403) or rate
+                limited (429). Deliberately not ``ConfigEntryAuthFailed``: the
+                token is valid, so a reauth flow would validate it successfully
+                and land straight back here on the next poll.
 
         """
-        if not outcome.permission_errors:
-            return
+        self._raise_if_required_resource_failed(outcome)
 
-        denied = set(outcome.permission_errors)
-        newly_denied = denied - self.forbidden_resources - ALWAYS_FETCHED_RESOURCES
-        if newly_denied:
-            LOGGER.warning(
-                "API token is not authorized to read %s - skipping %s until the integration is reloaded. "
-                "This is a token permission problem, not an invalid token; grant read access in the "
-                "MOS web UI under User Settings > Admin API Tokens",
-                ", ".join(sorted(newly_denied)),
-                "it" if len(newly_denied) == 1 else "them",
-            )
-            self.forbidden_resources = self.forbidden_resources | newly_denied
+        transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES
+        self._log_transient_resource_failures(outcome, transient)
+        return transient
 
-        denied_required = denied & ALWAYS_FETCHED_RESOURCES
+    def _raise_if_required_resource_failed(self, outcome: _UpdateOutcome) -> None:
+        """
+        Fail the whole cycle if an always-fetched resource was denied or rate limited.
+
+        Raises:
+            UpdateFailed: If osinfo or system_load returned 403 or 429.
+
+        """
+        denied_required = set(outcome.permission_errors) & ALWAYS_FETCHED_RESOURCES
         if denied_required:
-            exception = outcome.permission_errors[next(iter(sorted(denied_required)))]
+            exception = outcome.permission_errors[sorted(denied_required)[0]]
             LOGGER.error(
                 "API token is not authorized to read %s, which the integration always needs: %s",
                 ", ".join(sorted(denied_required)),
@@ -475,6 +542,71 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_key="insufficient_read_permission",
                 translation_placeholders={"resource": ", ".join(sorted(denied_required))},
             ) from exception
+
+        limited_required = set(outcome.rate_limit_errors) & ALWAYS_FETCHED_RESOURCES
+        if limited_required:
+            exception = outcome.rate_limit_errors[sorted(limited_required)[0]]
+            LOGGER.warning(
+                "Rate limited (HTTP 429) on %s, which the integration always needs - retrying: %s",
+                ", ".join(sorted(limited_required)),
+                exception,
+            )
+            raise UpdateFailed(
+                translation_domain="mos",
+                translation_key="update_failed",
+            ) from exception
+
+    def _log_transient_resource_failures(self, outcome: _UpdateOutcome, transient: set[str]) -> None:
+        """
+        Log transient per-resource failures once, without flooding on a persistently flaky server.
+
+        Warns the first time a resource starts failing, stays quiet (debug) while
+        it keeps failing, and notes when a previously failing resource recovers.
+        """
+        newly = transient - self._degraded_resources
+        newly_denied = sorted(newly & set(outcome.permission_errors))
+        newly_limited = sorted(newly & set(outcome.rate_limit_errors))
+        if newly_denied:
+            LOGGER.warning(
+                "Server returned 403 for %s although the token has read access - treating as transient "
+                "(e.g. the MOS server reloading) and retrying on the next poll; entities keep their "
+                "last-known state meanwhile. If this persists, check the token's read scope under "
+                "User Settings > Admin API Tokens in the MOS web UI",
+                ", ".join(newly_denied),
+            )
+        if newly_limited:
+            LOGGER.warning(
+                "Rate limited (HTTP 429) on %s - keeping last-known state and retrying on the next poll. "
+                "If this persists, increase the polling interval in the integration options",
+                ", ".join(newly_limited),
+            )
+
+        still_failing = sorted(transient & self._degraded_resources)
+        if still_failing:
+            LOGGER.debug("Still serving last-known state for %s (transient 403/429)", ", ".join(still_failing))
+
+        recovered = sorted(self._degraded_resources - transient)
+        if recovered:
+            LOGGER.info("%s recovered after a transient 403/429 - fresh data again", ", ".join(recovered))
+
+        self._degraded_resources = frozenset(transient)
+
+    def _retain_last_known_good(self, data: dict[str, Any], transient: set[str]) -> None:
+        """
+        Carry a transiently-failed resource's previous data forward into this cycle's payload.
+
+        A resource that returned 403/429 this cycle is absent from ``data``.
+        Leaving it absent would default it to empty, and the dynamic-entity sync
+        would then remove every device backed by it. Copying the last successful
+        value keeps those entities present and unchanged until the resource
+        answers again. A resource that never succeeded (e.g. a 403 on the very
+        first poll) has no previous value and is left to default to empty - there
+        are no entities to preserve yet.
+        """
+        previous = self.data or {}
+        for key in transient:
+            if key in previous:
+                data[key] = previous[key]
 
     def _handle_failed_resources(self, outcome: _UpdateOutcome) -> None:
         """
@@ -572,9 +704,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             The data from the API as a dictionary keyed by resource.
 
         Resources are fetched concurrently and evaluated individually: a
-        resource the token is not authorized to read (403) is dropped and the
-        rest of the poll still succeeds, so a narrowly scoped token yields fewer
-        entities rather than none.
+        resource the token is transiently unable to read (403 on a scope-allowed
+        resource, or a 429 rate limit) keeps its last-known-good data and is
+        retried next poll, so the rest of the poll still succeeds and no entities
+        are torn down over a passing server hiccup.
 
         Raises:
             ConfigEntryAuthFailed: If the token has been rejected (401) for longer
@@ -583,7 +716,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 reauthentication.
             UpdateFailed: If data fetching fails for other reasons - a
                 communication error, an authentication rejection still inside the
-                grace period, or a denied always-fetched resource.
+                grace period, or a denied/rate-limited always-fetched resource.
         """
         tasks = self._build_update_tasks()
         # return_exceptions so one resource cannot take the whole poll down with
@@ -592,11 +725,15 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # data at all even though most endpoints answered fine.
         results = await asyncio.gather(*tasks.values(), return_exceptions=True)
         outcome = self._triage_results(tasks, results)
-        self._handle_denied_resources(outcome)
+        transient = self._classify_transient_resource_failures(outcome)
         self._handle_failed_resources(outcome)
 
         self._clear_auth_failure()
         data: dict[str, Any] = outcome.payload
+        # Carry transiently-failed resources forward before defaulting, so their
+        # entities keep their last state instead of the dynamic-entity sync
+        # removing them over an empty list.
+        self._retain_last_known_good(data, transient)
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])
@@ -607,5 +744,12 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],
                 data.pop("docker_engine_containers"),
+            )
+        elif data["docker_containers"]:
+            # Engine proxy was transiently unavailable this poll; keep the
+            # last-known running state instead of blanking every container.
+            data["docker_containers"] = _carry_forward_docker_engine_state(
+                data["docker_containers"],
+                (self.data or {}).get("docker_containers") or [],
             )
         return data

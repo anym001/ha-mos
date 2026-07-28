@@ -12,9 +12,7 @@ custom_components/mos/
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
 │   ├── base.py              # Main coordinator class
-│   ├── data_processing.py   # Data validation and transformation
-│   ├── error_handling.py    # Error recovery and retry logic
-│   └── listeners.py         # Entity callbacks and event listeners
+│   └── data_processing.py   # Data validation and transformation
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── manifest.json            # Integration metadata
@@ -36,8 +34,7 @@ custom_components/mos/
 │   └── base.py              # Base entity class implementation
 ├── entity_utils/            # Entity helper utilities
 │   ├── dynamic_entities.py  # Add/remove entities as server resources change
-│   ├── permissions.py       # API token permission checks
-│   └── state_helpers.py     # State management utilities
+│   └── permissions.py       # API token permission checks
 ├── utils/                   # Generic helpers
 │   ├── string_helpers.py    # Naming and slug helpers
 │   └── validators.py        # Value validation
@@ -65,17 +62,15 @@ updates to all entities. It is organized as a package with separate modules for 
 
 - `base.py` - Main coordinator class (`MOSDataUpdateCoordinator`)
 - `data_processing.py` - Data validation, transformation, and caching utilities
-- `error_handling.py` - Error recovery strategies, retry logic, and circuit breaker patterns
-- `listeners.py` - Entity callbacks, event listeners, and performance monitoring
 
 **Core functionality:**
 
 - Configurable update interval (default: 5 minutes)
-- Error handling with exponential backoff
 - Shared data access for all entities
 - Automatic retry on transient failures
+- Per-resource failure handling: transient 401/403/429 keep last-known-good
+  data instead of tearing down entities
 - Data validation and transformation before distribution
-- Performance monitoring and metrics
 
 **Key class:** `MOSDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
 

@@ -14,6 +14,7 @@ from custom_components.mos.api import (
     MOSApiClientAuthenticationError,
     MOSApiClientCommunicationError,
     MOSApiClientPermissionError,
+    MOSApiClientRateLimitError,
 )
 from custom_components.mos.const import (
     AUTH_FAILURE_GRACE_PERIOD,
@@ -523,25 +524,98 @@ async def test_denied_resource_is_dropped_without_failing_the_poll(
     assert coordinator.data["vm_machines"] == []
 
 
-async def test_denied_resource_is_not_requested_again(
+async def test_runtime_403_is_transient_and_reprobed(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """Once denied, a resource is dropped for the coordinator's lifetime.
+    """A 403 the scope did not explicitly deny is transient, not a permanent ban.
 
-    Re-asking every cycle would be a guaranteed-failing request forever, and the
-    server would log a 403 for each one.
+    Explicit scope denials are seeded into forbidden_resources before the first
+    poll and never requested, so a 403 that still reaches a running poll is on a
+    resource the token *may* read - a passing server-side hiccup, not a
+    permission gap. It must therefore be retried on the next poll (and never
+    added to forbidden_resources), so the resource recovers on its own without a
+    reload.
     """
-    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no vm scope")
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("transient 403")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
     await coordinator.async_config_entry_first_refresh()
     assert mock_client.async_get_vm_machines.call_count == 1
-    assert "vm_machines" in coordinator.forbidden_resources
+    assert "vm_machines" not in coordinator.forbidden_resources
+    assert coordinator.last_update_success is True
 
+    # Re-probed on the next poll rather than dropped for good...
     await coordinator.async_refresh()
-    assert mock_client.async_get_vm_machines.call_count == 1
+    assert mock_client.async_get_vm_machines.call_count == 2
+
+    # ...and once the server answers again, the resource comes back on its own.
+    mock_client.async_get_vm_machines.side_effect = None
+    await coordinator.async_refresh()
+    assert coordinator.data["vm_machines"] == mock_client.async_get_vm_machines.return_value
+
+
+async def test_transient_403_retains_last_known_good_data(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_vm_machines: list[dict],
+) -> None:
+    """A resource that 403s after a good poll keeps its previous data, not an empty list.
+
+    This is what stops the reported "VMs/containers disappear" symptom: the
+    dynamic-entity sync removes a device the moment its resource list is empty,
+    so a transient 403 must carry the last-known-good list forward instead of
+    letting the resource default to empty.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # A good first poll establishes the last-known-good VM list.
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["vm_machines"] == mock_vm_machines
+
+    # The next poll 403s on VMs only; the list must survive unchanged.
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("transient 403")
+    await coordinator._async_update_data()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["vm_machines"] == mock_vm_machines
+    # Other resources keep updating normally.
+    assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
+
+
+async def test_rate_limited_resource_is_transient_and_retained(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_lxc_containers: list[dict],
+) -> None:
+    """A 429 on one resource keeps its last-known data and never fails the whole poll."""
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["lxc_containers"] == mock_lxc_containers
+
+    mock_client.async_get_lxc_containers.side_effect = MOSApiClientRateLimitError("429")
+    await coordinator._async_update_data()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["lxc_containers"] == mock_lxc_containers
+    assert "lxc_containers" not in coordinator.forbidden_resources
+
+
+async def test_rate_limited_required_resource_fails_the_poll(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A 429 on an always-fetched resource fails the cycle (retryable), not a partial update."""
+    mock_client.async_get_osinfo.side_effect = MOSApiClientRateLimitError("429")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
 
 
 async def test_denied_resource_never_triggers_reauth(
@@ -634,10 +708,12 @@ async def test_unknown_resource_names_in_scope_are_not_pre_denied(
 async def test_denied_docker_engine_proxy_keeps_the_container_list(
     hass: HomeAssistant,
     mock_client: AsyncMock,
+    mock_docker_containers: list[dict],
 ) -> None:
     """The Docker Engine proxy and the MOS container list are denied independently.
 
-    Losing live running state should not cost the containers themselves.
+    Losing live running state should not cost the containers themselves. With no
+    prior poll to carry a state from, the running-state is simply unknown (None).
     """
     mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("no proxy scope")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
@@ -646,7 +722,43 @@ async def test_denied_docker_engine_proxy_keeps_the_container_list(
     await coordinator.async_config_entry_first_refresh()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["docker_containers"] == mock_client.async_get_docker_containers.return_value
+    assert coordinator.data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": None},
+        {**mock_docker_containers[1], "state": None},
+    ]
+
+
+async def test_denied_docker_engine_proxy_retains_last_known_state(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict],
+) -> None:
+    """A transient Engine-proxy 403 keeps the last-known running state per container.
+
+    The engine payload is merged into ``docker_containers`` and then dropped
+    every poll, so it never reaches the generic last-known-good retention. When
+    the proxy briefly 403s while the container list still answers, each
+    container must keep the ``state`` it had last poll instead of blanking to
+    None and flapping the running binary sensors for a cycle.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    # A good first poll establishes the live running/exited state.
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": "running"},
+        {**mock_docker_containers[1], "state": "exited"},
+    ]
+
+    # The next poll loses only the engine proxy; the container list still answers.
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("transient 403")
+    data = await coordinator._async_update_data()
+
+    assert data["docker_containers"] == [
+        {**mock_docker_containers[0], "state": "running"},
+        {**mock_docker_containers[1], "state": "exited"},
+    ]
 
 
 async def test_communication_error_wins_over_a_concurrent_auth_error(

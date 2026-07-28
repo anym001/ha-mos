@@ -61,6 +61,23 @@ class MOSApiClientPermissionError(
     """
 
 
+class MOSApiClientRateLimitError(
+    MOSApiClientError,
+):
+    """
+    Exception to indicate the server is rate limiting requests (HTTP 429).
+
+    Kept apart from ``MOSApiClientPermissionError`` on purpose: a 429 says
+    nothing about the token or its scope, it says "try again later". MOS's
+    default limit is 20 requests/second per token, and a poll fires all
+    resources concurrently, so a burst - or another client sharing the token -
+    can briefly cross it. The coordinator therefore treats a 429 like a
+    transient per-resource failure: it keeps the affected resource's
+    last-known-good data and retries on the next poll, rather than tearing down
+    that resource's entities. See ``MOSDataUpdateCoordinator._async_update_data``.
+    """
+
+
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     """
     Verify that the API response is valid.
@@ -73,6 +90,7 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     Raises:
         MOSApiClientAuthenticationError: For 401 (token rejected).
         MOSApiClientPermissionError: For 403 (token accepted, resource denied).
+        MOSApiClientRateLimitError: For 429 (rate limited, retry later).
         aiohttp.ClientResponseError: For other HTTP errors.
 
     """
@@ -84,6 +102,11 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     if response.status == HTTPStatus.FORBIDDEN:
         msg = f"API token is not authorized for {response.url.path}"
         raise MOSApiClientPermissionError(
+            msg,
+        )
+    if response.status == HTTPStatus.TOO_MANY_REQUESTS:
+        msg = f"Rate limited on {response.url.path}"
+        raise MOSApiClientRateLimitError(
             msg,
         )
     response.raise_for_status()
@@ -534,8 +557,12 @@ class MOSApiClient:
                     return None
                 return await response.json()
 
-        except MOSApiClientAuthenticationError, MOSApiClientPermissionError:
-            # Both are already the precise exception for this response; let them
+        except (
+            MOSApiClientAuthenticationError,
+            MOSApiClientPermissionError,
+            MOSApiClientRateLimitError,
+        ):
+            # These are already the precise exception for this response; let them
             # past the catch-all below instead of being flattened into a generic
             # MOSApiClientError.
             raise
