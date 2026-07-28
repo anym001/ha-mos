@@ -2,7 +2,7 @@
 
 Pools are a dynamic list, so entities are added/removed via
 ``async_setup_dynamic_entities`` (see sensor/pools.py for the matching
-numeric sensors, on the same main server device).
+numeric sensors, on the same per-pool device).
 
 The maintenance-operation sensors (scrub/balance/parity) are conditional:
 which one(s) a pool reports depends on its filesystem type (BTRFS pools
@@ -95,7 +95,7 @@ class MOSPoolBinarySensor(BinarySensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_pool_{pool_id}_{entity_description.key}",
-            translation_placeholders={"pool_name": pool.get("name") or pool_id},
+            container_device=(f"pool_{pool_id}", f"Pool {pool.get('name') or pool_id}"),
         )
 
     @property

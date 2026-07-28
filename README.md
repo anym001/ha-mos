@@ -29,7 +29,7 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 | `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state         |
 | `switch`        | LXC container, Docker container and VM power                                                   |
 
-Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Disks and pools are entities on the server device itself; each container and VM gets its own device linked back to the server.
+Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server.
 
 ## Installation
 

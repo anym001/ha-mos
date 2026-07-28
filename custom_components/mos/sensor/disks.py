@@ -2,10 +2,9 @@
 
 Disks are a dynamic list (they can be plugged/unplugged at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
-static ENTITY_DESCRIPTIONS tuple. They live on the main server device
-alongside the system sensors; the disk's own name is folded into the entity
-name via ``translation_placeholders`` so entity_ids stay unique per disk
-(e.g. ``sensor.mos_server_vda_power_status``).
+static ENTITY_DESCRIPTIONS tuple. Each disk gets its own device (linked back
+to the main server device via ``via_device``), same as LXC/Docker/VM items
+(e.g. ``sensor.mos_server_disk_vda_power_status``).
 
 Note: ``temperatureStatus`` was ``null`` on every disk of the test system used
 to build this (a VM with virtual disks), so its real shape (a numeric reading
@@ -85,7 +84,7 @@ class MOSDiskSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_disk_{serial}_{entity_description.key}",
-            translation_placeholders={"disk_name": disk.get("name") or serial},
+            container_device=(f"disk_{serial}", f"Disk {disk.get('name') or serial}"),
         )
 
     @property

@@ -2,7 +2,7 @@
 
 Disks are a dynamic list, so entities are added/removed via
 ``async_setup_dynamic_entities`` (see sensor/disks.py for the matching
-numeric sensors, on the same main server device).
+numeric sensors, on the same per-disk device).
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class MOSDiskBinarySensor(BinarySensorEntity, MOSEntity):
             coordinator,
             entity_description,
             unique_id=f"{entry_id}_disk_{serial}_{entity_description.key}",
-            translation_placeholders={"disk_name": disk.get("name") or serial},
+            container_device=(f"disk_{serial}", f"Disk {disk.get('name') or serial}"),
         )
 
     @property
