@@ -162,7 +162,8 @@ def mock_system_load() -> dict[str, Any]:
     """Return a realistic ``/system/load`` payload."""
     return {
         "cpu": {"load": 42.35},
-        "temperature": {"main": 55.0, "max": 61.0, "min": 48.0},
+        # main is the package sensor, not the core mean (54.0), so the two differ.
+        "temperature": {"main": 55.0, "max": 61.0, "min": 48.0, "cores": [48.0, 52.0, 55.0, 61.0]},
         "memory": {
             "used": 1899659264,
             "total": 8589934592,

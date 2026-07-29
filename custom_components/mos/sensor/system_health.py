@@ -42,6 +42,24 @@ def _memory_breakdown(consumer: str) -> Callable[[dict[str, Any]], StateType]:
     return value_fn
 
 
+def _cpu_temperature_average(system_load: dict[str, Any]) -> StateType:
+    """Return the mean temperature across the physical CPU cores.
+
+    This is deliberately not the same reading as ``temperature.main``: that one
+    is the package/die sensor and runs a few degrees above the core mean (35 vs
+    33.0 on a 13th-gen i5), so neither value can be derived from the other.
+
+    ``temperature.cores`` is a bare list covering only the physical cores -
+    hyper-threaded siblings report no temperature of their own and are already
+    absent here.
+    """
+    cores = (system_load.get("temperature") or {}).get("cores") or []
+    readings = [core for core in cores if isinstance(core, (int, float))]
+    if not readings:
+        return None
+    return round(sum(readings) / len(readings), 1)
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="cpu_load",
@@ -66,6 +84,14 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: (system_load.get("temperature") or {}).get("max"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="cpu_temperature_average",
+        translation_key="cpu_temperature_average",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_cpu_temperature_average,
     ),
     MOSSystemHealthSensorEntityDescription(
         key="memory_usage",

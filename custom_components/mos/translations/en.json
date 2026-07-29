@@ -182,6 +182,9 @@
       "cpu_temperature_max": {
         "name": "CPU temperature max"
       },
+      "cpu_temperature_average": {
+        "name": "CPU temperature average"
+      },
       "memory_usage": {
         "name": "Memory usage"
       },
