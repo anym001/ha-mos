@@ -162,16 +162,32 @@ def mock_system_load() -> dict[str, Any]:
     """Return a realistic ``/system/load`` payload."""
     return {
         "cpu": {"load": 42.35},
-        "temperature": {"main": 55.0},
+        # main is the package sensor, not the core mean (54.0), so the two differ.
+        "temperature": {"main": 55.0, "max": 61.0, "min": 48.0, "cores": [48.0, 52.0, 55.0, 61.0]},
         "memory": {
             "used": 1899659264,
             "total": 8589934592,
             "free": 6690275328,
             "installed": 8724152320,
             "reserved": 134217728,
-            "percentage": {"used": 20, "actuallyUsed": 18},
+            "breakdown": {
+                "docker": {"bytes": 1073741824, "percentage": 12},
+                "system": {"bytes": 536870912, "percentage": 6},
+                "lxc": {"bytes": 289046528, "percentage": 3},
+                "vms": {"bytes": 0, "percentage": 0},
+                "zram": {"bytes": 0, "percentage": 0},
+            },
+            # MOS's "dirty" view counts reclaimable cache as used:
+            # dirty.used == used + dirtyCaches, dirty.free == total - dirty.used.
+            "dirty": {"free": 5616533504, "used": 2973401088, "dirtyCaches": 1073741824},
+            "percentage": {"used": 35, "actuallyUsed": 18, "dirtyCaches": 12},
         },
-        "swap": {"percentage": 0},
+        "swap": {
+            "total": 8589934592,
+            "available": 8160437863,
+            "used": 429496729,
+            "percentage": 5,
+        },
     }
 
 

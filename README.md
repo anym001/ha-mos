@@ -16,7 +16,7 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 ## Features
 
 - **Easy setup** — configured entirely through the UI, no YAML
-- **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap
+- **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
