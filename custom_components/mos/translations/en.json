@@ -61,7 +61,7 @@
           "enable_sensors": "Enable hardware sensors"
         },
         "data_description": {
-          "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
+          "scan_interval": "How often to poll the MOS API (30 to 3600 seconds).",
           "enable_disks": "Create entities for physical disks.",
           "enable_pools": "Create entities for storage pools.",
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
