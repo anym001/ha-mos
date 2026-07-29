@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 import time
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import (
@@ -43,12 +44,16 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_VM,
     LOGGER,
     READ_PERMISSION_RESOURCES,
+    RESOURCE_STALE_GRACE_PERIOD,
+    RESOURCE_STALE_MIN_FAILURES,
 )
 from custom_components.mos.entity_utils import has_read_access, has_write_access
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from custom_components.mos.data import MOSConfigEntry
 
 
@@ -68,6 +73,27 @@ class _AuthFailureStreak:
 
 
 @dataclass
+class _DegradedResource:
+    """
+    An unbroken run of polls in which one optional resource failed transiently.
+
+    Mirrors ``_AuthFailureStreak``: ``started_at`` feeds the elapsed-time half of
+    the staleness guard (RESOURCE_STALE_GRACE_PERIOD) and ``failures`` the
+    observation-count half (RESOURCE_STALE_MIN_FAILURES). Both must be satisfied
+    before the resource's entities stop reporting as available - see the
+    commentary on those constants.
+
+    Unlike the auth streak this lives on the coordinator instance rather than in
+    ``hass.data``. The auth streak has to survive a failed setup being retried
+    with a fresh coordinator; a degraded *optional* resource never fails setup,
+    so there is no retry loop that could keep resetting the timer.
+    """
+
+    started_at: float
+    failures: int = 0
+
+
+@dataclass
 class _UpdateOutcome:
     """One poll cycle's results, split by how the coordinator has to react."""
 
@@ -75,18 +101,22 @@ class _UpdateOutcome:
     auth_errors: list[BaseException] = field(default_factory=list)
     permission_errors: dict[str, BaseException] = field(default_factory=dict)
     rate_limit_errors: dict[str, BaseException] = field(default_factory=dict)
-    other_errors: list[BaseException] = field(default_factory=list)
+    communication_errors: dict[str, BaseException] = field(default_factory=dict)
 
     def transient_resource_errors(self) -> dict[str, BaseException]:
         """
-        Per-resource failures that should not tear the resource down (403 / 429).
+        Per-resource failures that should not tear the resource down (403 / 429 / unreachable).
 
-        Both are transient from the coordinator's point of view: the resource
-        keeps its last-known-good data and is retried on the next poll. Merged
-        here so the update flow has a single view of "which resources failed but
-        must be preserved".
+        All three are transient from the coordinator's point of view: the
+        resource keeps its last-known-good data and is retried on the next poll.
+        Merged here so the update flow has a single view of "which resources
+        failed but must be preserved".
+
+        Authentication errors are deliberately absent. A rejected token is a
+        property of the connection, not of one endpoint, so a 401 anywhere fails
+        the whole cycle - see ``_handle_failed_resources``.
         """
-        return {**self.permission_errors, **self.rate_limit_errors}
+        return {**self.permission_errors, **self.rate_limit_errors, **self.communication_errors}
 
 
 def _merge_docker_engine_state(
@@ -187,12 +217,44 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     forbidden_resources: frozenset[str] = frozenset()
 
     # Resources whose last poll failed transiently (403 on a scope-allowed
-    # resource, or a 429 rate limit) and are currently being served from
-    # last-known-good data. Used only to throttle logging - warn once when a
-    # resource starts failing, stay quiet while it keeps failing, note when it
-    # recovers - so a persistently flaky server does not flood the log every
-    # poll. Rebound rather than mutated, for the same reason as above.
-    _degraded_resources: frozenset[str] = frozenset()
+    # resource, a 429 rate limit, or a communication error) and are currently
+    # being served from last-known-good data, mapped to how long and how often
+    # they have been failing.
+    #
+    # Serves two purposes. It throttles logging - warn once when a resource
+    # starts failing, stay quiet while it keeps failing, note when it recovers -
+    # so a persistently flaky server does not flood the log every poll. And it
+    # feeds ``stale_resources``, which caps how long last-known-good data may go
+    # on being presented as current.
+    #
+    # The class default is a read-only mapping so the shared-mutable-class-
+    # attribute mistake cannot happen: it is rebound with a fresh dict on every
+    # poll, never mutated in place (same reasoning as ``forbidden_resources``
+    # above, which uses frozenset for it).
+    _degraded_resources: Mapping[str, _DegradedResource] = MappingProxyType({})
+
+    # Resources that have been failing long enough to count as stale, recomputed
+    # once per poll from ``_degraded_resources``. Entities backed by one of these
+    # report themselves unavailable rather than serving frozen values as if they
+    # were current (see ``MOSEntity.available``).
+    #
+    # Deliberately a stored snapshot rather than a property that re-evaluates the
+    # clock on every read: entity availability must only ever change as a result
+    # of a poll, so that a transition is always paired with a listener
+    # notification. A time-based property could flip silently between two polls
+    # and leave entities rendering the opposite of what the coordinator thinks.
+    _stale_resources: frozenset[str] = frozenset()
+
+    @property
+    def stale_resources(self) -> frozenset[str]:
+        """
+        Resources whose retained data has gone stale and must not be shown as current.
+
+        Empty on a healthy server. Never contains an always-fetched resource: a
+        failure on those takes the whole poll down (``UpdateFailed``) long before
+        any per-resource bookkeeping happens.
+        """
+        return self._stale_resources
 
     @property
     def _auth_failure_streak(self) -> _AuthFailureStreak | None:
@@ -497,27 +559,29 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             elif isinstance(result, MOSApiClientRateLimitError):
                 outcome.rate_limit_errors[key] = result
             elif isinstance(result, MOSApiClientError):
-                outcome.other_errors.append(result)
+                outcome.communication_errors[key] = result
             else:
                 raise result
         return outcome
 
     def _classify_transient_resource_failures(self, outcome: _UpdateOutcome) -> set[str]:
         """
-        Decide how to react to per-resource 403/429 failures, and return the ones to preserve.
+        Decide how to react to per-resource failures, and return the ones to preserve.
 
         A 403 or 429 that reaches here is transient: the token's *explicit* scope
         denials are seeded into ``forbidden_resources`` before the first poll and
         never requested, so anything the server refuses at runtime is on a
-        resource the scope allowed (or was silent about). Rather than dropping it
-        - which would empty the resource and make the dynamic-entity sync tear
-        down its devices until a reload - the coordinator keeps that resource's
-        last-known-good data (see ``_retain_last_known_good``) and retries it on
-        the next poll.
+        resource the scope allowed (or was silent about). A communication error
+        (timeout, dropped connection, 5xx) is transient by nature. Rather than
+        dropping such a resource - which would empty it and make the
+        dynamic-entity sync tear down its devices until a reload - the
+        coordinator keeps that resource's last-known-good data (see
+        ``_retain_last_known_good``) and retries it on the next poll.
 
         The one exception is an always-fetched resource (osinfo, system_load):
         there is nothing meaningful to show without it, so the whole cycle fails
-        (retryable) instead.
+        (retryable) instead. Communication errors on those are caught earlier,
+        in ``_handle_failed_resources``.
 
         Returns:
             The optional resource keys that failed transiently this cycle and
@@ -533,7 +597,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._raise_if_required_resource_failed(outcome)
 
         transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES
-        self._log_transient_resource_failures(outcome, transient)
+        self._track_degraded_resources(outcome, transient)
         return transient
 
     def _raise_if_required_resource_failed(self, outcome: _UpdateOutcome) -> None:
@@ -546,7 +610,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         """
         denied_required = set(outcome.permission_errors) & ALWAYS_FETCHED_RESOURCES
         if denied_required:
-            exception = outcome.permission_errors[sorted(denied_required)[0]]
+            exception = outcome.permission_errors[min(denied_required)]
             LOGGER.error(
                 "API token is not authorized to read %s, which the integration always needs: %s",
                 ", ".join(sorted(denied_required)),
@@ -560,7 +624,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         limited_required = set(outcome.rate_limit_errors) & ALWAYS_FETCHED_RESOURCES
         if limited_required:
-            exception = outcome.rate_limit_errors[sorted(limited_required)[0]]
+            exception = outcome.rate_limit_errors[min(limited_required)]
             LOGGER.warning(
                 "Rate limited (HTTP 429) on %s, which the integration always needs - retrying: %s",
                 ", ".join(sorted(limited_required)),
@@ -571,22 +635,112 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_key="update_failed",
             ) from exception
 
-    def _log_transient_resource_failures(self, outcome: _UpdateOutcome, transient: set[str]) -> None:
+    def _track_degraded_resources(self, outcome: _UpdateOutcome, transient: set[str]) -> None:
+        """
+        Update the per-resource failure streaks for this poll, then log and re-evaluate staleness.
+
+        A resource that failed again keeps its existing ``started_at`` and has its
+        failure count incremented; one that failed for the first time starts a
+        fresh streak; one that answered again is dropped entirely, so recovery
+        resets both halves of the guard. The mapping is rebuilt rather than
+        mutated - see the note on ``_degraded_resources``.
+        """
+        previous = self._degraded_resources
+        now = time.monotonic()
+        current: dict[str, _DegradedResource] = {}
+        for key in transient:
+            streak = previous.get(key)
+            current[key] = _DegradedResource(
+                started_at=streak.started_at if streak else now,
+                failures=(streak.failures if streak else 0) + 1,
+            )
+
+        self._log_transient_resource_failures(outcome, transient, frozenset(previous))
+        self._degraded_resources = current
+        self._update_stale_resources(now)
+
+    def _update_stale_resources(self, now: float) -> None:
+        """
+        Recompute which resources have been failing long enough to stop counting as current.
+
+        Only resources that have satisfied *both* halves of the guard qualify.
+        Always-fetched resources are subtracted as a fail-safe: they can never
+        get this far (a failure on one raises ``UpdateFailed`` before any
+        per-resource bookkeeping), and the integration must never end up with
+        every entity unavailable because of a bookkeeping bug here.
+
+        When the set changes, listeners are notified explicitly. This is not
+        redundant with Home Assistant's own notification: the coordinator runs
+        with ``always_update=False``, so ``DataUpdateCoordinator._async_refresh``
+        only notifies when ``previous_data != self.data`` - and a stale resource's
+        data is retained *unchanged* by definition. A poll in which nothing else
+        happened to change would therefore leave entities rendering the old
+        availability, which is exactly the frozen-but-looks-live state this whole
+        mechanism exists to prevent. ``call_soon`` defers the notification past
+        the running refresh, which assigns ``self.data`` only after
+        ``_async_update_data`` returns.
+        """
+        grace_period = RESOURCE_STALE_GRACE_PERIOD.total_seconds()
+        stale = (
+            frozenset(
+                key
+                for key, degraded in self._degraded_resources.items()
+                if degraded.failures >= RESOURCE_STALE_MIN_FAILURES and now - degraded.started_at >= grace_period
+            )
+            - ALWAYS_FETCHED_RESOURCES
+        )
+        if stale == self._stale_resources:
+            return
+
+        newly_stale = sorted(stale - self._stale_resources)
+        if newly_stale:
+            LOGGER.error(
+                "%s has been failing for over %d minutes - its entities are now marked unavailable rather than "
+                "continuing to report data that stopped updating then. They recover automatically as soon as the "
+                "server answers again; no reload needed",
+                ", ".join(newly_stale),
+                RESOURCE_STALE_GRACE_PERIOD.total_seconds() // 60,
+            )
+
+        self._stale_resources = stale
+        self.hass.loop.call_soon(self.async_update_listeners)
+
+    def _log_transient_resource_failures(
+        self,
+        outcome: _UpdateOutcome,
+        transient: set[str],
+        degraded: frozenset[str],
+    ) -> None:
         """
         Log transient per-resource failures once, without flooding on a persistently flaky server.
 
         Warns the first time a resource starts failing, stays quiet (debug) while
         it keeps failing, and notes when a previously failing resource recovers.
+
+        Args:
+            outcome: This poll's results, for the per-category error details.
+            transient: Resources that failed transiently this poll.
+            degraded: Resources that were already failing before this poll, used
+                to tell a new failure from a continuing one.
+
         """
-        newly = transient - self._degraded_resources
+        newly = transient - degraded
         newly_denied = sorted(newly & set(outcome.permission_errors))
         newly_limited = sorted(newly & set(outcome.rate_limit_errors))
+        newly_unreachable = sorted(newly & set(outcome.communication_errors))
+        if newly_unreachable:
+            LOGGER.warning(
+                "Error communicating with API for %s (%s) - keeping last-known state and retrying "
+                "on the next poll; the rest of this update was applied normally",
+                ", ".join(newly_unreachable),
+                outcome.communication_errors[newly_unreachable[0]],
+            )
         if newly_denied:
             LOGGER.warning(
                 "Server returned 403 for %s although the token has read access - treating as transient "
                 "(e.g. the MOS server reloading) and retrying on the next poll; entities keep their "
-                "last-known state meanwhile. If this persists, check the token's read scope under "
-                "User Settings > Admin API Tokens in the MOS web UI",
+                "last-known state meanwhile. If this persists, check the token's read scope in the "
+                "MOS web UI",
                 ", ".join(newly_denied),
             )
         if newly_limited:
@@ -596,15 +750,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 ", ".join(newly_limited),
             )
 
-        still_failing = sorted(transient & self._degraded_resources)
+        still_failing = sorted(transient & degraded)
         if still_failing:
-            LOGGER.debug("Still serving last-known state for %s (transient 403/429)", ", ".join(still_failing))
+            LOGGER.debug("Still serving last-known state for %s (transient failure)", ", ".join(still_failing))
 
-        recovered = sorted(self._degraded_resources - transient)
+        recovered = sorted(degraded - transient)
         if recovered:
-            LOGGER.info("%s recovered after a transient 403/429 - fresh data again", ", ".join(recovered))
-
-        self._degraded_resources = frozenset(transient)
+            LOGGER.info("%s recovered after a transient failure - fresh data again", ", ".join(recovered))
 
     def _retain_last_known_good(self, data: dict[str, Any], transient: set[str]) -> None:
         """
@@ -623,35 +775,84 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             if key in previous:
                 data[key] = previous[key]
 
+    def _raise_if_required_resource_unreachable(self, outcome: _UpdateOutcome) -> None:
+        """
+        Fail the whole cycle if an always-fetched resource hit a communication error.
+
+        A communication error on an *optional* resource costs only that resource:
+        it keeps its last-known-good data and is retried next poll, so a single
+        slow or flaky endpoint no longer takes the other nine down with it. On
+        osinfo or system_load there is nothing meaningful left to show, so the
+        cycle fails instead.
+
+        That distinction is also what keeps a genuinely unreachable server
+        honest: when the host is down *every* request fails, the always-fetched
+        ones among them, so the entry goes unavailable as before rather than
+        quietly serving stale data forever.
+
+        Raises:
+            UpdateFailed: If osinfo or system_load hit a communication error.
+
+        """
+        unreachable_required = set(outcome.communication_errors) & ALWAYS_FETCHED_RESOURCES
+        if not unreachable_required:
+            return
+
+        exception = outcome.communication_errors[min(unreachable_required)]
+        LOGGER.error(
+            "Error communicating with API for %s, which the integration always needs: %s",
+            ", ".join(sorted(unreachable_required)),
+            exception,
+        )
+        raise UpdateFailed(
+            translation_domain="mos",
+            translation_key="update_failed",
+        ) from exception
+
     def _handle_failed_resources(self, outcome: _UpdateOutcome) -> None:
         """
-        Apply the auth-failure grace period and surface communication errors.
+        Apply the auth-failure grace period and surface a cycle-fatal communication error.
 
         Raises:
             ConfigEntryAuthFailed: If authentication has been rejected for longer
                 than ``AUTH_FAILURE_GRACE_PERIOD`` *and* for at least
                 ``AUTH_FAILURE_MIN_FAILURES`` consecutive polls.
-            UpdateFailed: For communication errors, and for an authentication
-                rejection that is still inside the grace period.
+            UpdateFailed: If an always-fetched resource could not be reached, or
+                for an authentication rejection that is still inside the grace
+                period.
 
         """
-        # Communication errors are checked first and win over a 401 in the same
+        # Communication errors are evaluated first and win over a 401 in the same
         # cycle: a server answering some requests and dropping others is
         # unstable, which says nothing about the token. Resetting the streak here
-        # keeps a flapping server from accumulating its way into a spurious reauth.
-        if outcome.other_errors:
-            exception = outcome.other_errors[0]
+        # keeps a flapping server from accumulating its way into a spurious
+        # reauth. It applies even when the failure is confined to an optional
+        # resource and the cycle itself survives - the server is no less unstable
+        # for it.
+        if outcome.communication_errors:
             self._clear_auth_failure()
-            LOGGER.error("Error communicating with API: %s", exception)
-            raise UpdateFailed(
-                translation_domain="mos",
-                translation_key="update_failed",
-            ) from exception
+        self._raise_if_required_resource_unreachable(outcome)
 
         if not outcome.auth_errors:
             return
 
         exception = outcome.auth_errors[0]
+        if outcome.communication_errors:
+            # A 401 next to a dropped connection elsewhere. The token was
+            # rejected, so the cycle still fails rather than publishing a payload
+            # with that resource silently missing - but the streak stays cleared,
+            # so this cycle cannot count toward a reauth prompt.
+            LOGGER.warning(
+                "Authentication rejected while the server was also failing on %s - treating as "
+                "instability rather than an invalid token, and retrying: %s",
+                ", ".join(sorted(outcome.communication_errors)),
+                exception,
+            )
+            raise UpdateFailed(
+                translation_domain="mos",
+                translation_key="authentication_failed_transient",
+            ) from exception
+
         streak = self._record_auth_failure()
         elapsed = time.monotonic() - streak.started_at
         if elapsed >= AUTH_FAILURE_GRACE_PERIOD.total_seconds() and streak.failures >= AUTH_FAILURE_MIN_FAILURES:
@@ -722,19 +923,23 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             The data from the API as a dictionary keyed by resource.
 
         Resources are fetched concurrently and evaluated individually: a
-        resource the token is transiently unable to read (403 on a scope-allowed
-        resource, or a 429 rate limit) keeps its last-known-good data and is
-        retried next poll, so the rest of the poll still succeeds and no entities
-        are torn down over a passing server hiccup.
+        resource that transiently fails - a 403 on a scope-allowed resource, a
+        429 rate limit, or a communication error such as a timeout or 5xx -
+        keeps its last-known-good data and is retried next poll, so the rest of
+        the poll still succeeds and no entities are torn down over a passing
+        server hiccup. Only a rejected token (401, which is a property of the
+        connection rather than of one endpoint) or a failure on an always-fetched
+        resource takes the whole cycle down.
 
         Raises:
             ConfigEntryAuthFailed: If the token has been rejected (401) for longer
                 than ``AUTH_FAILURE_GRACE_PERIOD`` and on at least
                 ``AUTH_FAILURE_MIN_FAILURES`` consecutive polls; triggers
                 reauthentication.
-            UpdateFailed: If data fetching fails for other reasons - a
-                communication error, an authentication rejection still inside the
-                grace period, or a denied/rate-limited always-fetched resource.
+            UpdateFailed: If data fetching fails for other reasons - an
+                authentication rejection still inside the grace period, or an
+                always-fetched resource that was denied, rate limited or
+                unreachable.
         """
         tasks = self._build_update_tasks()
         # return_exceptions so one resource cannot take the whole poll down with
@@ -745,8 +950,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         outcome = self._triage_results(tasks, results)
         if "sensors" in outcome.payload:
             outcome.payload["sensors"] = _flatten_sensors(outcome.payload["sensors"])
-        transient = self._classify_transient_resource_failures(outcome)
+        # Cycle-fatal conditions first - a rejected token, an always-fetched
+        # resource that could not be reached - then the per-resource bookkeeping
+        # for what merely degraded. Deciding the fatal cases up front means a
+        # server that is dropping connections reports exactly that, instead of a
+        # misleading "insufficient read permission" from a 403 in the same cycle.
         self._handle_failed_resources(outcome)
+        transient = self._classify_transient_resource_failures(outcome)
 
         self._clear_auth_failure()
         data: dict[str, Any] = outcome.payload

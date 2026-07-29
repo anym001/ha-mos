@@ -40,7 +40,7 @@ class _FakeClock:
 
 
 @pytest.fixture
-def advance_auth_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], None]:
+def advance_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], None]:
     """Give the coordinator a controllable clock and return a way to move it forward.
 
     Replaces the ``time`` reference inside the coordinator module rather than
@@ -48,9 +48,11 @@ def advance_auth_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], Non
     Assistant's own timers - which matters for tests that run a fully set up
     integration.
 
-    Lets grace-period tests stay independent of the scan interval and of
-    ``AUTH_FAILURE_GRACE_PERIOD``'s exact value. A callable is handed back
-    (rather than the clock object) so test modules need no cross-module import.
+    Drives both of the coordinator's time-based guards - the auth-failure grace
+    period and the per-resource staleness threshold - so those tests stay
+    independent of the scan interval and of the constants' exact values. A
+    callable is handed back (rather than the clock object) so test modules need
+    no cross-module import.
     """
     clock = _FakeClock()
     monkeypatch.setattr(coordinator_base, "time", clock)

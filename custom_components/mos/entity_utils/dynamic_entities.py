@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from custom_components.mos.coordinator import MOSDataUpdateCoordinator
     from custom_components.mos.data import MOSConfigEntry
+    from custom_components.mos.entity import MOSEntity
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -41,7 +42,7 @@ def async_setup_dynamic_entities(
     *,
     data_key: str,
     id_fn: Callable[[dict[str, Any]], str],
-    entity_factory: Callable[[MOSDataUpdateCoordinator, str], Sequence[Entity]],
+    entity_factory: Callable[[MOSDataUpdateCoordinator, str], Sequence[MOSEntity]],
     device_identifiers_fn: Callable[[str], tuple[str, str]] | None = None,
 ) -> None:
     """
@@ -67,7 +68,7 @@ def async_setup_dynamic_entities(
 
     """
     coordinator = entry.runtime_data.coordinator
-    known: dict[str, Sequence[Entity]] = {}
+    known: dict[str, Sequence[MOSEntity]] = {}
 
     @callback
     def _sync() -> None:
@@ -76,9 +77,16 @@ def async_setup_dynamic_entities(
 
         new_ids = current_ids - known.keys()
         if new_ids:
-            new_entities: list[Entity] = []
+            new_entities: list[MOSEntity] = []
             for item_id in new_ids:
                 entities = entity_factory(coordinator, item_id)
+                for entity in entities:
+                    # Tell the entity which resource backs it, so it can report
+                    # itself unavailable once that resource's data goes stale.
+                    # Unioned rather than assigned: an entity may already declare
+                    # further keys of its own (the Docker power switch reads its
+                    # running state from a second resource).
+                    entity.resource_keys |= {data_key}
                 known[item_id] = entities
                 new_entities.extend(entities)
             async_add_entities(new_entities)

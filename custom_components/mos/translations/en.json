@@ -26,7 +26,7 @@
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate MOS",
+        "title": "Reauthenticate MOS NAS",
         "description": "The API token for {host} is no longer valid. Please provide a new token to restore access.",
         "data": {
           "api_token": "API token"
@@ -48,7 +48,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "MOS options",
+        "title": "MOS NAS options",
         "description": "Customize how this integration operates.",
         "data": {
           "scan_interval": "Update interval (seconds)",
@@ -61,7 +61,7 @@
           "enable_sensors": "Enable hardware sensors"
         },
         "data_description": {
-          "scan_interval": "How often to poll the MOS API (10 to 3600 seconds).",
+          "scan_interval": "How often to poll the MOS API (30 to 3600 seconds).",
           "enable_disks": "Create entities for physical disks.",
           "enable_pools": "Create entities for storage pools.",
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",

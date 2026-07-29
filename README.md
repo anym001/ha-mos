@@ -1,4 +1,4 @@
-# MOS
+# MOS NAS
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -37,9 +37,9 @@ Disks, pools, containers and VMs appear and disappear automatically as they chan
 The integration is not in the HACS default store yet, so add it as a custom repository:
 
 1. In HACS: **⋮** → **Custom repositories** → add `https://github.com/anym001/ha-mos` as an **Integration**
-2. Find **MOS** in HACS and click **Download**
+2. Find **MOS NAS** in HACS and click **Download**
 3. **Restart Home Assistant**
-4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS"
+4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS NAS"
 
 To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
 
@@ -75,6 +75,8 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 **Entities went unavailable.** Usually the server is unreachable or restarting; the integration retries on its own and recovers without any action.
 
+**Only _some_ entities went unavailable.** One endpoint has been failing on its own while the rest of the server answers fine. A short outage costs nothing — those entities keep their last values and the integration retries every poll. Once an endpoint has been failing for more than fifteen minutes _and_ across at least three polls, its entities switch to unavailable rather than go on showing readings that stopped updating then; the log names the resource. Nothing is deleted, so history, custom names and automations survive, and everything comes back on its own the moment the endpoint answers again. At long update intervals the threshold stretches — at the 3600 second maximum it is three failed polls, so about two hours.
+
 **Reauthentication prompt.** Appears once the server has rejected the token for at least five minutes _and_ on three consecutive polls — enter a new token under **Settings** → **Devices & Services**. Both conditions have to hold, so neither a brief rejection during a server reboot nor a couple of unlucky polls on a long update interval costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
 
 **Some entities are missing.** Most likely the API token is scoped and cannot read that category. The integration skips what the token isn't allowed to read and keeps everything else working, and logs a warning naming the affected categories. Grant the token read access in the MOS web UI under **User Settings → Admin API Tokens**, then reload the integration. A missing permission never causes a reauthentication prompt — a new token with the same scope wouldn't change anything.
@@ -90,7 +92,7 @@ logger:
 
 **A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
-**Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
 
 ## Contributing
 

@@ -6,6 +6,7 @@ https://developers.home-assistant.io/docs/core/integration_diagnostics
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -67,10 +68,21 @@ async def async_get_config_entry_diagnostics(
         )
 
     # Coordinator statistics
+    now = time.monotonic()
     coordinator_info = {
         "last_update_success": coordinator.last_update_success,
         "update_interval": str(coordinator.update_interval),
         "data_keys": list(coordinator.data.keys()) if isinstance(coordinator.data, dict) else None,
+        # Resources currently failing but still inside the grace period, with how
+        # long and how often each has been failing, followed by those that have
+        # exceeded it and whose entities are therefore unavailable. Together these
+        # answer the two questions a "some of my entities went unavailable"
+        # report raises: which resource, and for how long.
+        "degraded_resources": {
+            key: {"failures": streak.failures, "failing_for_seconds": round(now - streak.started_at)}
+            for key, streak in coordinator._degraded_resources.items()  # noqa: SLF001
+        },
+        "stale_resources": sorted(coordinator.stale_resources),
     }
 
     # API client information (no sensitive data)

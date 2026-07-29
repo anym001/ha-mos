@@ -42,7 +42,7 @@ async def test_setup_entry_auth_failure_retries_before_asking_for_reauth(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_client: AsyncMock,
-    advance_auth_clock: Callable[[float], None],
+    advance_clock: Callable[[float], None],
 ) -> None:
     """A rejected token during setup is retried first, then escalated to reauth.
 
@@ -66,7 +66,7 @@ async def test_setup_entry_auth_failure_retries_before_asking_for_reauth(
             await hass.async_block_till_done()
             assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
 
-        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+        advance_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
         await hass.config_entries.async_reload(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
@@ -170,7 +170,7 @@ async def test_runtime_auth_failure_keeps_entry_loaded_and_recovers(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
-    advance_auth_clock: Callable[[float], None],
+    advance_clock: Callable[[float], None],
 ) -> None:
     """End-to-end: a transient 401 makes entities unavailable but starts no reauth flow.
 
@@ -203,7 +203,7 @@ async def test_runtime_auth_failure_starts_reauth_after_grace_period(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
-    advance_auth_clock: Callable[[float], None],
+    advance_clock: Callable[[float], None],
 ) -> None:
     """End-to-end: a token that stays rejected past the grace period does start reauth.
 
@@ -218,7 +218,7 @@ async def test_runtime_auth_failure_starts_reauth_after_grace_period(
         await hass.async_block_till_done()
         assert not hass.config_entries.flow.async_progress_by_handler(DOMAIN)
 
-    advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+    advance_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
     await coordinator.async_refresh()
     await hass.async_block_till_done()
 

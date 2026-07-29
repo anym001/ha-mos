@@ -41,6 +41,36 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
     _attr_attribution = ATTRIBUTION
     _attr_has_entity_name = True
 
+    # Coordinator data keys this entity reads. When one of them has been failing
+    # long enough to go stale, the entity reports itself unavailable instead of
+    # serving values that stopped updating (see ``available``).
+    #
+    # Entities backed by an always-fetched resource (osinfo, system_load) leave
+    # this empty: a failure there takes the whole poll down, which already makes
+    # every entity unavailable via ``last_update_success``.
+    #
+    # Set automatically for dynamically managed entities by
+    # ``async_setup_dynamic_entities``, which knows the data key it syncs
+    # against; entities created directly declare it themselves. A subclass may
+    # declare additional keys, which the helper unions with rather than replaces
+    # - the Docker power switch needs this, since its running state comes from
+    # ``docker_engine_containers`` while its existence comes from
+    # ``docker_containers``.
+    resource_keys: frozenset[str] = frozenset()
+
+    @property
+    def available(self) -> bool:
+        """
+        Whether the entity currently has meaningful data.
+
+        Unavailable when the last poll failed outright (inherited behaviour), and
+        additionally when one of the resources backing this entity has gone
+        stale: its data is still being retained, but it stopped being current
+        long enough ago that presenting it as a live reading would be
+        misleading. Recovers on its own as soon as the resource answers again.
+        """
+        return super().available and not (self.resource_keys & self.coordinator.stale_resources)
+
     def __init__(
         self,
         coordinator: MOSDataUpdateCoordinator,

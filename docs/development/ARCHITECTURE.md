@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the technical architecture of the MOS custom component for Home Assistant.
+This document describes the technical architecture of the MOS NAS custom component for Home Assistant.
 
 ## Directory Structure
 
@@ -65,11 +65,21 @@ updates to all entities. It is organized as a package with separate modules for 
 
 **Core functionality:**
 
-- Configurable update interval (default: 5 minutes)
+- Configurable update interval (default: 30 seconds, 30–3600 via the options flow)
 - Shared data access for all entities
 - Automatic retry on transient failures
-- Per-resource failure handling: transient 401/403/429 keep last-known-good
-  data instead of tearing down entities
+- Per-resource failure handling: a transient 403, 429 or communication error on
+  an optional resource keeps last-known-good data instead of tearing down
+  entities, while the rest of the poll is applied normally. A rejected token
+  (401) or a failure on an always-fetched resource still fails the whole cycle
+- A cap on that retention: once a resource has been failing for both
+  `RESOURCE_STALE_GRACE_PERIOD` and `RESOURCE_STALE_MIN_FAILURES`, it is listed
+  in `stale_resources` and the entities backed by it report themselves
+  unavailable (`MOSEntity.available`). The data is still retained, so nothing is
+  removed from the registry and recovery needs no reload. Because the
+  coordinator runs with `always_update=False`, a change to that set explicitly
+  notifies listeners - a stale resource's data is unchanged by definition, so
+  Home Assistant's own change comparison would otherwise suppress the update
 - Data validation and transformation before distribution
 
 **Key class:** `MOSDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
@@ -80,7 +90,7 @@ The coordinator is structured as a package rather than a single file to support 
 
 - **Separation of concerns**: Core logic, error handling, and data processing are isolated
 - **Easy extension**: New features (caching, metrics, webhooks) can be added as new modules
-- **Maintainability**: Individual modules stay focused and manageable (<400 lines)
+- **Maintainability**: Each module stays focused on a single concern
 - **Testability**: Each module can be tested independently
 
 ### API Client
@@ -92,6 +102,8 @@ Handles all communication with external APIs or devices. Implements:
 - Async HTTP requests using `aiohttp`
 - Connection management and timeouts
 - Authentication handling
+- Request pacing (`_RateLimiter`) to stay under the server's per-token rate
+  limit, applied to reads, writes and config-flow validation alike
 - Error translation to custom exceptions
 
 **Key class:** `MOSApiClient`
@@ -159,7 +171,7 @@ Platform entities inherit from both:
          │
          ▼
 ┌─────────────────┐
-│   Coordinator   │ ← Fetches data from API every 5 min
+│   Coordinator   │ ← Fetches data from API every scan_interval (default 30 s)
 └────────┬────────┘
          │
          ▼

@@ -21,6 +21,33 @@ DEFAULT_TIMEOUT = 10
 # the stop succeeds a moment later.
 CONTAINER_ACTION_TIMEOUT = 30
 
+# Minimum gap between the *starts* of two requests, in seconds.
+#
+# MOS rate limits to 20 requests/second per token (answering HTTP 429 beyond
+# that), and a poll fires every enabled resource concurrently - ten today, more
+# as endpoints are added. Unpaced, that whole burst lands inside a single second
+# and eats half the budget in one go, leaving little room for anything else
+# sharing the token (a second Home Assistant, the MOS web UI, a script) or for
+# the write actions a user triggers while a poll is in flight.
+#
+# 100 ms caps this client at 10 requests/second, so a full poll spreads over
+# roughly a second and half the server's budget stays free. This is a floor on
+# the gap between starts, not a fixed delay added to every request: when nothing
+# is queued a request goes out immediately, so a single switch toggle is exactly
+# as fast as before.
+API_MIN_REQUEST_INTERVAL = 0.1
+
+# How many requests may be in flight at once - a safety valve on top of the
+# pacing, not the main mechanism.
+#
+# API_MIN_REQUEST_INTERVAL bounds how fast requests *start*, not how many are
+# outstanding. Against a server that has become very slow but not unresponsive,
+# 10 starts/second against a DEFAULT_TIMEOUT of 10 s could leave ~100 connections
+# open at once. Five is comfortably above what a healthy poll ever reaches (the
+# pacing spreads it thin enough that only two or three overlap), so this only
+# binds once something has already gone wrong.
+API_MAX_CONCURRENT_REQUESTS = 5
+
 # Connection defaults
 DEFAULT_SSL = False
 DEFAULT_VERIFY_SSL = True
@@ -84,9 +111,62 @@ AUTH_FAILURE_MIN_FAILURES = 3
 # which would restart the grace period on every retry and never escalate.
 AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 
-# Resources fetched on every poll regardless of the options flow. A 403 on one of
-# these is fatal for the update - there is nothing meaningful left to show - so it
-# surfaces as UpdateFailed rather than silently dropping the resource.
+# How long an optional resource may fail *continuously* before its entities stop
+# claiming to be available and go "unavailable" instead.
+#
+# A transient 403/429/communication error on an optional resource keeps its
+# last-known-good data (see ``_retain_last_known_good``), which is exactly right
+# for a passing hiccup: entities keep their values instead of being torn down
+# over a momentary blip. But the retention has no natural end. Left uncapped, an
+# endpoint that is gone for good - removed from the MOS API, permanently broken,
+# a container runtime that never comes back - would serve the same frozen values
+# forever, and the user has no way to tell a live reading from a stale one. A
+# temperature that stopped updating three days ago still looks like a
+# measurement, and automations keep acting on it.
+#
+# Past this threshold the data is kept but no longer presented as current: the
+# entities report ``available = False``. Deliberately *not* dropped - removing
+# them would delete their registry entries along with the recorder history,
+# custom names and icons, and break every automation referencing the entity_id
+# (see ``_async_remove_entities``). "Unavailable" is recoverable and honest;
+# removal is neither.
+#
+# Fifteen minutes is long enough that no realistic transient - a server reboot,
+# a container runtime restart, a burst of rate limiting - reaches it, and short
+# enough that a genuinely dead endpoint is visible well within an hour.
+RESOURCE_STALE_GRACE_PERIOD = timedelta(minutes=15)
+
+# How many consecutive polls must have failed before a resource counts as stale,
+# on top of RESOURCE_STALE_GRACE_PERIOD having elapsed.
+#
+# Same two-part guard as AUTH_FAILURE_*, and for the same reason: at a 3600 s
+# interval the duration alone would collapse to "two unlucky polls in a row",
+# while a count alone would mean 90 s at the 30 s default - far too eager.
+#
+# Which half binds flips at a 450 s interval:
+#
+#     30 s interval   -> grace period binds: stale after 15 min (30 polls)
+#     300 s interval  -> grace period binds: stale after 15 min (4 polls)
+#     3600 s interval -> failure count binds: stale after 2 h (3 polls)
+#
+# That the threshold stretches at long intervals is intended, not a side effect.
+# Someone polling hourly never has data fresher than an hour, so "stale" has to
+# be defined more generously for them; holding them to a flat 15 minutes would
+# mean two unlucky polls could take a resource down.
+#
+# The count also guards against a case the duration cannot see. During a
+# server-wide outage the poll fails before per-resource classification is
+# reached, so the elapsed timer keeps running while nothing is being observed.
+# Requiring failures to have been *counted* means an outage cannot age a
+# resource into staleness behind the coordinator's back; the streak has to be
+# re-observed after the server is answering again.
+RESOURCE_STALE_MIN_FAILURES = 3
+
+# Resources fetched on every poll regardless of the options flow. A failure on one
+# of these - denied (403), rate limited (429) or unreachable - is fatal for the
+# update, since there is nothing meaningful left to show, so it surfaces as
+# UpdateFailed rather than silently dropping the resource. Every other resource
+# only fails for itself and keeps its last-known-good data.
 ALWAYS_FETCHED_RESOURCES = frozenset({"osinfo", "system_load"})
 
 # Maps a coordinator data key to the resource name MOS uses in a token's

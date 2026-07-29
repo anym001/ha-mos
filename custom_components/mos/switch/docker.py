@@ -43,6 +43,15 @@ class MOSDockerContainerSwitch(SwitchEntity, MOSEntity):
 
     entity_description: SwitchEntityDescription
 
+    # The container's *existence* comes from ``docker_containers`` (stamped on by
+    # async_setup_dynamic_entities), but its running state is merged in from the
+    # Docker Engine proxy. If that proxy goes stale, the switch would keep
+    # showing a position it can no longer verify, so it counts as a backing
+    # resource too. The Docker binary sensors deliberately do not declare it -
+    # update-available and autostart come from ``/docker/mos/containers`` alone
+    # and stay valid while the proxy is down.
+    resource_keys = frozenset({"docker_engine_containers"})
+
     def __init__(
         self,
         coordinator: MOSDataUpdateCoordinator,
