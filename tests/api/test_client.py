@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+import asyncio
+from itertools import pairwise
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 import pytest
@@ -15,6 +17,7 @@ from custom_components.mos.api.client import (
     MOSApiClientError,
     MOSApiClientPermissionError,
     MOSApiClientRateLimitError,
+    _RateLimiter,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -396,3 +399,93 @@ async def test_unexpected_error_raises_generic_api_error() -> None:
 
     with pytest.raises(MOSApiClientError):
         await client.async_get_osinfo()
+
+
+async def test_rate_limiter_spaces_out_request_starts() -> None:
+    """Concurrent requests start at least min_interval apart, not all at once.
+
+    This is the point of the limiter: MOS allows 20 requests/second per token
+    and a poll fires every enabled resource concurrently, so without pacing the
+    whole burst lands inside one second.
+    """
+    limiter = _RateLimiter(max_concurrent=10, min_interval=0.02)
+    starts: list[float] = []
+
+    async def request() -> None:
+        async with limiter:
+            starts.append(asyncio.get_running_loop().time())
+
+    await asyncio.gather(*(request() for _ in range(5)))
+
+    assert len(starts) == 5
+    # asyncio.sleep never returns early, so the floor holds; the small tolerance
+    # only guards against event-loop clock granularity.
+    assert all(later - earlier >= 0.015 for earlier, later in pairwise(sorted(starts)))
+
+
+async def test_rate_limiter_lets_a_lone_request_through_immediately() -> None:
+    """Pacing is a floor on the gap between starts, not a delay added to every request."""
+    limiter = _RateLimiter(max_concurrent=5, min_interval=10)
+
+    loop = asyncio.get_running_loop()
+    before = loop.time()
+    async with limiter:
+        pass
+
+    assert loop.time() - before < 1
+
+
+async def test_rate_limiter_caps_requests_in_flight() -> None:
+    """No more than max_concurrent requests are outstanding at any moment."""
+    limiter = _RateLimiter(max_concurrent=2, min_interval=0)
+    in_flight = 0
+    peak = 0
+
+    async def request() -> None:
+        nonlocal in_flight, peak
+        async with limiter:
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+
+    await asyncio.gather(*(request() for _ in range(6)))
+
+    assert peak == 2
+
+
+async def test_rate_limiter_releases_its_slot_when_the_request_fails() -> None:
+    """A failed request hands its slot back, so failures cannot shrink the pool for good."""
+    limiter = _RateLimiter(max_concurrent=1, min_interval=0)
+
+    with pytest.raises(RuntimeError):
+        async with limiter:
+            raise RuntimeError
+
+    # Would hang instead of raising TimeoutError if the slot had leaked.
+    async with asyncio.timeout(1), limiter:
+        pass
+
+
+async def test_client_paces_its_requests(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """The limiter is wired into every request, not just available on the client.
+
+    Deliberately end-to-end through the public API: pacing that the request path
+    doesn't actually go through would be worse than none at all, since the 429
+    handling downstream assumes it is there.
+    """
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", json={})
+
+    with patch("custom_components.mos.api.client.API_MIN_REQUEST_INTERVAL", 0.05):
+        client = MOSApiClient(host="10.0.1.30", token="tok", session=async_get_clientsession(hass))
+        loop = asyncio.get_running_loop()
+        before = loop.time()
+        await asyncio.gather(*(client.async_get_osinfo() for _ in range(4)))
+        elapsed = loop.time() - before
+
+    assert aioclient_mock.call_count == 4
+    # Four requests, three enforced gaps of 50 ms between their starts.
+    assert elapsed >= 0.13

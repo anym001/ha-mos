@@ -92,6 +92,8 @@ Handles all communication with external APIs or devices. Implements:
 - Async HTTP requests using `aiohttp`
 - Connection management and timeouts
 - Authentication handling
+- Request pacing (`_RateLimiter`) to stay under the server's per-token rate
+  limit, applied to reads, writes and config-flow validation alike
 - Error translation to custom exceptions
 
 **Key class:** `MOSApiClient`

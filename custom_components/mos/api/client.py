@@ -4,8 +4,9 @@ API Client for mos.
 This module provides the API client for communicating with the local MOS REST API.
 Most resources (``osinfo``, ``services``) live under ``/api/v1/mos/<resource>``;
 a few (``disks``, ``pools``) live directly under ``/api/v1/<resource>``. It handles
-authentication via a Bearer token, request timeouts, and translation of transport
-errors into integration-specific exceptions.
+authentication via a Bearer token, request timeouts, pacing requests to stay under
+the server's per-token rate limit, and translation of transport errors into
+integration-specific exceptions.
 
 For more information on creating API clients:
 https://developers.home-assistant.io/docs/api_lib_index
@@ -22,6 +23,8 @@ import aiohttp
 
 from custom_components.mos.const import (
     API_BASE_PATH,
+    API_MAX_CONCURRENT_REQUESTS,
+    API_MIN_REQUEST_INTERVAL,
     API_ROOT_PATH,
     CONTAINER_ACTION_TIMEOUT,
     DEFAULT_PORT_HTTP,
@@ -78,6 +81,79 @@ class MOSApiClientRateLimitError(
     """
 
 
+class _RateLimiter:
+    """
+    Paces outgoing requests so a burst cannot trip the server's rate limit.
+
+    An async context manager: entering waits until the request may start,
+    leaving frees the in-flight slot. Two independent bounds are applied, see
+    ``API_MIN_REQUEST_INTERVAL`` and ``API_MAX_CONCURRENT_REQUESTS`` for what
+    each is for:
+
+    - request *starts* are spaced by at least ``min_interval``
+    - at most ``max_concurrent`` requests are in flight at any moment
+
+    One instance per ``MOSApiClient``, which is exactly the granularity MOS
+    applies its limit at (per token). Sitting in the client rather than in the
+    coordinator's poll loop is deliberate: write actions and config-flow
+    validation spend from the same per-token budget, and a user toggling several
+    switches at once would otherwise bypass the pacing entirely.
+
+    Attributes:
+        _semaphore: Bounds how many requests are in flight at once.
+        _min_interval: Minimum seconds between two request starts.
+        _schedule_lock: Serializes claiming the next start slot.
+        _next_start: Event-loop time at which the next request may start.
+
+    """
+
+    def __init__(self, max_concurrent: int, min_interval: float) -> None:
+        """
+        Initialize the rate limiter.
+
+        Args:
+            max_concurrent: Maximum number of requests in flight at once.
+            min_interval: Minimum seconds between two request starts.
+
+        """
+        self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._min_interval = min_interval
+        self._schedule_lock = asyncio.Lock()
+        self._next_start = 0.0
+
+    async def __aenter__(self) -> None:
+        """Wait for a free in-flight slot, then for this request's turn to start."""
+        await self._semaphore.acquire()
+        try:
+            await self._wait_for_turn()
+        except BaseException:
+            # Nothing was sent, so hand the slot straight back - otherwise a
+            # cancelled poll would permanently shrink the pool.
+            self._semaphore.release()
+            raise
+
+    async def __aexit__(self, *_exc_info: object) -> None:
+        """Release the in-flight slot, whether the request succeeded or not."""
+        self._semaphore.release()
+
+    async def _wait_for_turn(self) -> None:
+        """
+        Claim the next start slot and sleep until it comes round.
+
+        The slot is claimed under the lock so concurrent callers queue up
+        deterministically, but the waiting itself happens outside it - holding
+        the lock while sleeping would serialize the sleeps on top of each other
+        instead of letting them all count down against the same schedule.
+        """
+        async with self._schedule_lock:
+            now = asyncio.get_running_loop().time()
+            start_at = max(now, self._next_start)
+            self._next_start = start_at + self._min_interval
+            delay = start_at - now
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     """
     Verify that the API response is valid.
@@ -126,11 +202,16 @@ class MOSApiClient:
     aiohttp session that is passed in (Home Assistant provides a verifying or a
     non-verifying shared session depending on the ``verify_ssl`` option).
 
+    Every request - read, write, or config-flow validation - is paced through a
+    per-client rate limiter so a poll cannot exhaust the server's per-token
+    budget; see ``_RateLimiter``.
+
     Attributes:
         _token: The API token used for Bearer authentication.
         _session: The aiohttp ClientSession for making requests.
         _base_url: The fully qualified base URL for ``/api/v1/mos`` resources.
         _root_base_url: The fully qualified base URL for ``/api/v1`` resources.
+        _rate_limiter: Paces requests to stay under the server's rate limit.
 
     """
 
@@ -156,6 +237,10 @@ class MOSApiClient:
         """
         self._token = token
         self._session = session
+        self._rate_limiter = _RateLimiter(
+            max_concurrent=API_MAX_CONCURRENT_REQUESTS,
+            min_interval=API_MIN_REQUEST_INTERVAL,
+        )
 
         scheme = "https" if use_ssl else "http"
         port = int(port) if port is not None else (DEFAULT_PORT_HTTPS if use_ssl else DEFAULT_PORT_HTTP)
@@ -532,10 +617,11 @@ class MOSApiClient:
         timeout: int = DEFAULT_TIMEOUT,
     ) -> Any:
         """
-        Wrapper for API requests with error handling.
+        Wrapper for API requests with pacing and error handling.
 
         This method handles all HTTP requests and translates exceptions
-        into integration-specific exceptions.
+        into integration-specific exceptions. Every request passes through
+        ``_rate_limiter`` first, so nothing reaches the server unpaced.
 
         Args:
             method: The HTTP method (get, post, patch, etc.).
@@ -559,7 +645,11 @@ class MOSApiClient:
             request_headers.update(headers)
 
         try:
-            async with asyncio.timeout(timeout):
+            # The rate limiter is entered *outside* the timeout so that waiting
+            # for a turn never counts against the request's own budget: a queued
+            # request would otherwise report a spurious timeout without a single
+            # byte having been sent.
+            async with self._rate_limiter, asyncio.timeout(timeout):
                 response = await self._session.request(
                     method=method,
                     url=f"{base_url or self._base_url}/{resource}",

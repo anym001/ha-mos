@@ -21,6 +21,33 @@ DEFAULT_TIMEOUT = 10
 # the stop succeeds a moment later.
 CONTAINER_ACTION_TIMEOUT = 30
 
+# Minimum gap between the *starts* of two requests, in seconds.
+#
+# MOS rate limits to 20 requests/second per token (answering HTTP 429 beyond
+# that), and a poll fires every enabled resource concurrently - ten today, more
+# as endpoints are added. Unpaced, that whole burst lands inside a single second
+# and eats half the budget in one go, leaving little room for anything else
+# sharing the token (a second Home Assistant, the MOS web UI, a script) or for
+# the write actions a user triggers while a poll is in flight.
+#
+# 100 ms caps this client at 10 requests/second, so a full poll spreads over
+# roughly a second and half the server's budget stays free. This is a floor on
+# the gap between starts, not a fixed delay added to every request: when nothing
+# is queued a request goes out immediately, so a single switch toggle is exactly
+# as fast as before.
+API_MIN_REQUEST_INTERVAL = 0.1
+
+# How many requests may be in flight at once - a safety valve on top of the
+# pacing, not the main mechanism.
+#
+# API_MIN_REQUEST_INTERVAL bounds how fast requests *start*, not how many are
+# outstanding. Against a server that has become very slow but not unresponsive,
+# 10 starts/second against a DEFAULT_TIMEOUT of 10 s could leave ~100 connections
+# open at once. Five is comfortably above what a healthy poll ever reaches (the
+# pacing spreads it thin enough that only two or three overlap), so this only
+# binds once something has already gone wrong.
+API_MAX_CONCURRENT_REQUESTS = 5
+
 # Connection defaults
 DEFAULT_SSL = False
 DEFAULT_VERIFY_SSL = True
