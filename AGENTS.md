@@ -9,7 +9,7 @@ This is a Home Assistant custom integration that was generated from a blueprint 
 **Integration details:**
 
 - **Domain:** `mos`
-- **Title:** MOS
+- **Title:** MOS NAS
 - **Repository:** anym001/ha-mos
 - **Upstream template:** [jpawlowski/hacs.integration_blueprint](https://github.com/jpawlowski/hacs.integration_blueprint) (via "Use this template"; no shared git history — see `./script/compare-blueprint`)
 
@@ -182,14 +182,14 @@ As an AI agent, **aim for Silver or Gold Quality Scale** when generating code:
 This integration uses the following identifiers consistently:
 
 - **Domain:** `mos`
-- **Title:** MOS
+- **Title:** MOS NAS
 - **Class prefix:** `MOS`
 
 **When creating new files:**
 
 - Use the domain `mos` for all DOMAIN references
 - Prefix all integration-specific classes with `MOS`
-- Use "MOS" as the display title
+- Use "MOS NAS" as the display title
 - Never hardcode different values
 
 ### Integration Structure

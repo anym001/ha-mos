@@ -1,6 +1,6 @@
 # GitHub Codespaces Development Guide
 
-MOS is fully compatible with GitHub Codespaces for cloud-based development.
+MOS NAS is fully compatible with GitHub Codespaces for cloud-based development.
 
 ## Quick Start
 

@@ -14,7 +14,7 @@ Read `AGENTS.md` completely before starting any work. It contains:
 ## Quick Reference
 
 - **Domain:** `mos`
-- **Title:** MOS
+- **Title:** MOS NAS
 - **Class prefix:** `MOS`
 - **Main code:** `custom_components/mos/`
 - **Validate:** `script/check` (type-check + lint + spell)

@@ -1,4 +1,4 @@
-# MOS
+# MOS NAS
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
@@ -37,9 +37,9 @@ Disks, pools, containers and VMs appear and disappear automatically as they chan
 The integration is not in the HACS default store yet, so add it as a custom repository:
 
 1. In HACS: **⋮** → **Custom repositories** → add `https://github.com/anym001/ha-mos` as an **Integration**
-2. Find **MOS** in HACS and click **Download**
+2. Find **MOS NAS** in HACS and click **Download**
 3. **Restart Home Assistant**
-4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS"
+4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS NAS"
 
 To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
 
@@ -90,7 +90,7 @@ logger:
 
 **A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
-**Diagnostics.** **Settings** → **Devices & Services** → **MOS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
 
 ## Contributing
 

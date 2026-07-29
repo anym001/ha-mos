@@ -26,7 +26,7 @@
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate MOS",
+        "title": "Reauthenticate MOS NAS",
         "description": "The API token for {host} is no longer valid. Please provide a new token to restore access.",
         "data": {
           "api_token": "API token"
@@ -48,7 +48,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "MOS options",
+        "title": "MOS NAS options",
         "description": "Customize how this integration operates.",
         "data": {
           "scan_interval": "Update interval (seconds)",

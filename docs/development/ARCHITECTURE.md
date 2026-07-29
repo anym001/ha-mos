@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the technical architecture of the MOS custom component for Home Assistant.
+This document describes the technical architecture of the MOS NAS custom component for Home Assistant.
 
 ## Directory Structure
 
