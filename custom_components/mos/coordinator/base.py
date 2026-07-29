@@ -739,8 +739,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             LOGGER.warning(
                 "Server returned 403 for %s although the token has read access - treating as transient "
                 "(e.g. the MOS server reloading) and retrying on the next poll; entities keep their "
-                "last-known state meanwhile. If this persists, check the token's read scope under "
-                "User Settings > Admin API Tokens in the MOS web UI",
+                "last-known state meanwhile. If this persists, check the token's read scope in the "
+                "MOS web UI",
                 ", ".join(newly_denied),
             )
         if newly_limited:
