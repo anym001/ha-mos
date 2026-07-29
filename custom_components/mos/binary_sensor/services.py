@@ -85,6 +85,11 @@ class MOSServiceBinarySensor(BinarySensorEntity, MOSEntity):
 
     entity_description: MOSServiceBinarySensorEntityDescription
 
+    # Declared explicitly rather than stamped on by async_setup_dynamic_entities:
+    # the service sensors are a fixed set on the server device, not a dynamic
+    # list, so they are constructed directly by the platform.
+    resource_keys = frozenset({"services"})
+
     def __init__(
         self,
         coordinator: MOSDataUpdateCoordinator,
