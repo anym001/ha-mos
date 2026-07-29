@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.7](https://github.com/anym001/ha-mos/compare/v0.1.6...v0.1.7) (2026-07-29)
+
+
+### Features
+
+* **api:** pace requests to stay under the server's rate limit ([acb6301](https://github.com/anym001/ha-mos/commit/acb63019363ee886d99111cd763705fd27f58023))
+* **coordinator:** cap how long a failing resource may serve stale data ([065f386](https://github.com/anym001/ha-mos/commit/065f386e0b481a265b924202ff1ca341c767e487))
+* **coordinator:** isolate communication errors per resource ([295040a](https://github.com/anym001/ha-mos/commit/295040a280404caa5b644bdbfeb289bd4a61c79f))
+* **entity:** mark entities unavailable when their resource goes stale ([942c724](https://github.com/anym001/ha-mos/commit/942c72478c0b87e7aad9b51e64c57c3ae7ea4cf5))
+* **manifest:** rename integration title to "MOS NAS" ([1f5a3f7](https://github.com/anym001/ha-mos/commit/1f5a3f7d5e76728c781a291923f333f2ef65c56d))
+* pace API requests, isolate per-resource failures, and cap stale data ([77edb37](https://github.com/anym001/ha-mos/commit/77edb37143115d53a302ca41165afd423ac22d25))
+* **sensor:** add hardware sensor readings from /sensors endpoint ([ff3800b](https://github.com/anym001/ha-mos/commit/ff3800b86980e78b06d40da0ee751c1f427e4803))
+* **sensor:** add hardware sensor readings from /sensors endpoint ([2ed5e25](https://github.com/anym001/ha-mos/commit/2ed5e25dff104e1232cc0cc45c07b6b6dc27502b))
+* **sensor:** add memory total/free/installed/reserved to system health ([9f18bc7](https://github.com/anym001/ha-mos/commit/9f18bc7a139c0e6b3617da28f40887fd8cbbd29d))
+
+
+### Bug Fixes
+
+* **config-flow:** clarify auth/connection error messages ([21efc59](https://github.com/anym001/ha-mos/commit/21efc5901a0d2a7e02c58e9f03b5b29b5a51b98c))
+* **config-flow:** surface host in auth/connection error messages ([dc3cc2d](https://github.com/anym001/ha-mos/commit/dc3cc2d2fcf3543a3b2ac572300b0cbbb482a251))
+* **coordinator:** drop MOS UI navigation path from a log message ([34c6d1a](https://github.com/anym001/ha-mos/commit/34c6d1a63d19547044a29f8ae7fca424b71c4596))
+* **sensor:** correct device_class/state_class for hardware sensor subtypes ([b0f0817](https://github.com/anym001/ha-mos/commit/b0f081749268186e22564a2c413fc86faf7a5e2b))
+* **sensor:** use stable id for hardware sensor identity, fix name quirks ([338e5dd](https://github.com/anym001/ha-mos/commit/338e5ddaa510088e4e2b10428ea906742e701961))
+* **translations:** correct the documented minimum update interval ([33c296b](https://github.com/anym001/ha-mos/commit/33c296baef4aa82645fe869bb939909e46f627b6))
+* **translations:** drop MOS UI navigation paths from user-facing strings ([d82b0c4](https://github.com/anym001/ha-mos/commit/d82b0c43f9a81221b5059a3d86f807d00cc257ac))
+
 ## [0.1.6](https://github.com/anym001/ha-mos/compare/v0.1.5...v0.1.6) (2026-07-28)
 
 
