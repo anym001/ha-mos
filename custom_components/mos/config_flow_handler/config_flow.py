@@ -118,6 +118,7 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={
                 "documentation_url": integration.documentation,
+                "host": (user_input or {}).get(CONF_HOST, ""),
             },
         )
 
@@ -156,6 +157,9 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=get_reconfigure_schema(entry.data),
             errors=errors,
+            description_placeholders={
+                "host": (user_input or entry.data).get(CONF_HOST, ""),
+            },
         )
 
     async def async_step_reauth(

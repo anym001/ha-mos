@@ -34,8 +34,8 @@
       }
     },
     "error": {
-      "auth": "The API token was rejected.",
-      "connection": "Unable to connect to the server.",
+      "auth": "The API token was rejected by {host}. Double-check that this is the correct host/IP for your MOS server and that you copied the full token from the MOS web UI under User Settings > Admin API Tokens.",
+      "connection": "Unable to connect to {host}. Double-check the host/IP, port and HTTPS settings.",
       "permission": "The API token is valid but not authorized to read system information. Grant it read access in the MOS web UI under User Settings > Admin API Tokens.",
       "unknown": "Unknown error occurred."
     },
