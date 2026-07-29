@@ -1,5 +1,4 @@
 ---
-applyTo: "**"
 name: "Commit Message Conventions"
 description: "Conventional Commits format for this Home Assistant integration project"
 ---
