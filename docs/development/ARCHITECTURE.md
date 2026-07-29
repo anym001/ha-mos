@@ -65,7 +65,7 @@ updates to all entities. It is organized as a package with separate modules for 
 
 **Core functionality:**
 
-- Configurable update interval (default: 5 minutes)
+- Configurable update interval (default: 30 seconds, 30–3600 via the options flow)
 - Shared data access for all entities
 - Automatic retry on transient failures
 - Per-resource failure handling: a transient 403, 429 or communication error on
@@ -82,7 +82,7 @@ The coordinator is structured as a package rather than a single file to support 
 
 - **Separation of concerns**: Core logic, error handling, and data processing are isolated
 - **Easy extension**: New features (caching, metrics, webhooks) can be added as new modules
-- **Maintainability**: Individual modules stay focused and manageable (<400 lines)
+- **Maintainability**: Each module stays focused on a single concern
 - **Testability**: Each module can be tested independently
 
 ### API Client
@@ -163,7 +163,7 @@ Platform entities inherit from both:
          │
          ▼
 ┌─────────────────┐
-│   Coordinator   │ ← Fetches data from API every 5 min
+│   Coordinator   │ ← Fetches data from API every scan_interval (default 30 s)
 └────────┬────────┘
          │
          ▼
