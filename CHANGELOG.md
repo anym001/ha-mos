@@ -32,15 +32,12 @@
 * **coordinator:** isolate communication errors per resource ([295040a](https://github.com/anym001/ha-mos/commit/295040a280404caa5b644bdbfeb289bd4a61c79f))
 * **entity:** mark entities unavailable when their resource goes stale ([942c724](https://github.com/anym001/ha-mos/commit/942c72478c0b87e7aad9b51e64c57c3ae7ea4cf5))
 * **manifest:** rename integration title to "MOS NAS" ([1f5a3f7](https://github.com/anym001/ha-mos/commit/1f5a3f7d5e76728c781a291923f333f2ef65c56d))
-* pace API requests, isolate per-resource failures, and cap stale data ([77edb37](https://github.com/anym001/ha-mos/commit/77edb37143115d53a302ca41165afd423ac22d25))
-* **sensor:** add hardware sensor readings from /sensors endpoint ([ff3800b](https://github.com/anym001/ha-mos/commit/ff3800b86980e78b06d40da0ee751c1f427e4803))
 * **sensor:** add hardware sensor readings from /sensors endpoint ([2ed5e25](https://github.com/anym001/ha-mos/commit/2ed5e25dff104e1232cc0cc45c07b6b6dc27502b))
 * **sensor:** add memory total/free/installed/reserved to system health ([9f18bc7](https://github.com/anym001/ha-mos/commit/9f18bc7a139c0e6b3617da28f40887fd8cbbd29d))
 
 
 ### Bug Fixes
 
-* **config-flow:** clarify auth/connection error messages ([21efc59](https://github.com/anym001/ha-mos/commit/21efc5901a0d2a7e02c58e9f03b5b29b5a51b98c))
 * **config-flow:** surface host in auth/connection error messages ([dc3cc2d](https://github.com/anym001/ha-mos/commit/dc3cc2d2fcf3543a3b2ac572300b0cbbb482a251))
 * **coordinator:** drop MOS UI navigation path from a log message ([34c6d1a](https://github.com/anym001/ha-mos/commit/34c6d1a63d19547044a29f8ae7fca424b71c4596))
 * **sensor:** correct device_class/state_class for hardware sensor subtypes ([b0f0817](https://github.com/anym001/ha-mos/commit/b0f081749268186e22564a2c413fc86faf7a5e2b))
@@ -103,14 +100,10 @@
 
 ### Features
 
-* add LXC/Docker container and VM entities with power switches ([c1c5124](https://github.com/anym001/ha-mos/commit/c1c5124262d211138f72078a6f45a50ff573c3e5))
 * **mos:** add brand dark icon assets ([5bd573e](https://github.com/anym001/ha-mos/commit/5bd573e0388b771d29936368fed4cc7e10d3baba))
-* **mos:** add brand icon assets ([2c8ca85](https://github.com/anym001/ha-mos/commit/2c8ca85234280abe353b5ca43f151e7d6116123c))
 * **mos:** add brand icon assets ([8c56030](https://github.com/anym001/ha-mos/commit/8c56030b2bf2d102695e5e692c86749ce04e884d))
-* **mos:** introspect token permission scope once at coordinator setup ([9be6f5c](https://github.com/anym001/ha-mos/commit/9be6f5c9a9685bb83c4f10559c34436403e426cd))
 * **mos:** introspect token permission scope once at coordinator setup ([130969a](https://github.com/anym001/ha-mos/commit/130969ade36ddcf5fe8a4e6154f5db4fbd43d89e))
 * **sensor,binary_sensor:** add LXC and Docker container entities ([164f289](https://github.com/anym001/ha-mos/commit/164f289f9e79105529dd70d8776c27581969c7ea))
-* **sensor:** add live system health sensors ([cbfaeb7](https://github.com/anym001/ha-mos/commit/cbfaeb73cde7ff4d189e12c911537df96c01a502))
 * **sensor:** add live system health sensors ([bb24629](https://github.com/anym001/ha-mos/commit/bb24629883d96daf2e449783da659bfa85e99e95))
 * **switch:** add Docker container power switch, gate writes on token permissions ([37037b7](https://github.com/anym001/ha-mos/commit/37037b7a18d7ee6fceaddecde463e89ad708b1cf))
 * **vm:** add per-VM devices with CPU/memory sensors, autostart, and power switch ([814a717](https://github.com/anym001/ha-mos/commit/814a717a12bf07be71cd3f7cb7645b2e2ec408d6))
