@@ -179,6 +179,9 @@
       "cpu_temperature": {
         "name": "CPU temperature"
       },
+      "cpu_temperature_max": {
+        "name": "CPU temperature max"
+      },
       "memory_usage": {
         "name": "Memory usage"
       },
@@ -197,8 +200,35 @@
       "memory_reserved": {
         "name": "Memory reserved"
       },
+      "memory_cache": {
+        "name": "Memory cache"
+      },
+      "memory_docker": {
+        "name": "Memory Docker"
+      },
+      "memory_system": {
+        "name": "Memory system"
+      },
+      "memory_lxc": {
+        "name": "Memory LXC"
+      },
+      "memory_vms": {
+        "name": "Memory VMs"
+      },
+      "memory_zram": {
+        "name": "Memory ZRAM"
+      },
       "swap_usage": {
         "name": "Swap usage"
+      },
+      "swap_used": {
+        "name": "Swap used"
+      },
+      "swap_total": {
+        "name": "Swap total"
+      },
+      "swap_free": {
+        "name": "Swap free"
       },
       "lxc_cpu_usage": {
         "name": "CPU usage"

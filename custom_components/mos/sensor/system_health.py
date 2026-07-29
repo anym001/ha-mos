@@ -27,6 +27,21 @@ class MOSSystemHealthSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], StateType]
 
 
+def _memory_breakdown(consumer: str) -> Callable[[dict[str, Any]], StateType]:
+    """Return a value function reading one consumer's share from ``memory.breakdown``.
+
+    MOS reports each consumer both in bytes and as a rounded percentage; only
+    the byte figure is exposed, since the percentage is trivially derived from
+    it and ``memory_total`` in a template.
+    """
+
+    def value_fn(system_load: dict[str, Any]) -> StateType:
+        breakdown = (system_load.get("memory") or {}).get("breakdown") or {}
+        return (breakdown.get(consumer) or {}).get("bytes")
+
+    return value_fn
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="cpu_load",
@@ -43,6 +58,14 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: (system_load.get("temperature") or {}).get("main"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="cpu_temperature_max",
+        translation_key="cpu_temperature_max",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda system_load: (system_load.get("temperature") or {}).get("max"),
     ),
     MOSSystemHealthSensorEntityDescription(
         key="memory_usage",
@@ -98,12 +121,99 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
         value_fn=lambda system_load: (system_load.get("memory") or {}).get("reserved"),
     ),
     MOSSystemHealthSensorEntityDescription(
+        key="memory_cache",
+        translation_key="memory_cache",
+        icon="mdi:cached",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda system_load: ((system_load.get("memory") or {}).get("dirty") or {}).get("dirtyCaches"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="memory_docker",
+        translation_key="memory_docker",
+        icon="mdi:docker",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_memory_breakdown("docker"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="memory_system",
+        translation_key="memory_system",
+        icon="mdi:cog",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_memory_breakdown("system"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="memory_lxc",
+        translation_key="memory_lxc",
+        icon="mdi:linux",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_memory_breakdown("lxc"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="memory_vms",
+        translation_key="memory_vms",
+        icon="mdi:server",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_memory_breakdown("vms"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="memory_zram",
+        translation_key="memory_zram",
+        icon="mdi:memory",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_memory_breakdown("zram"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
         key="swap_usage",
         translation_key="swap_usage",
         icon="mdi:swap-horizontal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: (system_load.get("swap") or {}).get("percentage"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="swap_used",
+        translation_key="swap_used",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda system_load: (system_load.get("swap") or {}).get("used"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="swap_total",
+        translation_key="swap_total",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda system_load: (system_load.get("swap") or {}).get("total"),
+    ),
+    MOSSystemHealthSensorEntityDescription(
+        key="swap_free",
+        translation_key="swap_free",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda system_load: (system_load.get("swap") or {}).get("available"),
     ),
 )
 
