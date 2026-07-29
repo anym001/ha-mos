@@ -130,6 +130,7 @@ See [Integration Setup Failures](https://developers.home-assistant.io/docs/integ
 
 - `coordinator/base.py` - Core coordinator
 - `coordinator/data_processing.py` - Transform helpers
+- `coordinator/error_handling.py` - Recovery logic
 - `api/client.py` - Main client
 - `api/auth.py` - Auth helpers (OAuth, token refresh)
 - `api/endpoints/` - Grouped endpoints (if many)
