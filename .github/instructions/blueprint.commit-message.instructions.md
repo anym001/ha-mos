@@ -45,6 +45,14 @@ Scope is optional but clarifies the affected component. Use the name of the affe
 - **Layers:** `coordinator`, `api`, `entity`, `config-flow`, `service-actions`, `entity-utils`
 - **System:** `diagnostics`, `repairs`, `manifest`, `translations`, `deps`, `devcontainer`, `tests`
 
+A scope names the affected _component_, never a change _category_. Using a type
+name as a scope is rejected by commitlint (`scope-enum`), because it hides the
+change in the wrong changelog section: `feat(ci): …` is published under
+"Features" as if it were user-facing, while the `ci` **type** is configured as
+hidden in `release-please-config.json`. Pipeline and tooling work takes the
+`ci` or `chore` type — `ci: enable HACS brands validation`, not
+`feat(ci): enable HACS brands validation`.
+
 ## Rules
 
 1. **Always analyze the full staged diff** — every modified file must be accounted for
@@ -54,6 +62,7 @@ Scope is optional but clarifies the affected component. Use the name of the affe
 5. Body: blank line between subject and body; use bullet points, not prose
 6. Breaking changes: add `BREAKING CHANGE:` footer **and** warn the developer before implementing
 7. Multiple unrelated changes → separate commits, not one large commit
+8. **Never use a type name as a scope** — `ci: …`, not `feat(ci): …` (see Scopes)
 
 ## Examples
 
