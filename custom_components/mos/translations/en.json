@@ -185,6 +185,18 @@
       "memory_used": {
         "name": "Memory used"
       },
+      "memory_total": {
+        "name": "Memory total"
+      },
+      "memory_free": {
+        "name": "Memory free"
+      },
+      "memory_installed": {
+        "name": "Memory installed"
+      },
+      "memory_reserved": {
+        "name": "Memory reserved"
+      },
       "swap_usage": {
         "name": "Swap usage"
       },

@@ -13,7 +13,6 @@ so there is no fixed, translatable set. ``_attr_name`` is set directly instead.
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
@@ -45,22 +44,18 @@ _ICON_BY_CATEGORY: dict[str, str] = {
 }
 
 
-def _slug(value: str) -> str:
-    """Normalize a MOS-provided label into a safe unique_id fragment."""
-    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+_CATEGORY_DISPLAY: dict[str, str] = {"psu": "PSU"}
 
 
 def sensor_key(item: dict[str, Any]) -> str:
-    """Build a stable, human-legible key for a reading from its category/name/subtype.
+    """Return the reading's stable identity key: MOS's own ``id``.
 
-    The category is dropped when it equals the subtype (e.g. temperature and
-    voltage readings), the same way ``_sensor_name`` drops it from the display
-    name - the subtype value is category-unique in that case, so nothing is
-    lost by not repeating it.
+    Unlike name/category/subtype, this never changes when a user renames a
+    reading in MOS, so it keeps unique_id and the entity registry entry
+    stable across renames instead of the dynamic-entity helper tearing down
+    and recreating the entity.
     """
-    if item["category"] == item["subtype"]:
-        return f"{_slug(item['name'])}_{item['subtype']}"
-    return f"{item['category']}_{_slug(item['name'])}_{item['subtype']}"
+    return str(item["id"])
 
 
 def _sensor_name(item: dict[str, Any]) -> str:
@@ -69,15 +64,19 @@ def _sensor_name(item: dict[str, Any]) -> str:
     The category is folded in too (e.g. "Sensor Fan CPU Speed"), except when it
     is identical to the subtype (e.g. temperature/voltage readings, where the
     subtype is already named after the category) - there it would just repeat
-    the same word twice.
+    the same word twice. The subtype word itself is dropped when the name
+    already ends with it (e.g. PSU's "Fan Speed" reading with subtype
+    "speed") to avoid the same "... Speed Speed" duplication.
     """
-    if item["category"] == item["subtype"]:
-        return f"Sensor {item['name']} {item['subtype'].title()}"
-    return f"Sensor {item['category'].title()} {item['name']} {item['subtype'].title()}"
+    name, subtype, category = item["name"], item["subtype"], item["category"]
+    suffix = "" if name.split()[-1].lower() == subtype.lower() else f" {subtype.title()}"
+    if category == subtype:
+        return f"Sensor {name}{suffix}"
+    return f"Sensor {_CATEGORY_DISPLAY.get(category, category.title())} {name}{suffix}"
 
 
 def _find_sensor(coordinator: MOSDataUpdateCoordinator, key: str) -> dict[str, Any] | None:
-    """Look up the current payload for a reading by its category/name/subtype key."""
+    """Look up the current payload for a reading by its ``id``."""
     sensors: list[dict[str, Any]] = coordinator.data.get("sensors") or []
     return next((item for item in sensors if sensor_key(item) == key), None)
 
