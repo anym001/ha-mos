@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import LOGGER
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -77,6 +78,7 @@ def async_setup_dynamic_entities(
 
         new_ids = current_ids - known.keys()
         if new_ids:
+            LOGGER.debug("Adding %s entities for %s: %s", data_key, len(new_ids), sorted(new_ids))
             new_entities: list[MOSEntity] = []
             for item_id in new_ids:
                 entities = entity_factory(coordinator, item_id)
@@ -92,6 +94,8 @@ def async_setup_dynamic_entities(
             async_add_entities(new_entities)
 
         removed_ids = known.keys() - current_ids
+        if removed_ids:
+            LOGGER.debug("Removing %s entities for %s: %s", data_key, len(removed_ids), sorted(removed_ids))
         for item_id in removed_ids:
             device_identifiers = device_identifiers_fn(item_id) if device_identifiers_fn else None
             hass.async_create_task(_async_remove_entities(hass, known.pop(item_id), device_identifiers))
