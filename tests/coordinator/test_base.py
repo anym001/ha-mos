@@ -493,9 +493,12 @@ async def test_communication_error_resets_auth_failure_timer(
         advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds())
 
 
-async def test_communication_error_is_retryable(hass: HomeAssistant, mock_client: AsyncMock) -> None:
-    """A communication error is mapped to UpdateFailed, which is retryable, not fatal."""
-    mock_client.async_get_services.side_effect = MOSApiClientCommunicationError("timeout")
+async def test_communication_error_on_required_resource_is_retryable(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A communication error on an always-fetched resource maps to UpdateFailed, not a fatal error."""
+    mock_client.async_get_osinfo.side_effect = MOSApiClientCommunicationError("timeout")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
@@ -503,6 +506,121 @@ async def test_communication_error_is_retryable(hass: HomeAssistant, mock_client
         await coordinator.async_config_entry_first_refresh()
 
     assert coordinator.last_update_success is False
+
+
+async def test_unreachable_server_still_fails_the_whole_poll(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """When every endpoint fails, the entry must go unavailable rather than serve stale data.
+
+    Per-resource isolation of communication errors must not extend to a server
+    that is simply down: the always-fetched resources fail along with everything
+    else, and that is what still takes the cycle down.
+    """
+    for method in (
+        mock_client.async_get_osinfo,
+        mock_client.async_get_system_load,
+        mock_client.async_get_services,
+        mock_client.async_get_disks,
+        mock_client.async_get_pools,
+        mock_client.async_get_lxc_containers,
+        mock_client.async_get_docker_containers,
+        mock_client.async_get_docker_engine_containers,
+        mock_client.async_get_vm_machines,
+        mock_client.async_get_sensors,
+    ):
+        method.side_effect = MOSApiClientCommunicationError("host unreachable")
+
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+async def test_communication_error_on_optional_resource_does_not_fail_the_poll(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """One flaky endpoint costs that resource, not the other nine.
+
+    Before, the first communication error aborted the whole cycle, so a single
+    slow or briefly broken endpoint left the integration with no data at all
+    even though every other endpoint had answered fine.
+    """
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientCommunicationError("timeout")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
+    assert coordinator.data["vm_machines"] == []
+
+
+async def test_communication_error_retains_last_known_good_data(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_vm_machines: list[dict],
+) -> None:
+    """A resource that becomes unreachable keeps its previous data instead of emptying out.
+
+    An empty list makes the dynamic-entity sync remove every device backed by
+    that resource, so a passing timeout would otherwise make VMs and containers
+    disappear and come back a poll later.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["vm_machines"] == mock_vm_machines
+
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientCommunicationError("timeout")
+    await coordinator._async_update_data()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
+
+
+async def test_unreachable_resource_is_reprobed_and_recovers(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A resource dropped by a communication error is retried, never permanently disabled."""
+    mock_client.async_get_sensors.side_effect = MOSApiClientCommunicationError("timeout")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.data["sensors"] == []
+    assert "sensors" not in coordinator.forbidden_resources
+
+    await coordinator.async_refresh()
+    assert mock_client.async_get_sensors.call_count == 2
+
+    mock_client.async_get_sensors.side_effect = None
+    await coordinator.async_refresh()
+    assert coordinator.data["sensors"] != []
+
+
+async def test_communication_error_on_optional_resource_never_triggers_reauth(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    advance_auth_clock: Callable[[float], None],
+) -> None:
+    """A permanently broken optional endpoint must never escalate to a reauth prompt."""
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientCommunicationError("timeout")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    for _ in range(AUTH_FAILURE_MIN_FAILURES + 2):
+        await coordinator._async_update_data()
+        advance_auth_clock(AUTH_FAILURE_GRACE_PERIOD.total_seconds() + 1)
+
+    assert coordinator._auth_failure_streak is None
 
 
 async def test_denied_resource_is_dropped_without_failing_the_poll(

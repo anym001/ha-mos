@@ -111,9 +111,11 @@ AUTH_FAILURE_MIN_FAILURES = 3
 # which would restart the grace period on every retry and never escalate.
 AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 
-# Resources fetched on every poll regardless of the options flow. A 403 on one of
-# these is fatal for the update - there is nothing meaningful left to show - so it
-# surfaces as UpdateFailed rather than silently dropping the resource.
+# Resources fetched on every poll regardless of the options flow. A failure on one
+# of these - denied (403), rate limited (429) or unreachable - is fatal for the
+# update, since there is nothing meaningful left to show, so it surfaces as
+# UpdateFailed rather than silently dropping the resource. Every other resource
+# only fails for itself and keeps its last-known-good data.
 ALWAYS_FETCHED_RESOURCES = frozenset({"osinfo", "system_load"})
 
 # Maps a coordinator data key to the resource name MOS uses in a token's

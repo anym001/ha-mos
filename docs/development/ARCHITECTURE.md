@@ -68,8 +68,10 @@ updates to all entities. It is organized as a package with separate modules for 
 - Configurable update interval (default: 5 minutes)
 - Shared data access for all entities
 - Automatic retry on transient failures
-- Per-resource failure handling: transient 401/403/429 keep last-known-good
-  data instead of tearing down entities
+- Per-resource failure handling: a transient 403, 429 or communication error on
+  an optional resource keeps last-known-good data instead of tearing down
+  entities, while the rest of the poll is applied normally. A rejected token
+  (401) or a failure on an always-fetched resource still fails the whole cycle
 - Data validation and transformation before distribution
 
 **Key class:** `MOSDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
