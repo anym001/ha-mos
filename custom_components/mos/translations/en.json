@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "description": "Enter the connection details for your MOS server. Create an API token in the MOS web UI under User Settings → Admin API Tokens. If you need help, have a look at the [documentation]({documentation_url}).",
+        "description": "Enter the connection details for your MOS server. Create an API token in the MOS web UI. If you need help, have a look at the [documentation]({documentation_url}).",
         "data": {
           "name": "Name",
           "host": "Host",
@@ -34,9 +34,9 @@
       }
     },
     "error": {
-      "auth": "The API token was rejected.",
-      "connection": "Unable to connect to the server.",
-      "permission": "The API token is valid but not authorized to read system information. Grant it read access in the MOS web UI under User Settings > Admin API Tokens.",
+      "auth": "The API token was rejected by {host}. Double-check that this is the correct host/IP for your MOS server and that you copied the full token correctly.",
+      "connection": "Unable to connect to {host}. Double-check the host/IP, port and HTTPS settings.",
+      "permission": "The API token is valid but not authorized to read system information. Grant it read access to this resource in the MOS web UI.",
       "unknown": "Unknown error occurred."
     },
     "abort": {
@@ -105,7 +105,7 @@
       "message": "The configured API token does not have write access to {resource}."
     },
     "insufficient_read_permission": {
-      "message": "The configured API token does not have read access to {resource}, which this integration always needs. Grant it read access in the MOS web UI under User Settings > Admin API Tokens."
+      "message": "The configured API token does not have read access to {resource}, which this integration always needs. Grant it read access to this resource in the MOS web UI."
     }
   },
   "entity": {
