@@ -1,24 +1,26 @@
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Monthly on purpose: this is a solo project and weekly updates produce more
+# review churn than they are worth. The monthly cadence also lets fresh
+# releases settle on its own, which is why no cooldown windows are configured.
+#
+# This file is listed in .templatesyncignore — the blueprint's own schedule
+# must not overwrite this decision again (it did once, in #21).
 version: 2
 updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     commit-message:
       prefix: "chore(deps)"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     commit-message:
       prefix: "chore(deps)"
-    # Let new action versions settle for 7 days before opening a PR (same as HA Core)
-    cooldown:
-      default-days: 7
     groups:
       # Bundle all minor/patch action updates into a single PR; major updates stay separate
       github-actions:
@@ -30,8 +32,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     commit-message:
       prefix: "chore(deps)"
     ignore:
@@ -42,10 +43,6 @@ updates:
       # pytest-homeassistant-custom-component releases track Home Assistant closely.
       # Keep this pinned and bump it manually together with hacs.json "homeassistant".
       - dependency-name: "pytest-homeassistant-custom-component"
-    # Let patch releases settle 3 days, minor releases 7 days before opening a PR
-    cooldown:
-      semver-patch-days: 3
-      semver-minor-days: 7
     groups:
       # Bundle all minor/patch Python dep updates into a single PR; major updates stay separate.
       # pytest-homeassistant-custom-component is intentionally excluded and ignored above,
@@ -57,3 +54,20 @@ updates:
           - patch
         exclude-patterns:
           - "pytest-homeassistant-custom-component"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Bundle all minor/patch Node tooling updates into a single PR. Major updates
+      # stay separate on purpose: they tend to raise the minimum Node version
+      # (commitlint 21 and markdownlint-cli2 already require Node >= 22 / >= 20),
+      # which needs a deliberate look at the devcontainer rather than an auto-merge.
+      node-dependencies:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

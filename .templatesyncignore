@@ -92,6 +92,13 @@ schemas/yaml/services_schema.yaml
 .github/FUNDING.yml
 .github/COPILOT_CODING_AGENT.md
 
+# Dependabot cadence and grouping are a maintainer policy, not blueprint
+# tooling: how much update churn a solo project wants is a local decision.
+# A sync already reverted the deliberate weekly -> monthly switch once (#21
+# undid 7ace89c one day later), so this file is owned here from now on.
+# Trade-off: new ecosystems the blueprint adds must be copied over by hand.
+.github/dependabot.yml
+
 # ── Script and DevContainer hooks ────────────────────────────
 # Your custom pre/post hooks live here — never overwritten by template sync
 script/hooks/
