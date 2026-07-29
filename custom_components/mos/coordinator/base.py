@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 import time
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import (
@@ -43,12 +44,16 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_VM,
     LOGGER,
     READ_PERMISSION_RESOURCES,
+    RESOURCE_STALE_GRACE_PERIOD,
+    RESOURCE_STALE_MIN_FAILURES,
 )
 from custom_components.mos.entity_utils import has_read_access, has_write_access
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from custom_components.mos.data import MOSConfigEntry
 
 
@@ -61,6 +66,27 @@ class _AuthFailureStreak:
     elapsed-time half (AUTH_FAILURE_GRACE_PERIOD) and `failures` for the
     observation-count half (AUTH_FAILURE_MIN_FAILURES). See the commentary on
     those constants for why neither is sufficient alone.
+    """
+
+    started_at: float
+    failures: int = 0
+
+
+@dataclass
+class _DegradedResource:
+    """
+    An unbroken run of polls in which one optional resource failed transiently.
+
+    Mirrors ``_AuthFailureStreak``: ``started_at`` feeds the elapsed-time half of
+    the staleness guard (RESOURCE_STALE_GRACE_PERIOD) and ``failures`` the
+    observation-count half (RESOURCE_STALE_MIN_FAILURES). Both must be satisfied
+    before the resource's entities stop reporting as available - see the
+    commentary on those constants.
+
+    Unlike the auth streak this lives on the coordinator instance rather than in
+    ``hass.data``. The auth streak has to survive a failed setup being retried
+    with a fresh coordinator; a degraded *optional* resource never fails setup,
+    so there is no retry loop that could keep resetting the timer.
     """
 
     started_at: float
@@ -191,12 +217,44 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     forbidden_resources: frozenset[str] = frozenset()
 
     # Resources whose last poll failed transiently (403 on a scope-allowed
-    # resource, or a 429 rate limit) and are currently being served from
-    # last-known-good data. Used only to throttle logging - warn once when a
-    # resource starts failing, stay quiet while it keeps failing, note when it
-    # recovers - so a persistently flaky server does not flood the log every
-    # poll. Rebound rather than mutated, for the same reason as above.
-    _degraded_resources: frozenset[str] = frozenset()
+    # resource, a 429 rate limit, or a communication error) and are currently
+    # being served from last-known-good data, mapped to how long and how often
+    # they have been failing.
+    #
+    # Serves two purposes. It throttles logging - warn once when a resource
+    # starts failing, stay quiet while it keeps failing, note when it recovers -
+    # so a persistently flaky server does not flood the log every poll. And it
+    # feeds ``stale_resources``, which caps how long last-known-good data may go
+    # on being presented as current.
+    #
+    # The class default is a read-only mapping so the shared-mutable-class-
+    # attribute mistake cannot happen: it is rebound with a fresh dict on every
+    # poll, never mutated in place (same reasoning as ``forbidden_resources``
+    # above, which uses frozenset for it).
+    _degraded_resources: Mapping[str, _DegradedResource] = MappingProxyType({})
+
+    # Resources that have been failing long enough to count as stale, recomputed
+    # once per poll from ``_degraded_resources``. Entities backed by one of these
+    # report themselves unavailable rather than serving frozen values as if they
+    # were current (see ``MOSEntity.available``).
+    #
+    # Deliberately a stored snapshot rather than a property that re-evaluates the
+    # clock on every read: entity availability must only ever change as a result
+    # of a poll, so that a transition is always paired with a listener
+    # notification. A time-based property could flip silently between two polls
+    # and leave entities rendering the opposite of what the coordinator thinks.
+    _stale_resources: frozenset[str] = frozenset()
+
+    @property
+    def stale_resources(self) -> frozenset[str]:
+        """
+        Resources whose retained data has gone stale and must not be shown as current.
+
+        Empty on a healthy server. Never contains an always-fetched resource: a
+        failure on those takes the whole poll down (``UpdateFailed``) long before
+        any per-resource bookkeeping happens.
+        """
+        return self._stale_resources
 
     @property
     def _auth_failure_streak(self) -> _AuthFailureStreak | None:
@@ -539,7 +597,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._raise_if_required_resource_failed(outcome)
 
         transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES
-        self._log_transient_resource_failures(outcome, transient)
+        self._track_degraded_resources(outcome, transient)
         return transient
 
     def _raise_if_required_resource_failed(self, outcome: _UpdateOutcome) -> None:
@@ -577,14 +635,96 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_key="update_failed",
             ) from exception
 
-    def _log_transient_resource_failures(self, outcome: _UpdateOutcome, transient: set[str]) -> None:
+    def _track_degraded_resources(self, outcome: _UpdateOutcome, transient: set[str]) -> None:
+        """
+        Update the per-resource failure streaks for this poll, then log and re-evaluate staleness.
+
+        A resource that failed again keeps its existing ``started_at`` and has its
+        failure count incremented; one that failed for the first time starts a
+        fresh streak; one that answered again is dropped entirely, so recovery
+        resets both halves of the guard. The mapping is rebuilt rather than
+        mutated - see the note on ``_degraded_resources``.
+        """
+        previous = self._degraded_resources
+        now = time.monotonic()
+        current: dict[str, _DegradedResource] = {}
+        for key in transient:
+            streak = previous.get(key)
+            current[key] = _DegradedResource(
+                started_at=streak.started_at if streak else now,
+                failures=(streak.failures if streak else 0) + 1,
+            )
+
+        self._log_transient_resource_failures(outcome, transient, frozenset(previous))
+        self._degraded_resources = current
+        self._update_stale_resources(now)
+
+    def _update_stale_resources(self, now: float) -> None:
+        """
+        Recompute which resources have been failing long enough to stop counting as current.
+
+        Only resources that have satisfied *both* halves of the guard qualify.
+        Always-fetched resources are subtracted as a fail-safe: they can never
+        get this far (a failure on one raises ``UpdateFailed`` before any
+        per-resource bookkeeping), and the integration must never end up with
+        every entity unavailable because of a bookkeeping bug here.
+
+        When the set changes, listeners are notified explicitly. This is not
+        redundant with Home Assistant's own notification: the coordinator runs
+        with ``always_update=False``, so ``DataUpdateCoordinator._async_refresh``
+        only notifies when ``previous_data != self.data`` - and a stale resource's
+        data is retained *unchanged* by definition. A poll in which nothing else
+        happened to change would therefore leave entities rendering the old
+        availability, which is exactly the frozen-but-looks-live state this whole
+        mechanism exists to prevent. ``call_soon`` defers the notification past
+        the running refresh, which assigns ``self.data`` only after
+        ``_async_update_data`` returns.
+        """
+        grace_period = RESOURCE_STALE_GRACE_PERIOD.total_seconds()
+        stale = (
+            frozenset(
+                key
+                for key, degraded in self._degraded_resources.items()
+                if degraded.failures >= RESOURCE_STALE_MIN_FAILURES and now - degraded.started_at >= grace_period
+            )
+            - ALWAYS_FETCHED_RESOURCES
+        )
+        if stale == self._stale_resources:
+            return
+
+        newly_stale = sorted(stale - self._stale_resources)
+        if newly_stale:
+            LOGGER.error(
+                "%s has been failing for over %d minutes - its entities are now marked unavailable rather than "
+                "continuing to report data that stopped updating then. They recover automatically as soon as the "
+                "server answers again; no reload needed",
+                ", ".join(newly_stale),
+                RESOURCE_STALE_GRACE_PERIOD.total_seconds() // 60,
+            )
+
+        self._stale_resources = stale
+        self.hass.loop.call_soon(self.async_update_listeners)
+
+    def _log_transient_resource_failures(
+        self,
+        outcome: _UpdateOutcome,
+        transient: set[str],
+        degraded: frozenset[str],
+    ) -> None:
         """
         Log transient per-resource failures once, without flooding on a persistently flaky server.
 
         Warns the first time a resource starts failing, stays quiet (debug) while
         it keeps failing, and notes when a previously failing resource recovers.
+
+        Args:
+            outcome: This poll's results, for the per-category error details.
+            transient: Resources that failed transiently this poll.
+            degraded: Resources that were already failing before this poll, used
+                to tell a new failure from a continuing one.
+
         """
-        newly = transient - self._degraded_resources
+        newly = transient - degraded
         newly_denied = sorted(newly & set(outcome.permission_errors))
         newly_limited = sorted(newly & set(outcome.rate_limit_errors))
         newly_unreachable = sorted(newly & set(outcome.communication_errors))
@@ -610,15 +750,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 ", ".join(newly_limited),
             )
 
-        still_failing = sorted(transient & self._degraded_resources)
+        still_failing = sorted(transient & degraded)
         if still_failing:
             LOGGER.debug("Still serving last-known state for %s (transient failure)", ", ".join(still_failing))
 
-        recovered = sorted(self._degraded_resources - transient)
+        recovered = sorted(degraded - transient)
         if recovered:
             LOGGER.info("%s recovered after a transient failure - fresh data again", ", ".join(recovered))
-
-        self._degraded_resources = frozenset(transient)
 
     def _retain_last_known_good(self, data: dict[str, Any], transient: set[str]) -> None:
         """

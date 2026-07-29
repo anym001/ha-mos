@@ -111,6 +111,57 @@ AUTH_FAILURE_MIN_FAILURES = 3
 # which would restart the grace period on every retry and never escalate.
 AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 
+# How long an optional resource may fail *continuously* before its entities stop
+# claiming to be available and go "unavailable" instead.
+#
+# A transient 403/429/communication error on an optional resource keeps its
+# last-known-good data (see ``_retain_last_known_good``), which is exactly right
+# for a passing hiccup: entities keep their values instead of being torn down
+# over a momentary blip. But the retention has no natural end. Left uncapped, an
+# endpoint that is gone for good - removed from the MOS API, permanently broken,
+# a container runtime that never comes back - would serve the same frozen values
+# forever, and the user has no way to tell a live reading from a stale one. A
+# temperature that stopped updating three days ago still looks like a
+# measurement, and automations keep acting on it.
+#
+# Past this threshold the data is kept but no longer presented as current: the
+# entities report ``available = False``. Deliberately *not* dropped - removing
+# them would delete their registry entries along with the recorder history,
+# custom names and icons, and break every automation referencing the entity_id
+# (see ``_async_remove_entities``). "Unavailable" is recoverable and honest;
+# removal is neither.
+#
+# Fifteen minutes is long enough that no realistic transient - a server reboot,
+# a container runtime restart, a burst of rate limiting - reaches it, and short
+# enough that a genuinely dead endpoint is visible well within an hour.
+RESOURCE_STALE_GRACE_PERIOD = timedelta(minutes=15)
+
+# How many consecutive polls must have failed before a resource counts as stale,
+# on top of RESOURCE_STALE_GRACE_PERIOD having elapsed.
+#
+# Same two-part guard as AUTH_FAILURE_*, and for the same reason: at a 3600 s
+# interval the duration alone would collapse to "two unlucky polls in a row",
+# while a count alone would mean 90 s at the 30 s default - far too eager.
+#
+# Which half binds flips at a 450 s interval:
+#
+#     30 s interval   -> grace period binds: stale after 15 min (30 polls)
+#     300 s interval  -> grace period binds: stale after 15 min (4 polls)
+#     3600 s interval -> failure count binds: stale after 2 h (3 polls)
+#
+# That the threshold stretches at long intervals is intended, not a side effect.
+# Someone polling hourly never has data fresher than an hour, so "stale" has to
+# be defined more generously for them; holding them to a flat 15 minutes would
+# mean two unlucky polls could take a resource down.
+#
+# The count also guards against a case the duration cannot see. During a
+# server-wide outage the poll fails before per-resource classification is
+# reached, so the elapsed timer keeps running while nothing is being observed.
+# Requiring failures to have been *counted* means an outage cannot age a
+# resource into staleness behind the coordinator's back; the streak has to be
+# re-observed after the server is answering again.
+RESOURCE_STALE_MIN_FAILURES = 3
+
 # Resources fetched on every poll regardless of the options flow. A failure on one
 # of these - denied (403), rate limited (429) or unreachable - is fatal for the
 # update, since there is nothing meaningful left to show, so it surfaces as
