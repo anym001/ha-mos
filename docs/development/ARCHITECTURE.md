@@ -72,6 +72,14 @@ updates to all entities. It is organized as a package with separate modules for 
   an optional resource keeps last-known-good data instead of tearing down
   entities, while the rest of the poll is applied normally. A rejected token
   (401) or a failure on an always-fetched resource still fails the whole cycle
+- A cap on that retention: once a resource has been failing for both
+  `RESOURCE_STALE_GRACE_PERIOD` and `RESOURCE_STALE_MIN_FAILURES`, it is listed
+  in `stale_resources` and the entities backed by it report themselves
+  unavailable (`MOSEntity.available`). The data is still retained, so nothing is
+  removed from the registry and recovery needs no reload. Because the
+  coordinator runs with `always_update=False`, a change to that set explicitly
+  notifies listeners - a stale resource's data is unchanged by definition, so
+  Home Assistant's own change comparison would otherwise suppress the update
 - Data validation and transformation before distribution
 
 **Key class:** `MOSDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
