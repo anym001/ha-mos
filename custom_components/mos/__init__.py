@@ -87,6 +87,8 @@ async def async_setup_entry(
     For more information:
     https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
     """
+    LOGGER.debug("Setting up MOS config entry %s for host %s", entry.entry_id, entry.data[CONF_HOST])
+
     # Initialize client first
     client = MOSApiClient(
         host=entry.data[CONF_HOST],
@@ -160,6 +162,7 @@ async def async_unload_entry(
     # a removed entry would leave its timestamp behind.
     hass.data.get(AUTH_FAILURE_STORE, {}).pop(entry.entry_id, None)
 
+    LOGGER.debug("Unloading MOS config entry %s", entry.entry_id)
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
@@ -180,4 +183,5 @@ async def async_reload_entry(
     For more information:
     https://developers.home-assistant.io/docs/config_entries_index/#reloading-entries
     """
+    LOGGER.debug("Reloading MOS config entry %s", entry.entry_id)
     await hass.config_entries.async_reload(entry.entry_id)

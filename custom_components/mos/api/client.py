@@ -30,6 +30,7 @@ from custom_components.mos.const import (
     DEFAULT_PORT_HTTP,
     DEFAULT_PORT_HTTPS,
     DEFAULT_TIMEOUT,
+    LOGGER,
 )
 
 
@@ -684,6 +685,12 @@ class MOSApiClient:
                 msg,
             ) from exception
         except Exception as exception:
+            # Anything reaching this branch is not a recognized HTTP/transport
+            # failure - i.e. a bug rather than a server hiccup - so the traceback
+            # is logged here, where the except block still has it. Every caller
+            # further up only sees the resulting MOSApiClientError, which loses
+            # the stack trace on `str(exception)` alone.
+            LOGGER.exception("Unexpected error performing %s on %s", method, resource)
             msg = f"Something really wrong happened! - {exception}"
             raise MOSApiClientError(
                 msg,

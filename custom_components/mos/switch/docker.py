@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientError
+from custom_components.mos.const import LOGGER
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.exceptions import HomeAssistantError
@@ -82,6 +83,7 @@ class MOSDockerContainerSwitch(SwitchEntity, MOSEntity):
         try:
             await self.coordinator.async_start_docker_container(self._container_name)
         except MOSApiClientError as exception:
+            LOGGER.warning("Failed to start Docker container %s: %s", self._container_name, exception)
             raise HomeAssistantError(
                 translation_domain="mos",
                 translation_key="docker_start_failed",
@@ -93,6 +95,7 @@ class MOSDockerContainerSwitch(SwitchEntity, MOSEntity):
         try:
             await self.coordinator.async_stop_docker_container(self._container_name)
         except MOSApiClientError as exception:
+            LOGGER.warning("Failed to stop Docker container %s: %s", self._container_name, exception)
             raise HomeAssistantError(
                 translation_domain="mos",
                 translation_key="docker_stop_failed",

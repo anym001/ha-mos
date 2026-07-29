@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientError
+from custom_components.mos.const import LOGGER
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.exceptions import HomeAssistantError
@@ -72,6 +73,7 @@ class MOSLxcContainerSwitch(SwitchEntity, MOSEntity):
         try:
             await self.coordinator.async_start_lxc_container(self._container_name)
         except MOSApiClientError as exception:
+            LOGGER.warning("Failed to start LXC container %s: %s", self._container_name, exception)
             raise HomeAssistantError(
                 translation_domain="mos",
                 translation_key="lxc_start_failed",
@@ -83,6 +85,7 @@ class MOSLxcContainerSwitch(SwitchEntity, MOSEntity):
         try:
             await self.coordinator.async_stop_lxc_container(self._container_name)
         except MOSApiClientError as exception:
+            LOGGER.warning("Failed to stop LXC container %s: %s", self._container_name, exception)
             raise HomeAssistantError(
                 translation_domain="mos",
                 translation_key="lxc_stop_failed",
