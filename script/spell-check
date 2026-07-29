@@ -29,8 +29,11 @@ codespell \
     --skip="./.*,*.csv,*.json,*.ambr,uv.lock" \
     --quiet-level=2 \
     custom_components/ \
-    README.md \
+    AGENTS.md \
+    CLAUDE.md \
     CONTRIBUTING.md \
+    README.md \
+    docs/ \
     script/ \
     tests/
 
