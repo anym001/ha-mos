@@ -34,12 +34,15 @@ Disks, pools, containers and VMs appear and disappear automatically as they chan
 
 ## Installation
 
-The integration is not in the HACS default store yet, so add it as a custom repository:
+The integration is not in the HACS default store yet, so HACS has to be pointed at this repository:
 
-1. In HACS: **⋮** → **Custom repositories** → add `https://github.com/anym001/ha-mos` as an **Integration**
-2. Find **MOS NAS** in HACS and click **Download**
-3. **Restart Home Assistant**
-4. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS NAS"
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][hacs-repo-badge]][hacs-repo-link]
+
+1. Open the repository with the button above and click **Download** — or add it by hand in HACS: **⋮** → **Custom repositories** → `https://github.com/anym001/ha-mos` as an **Integration**, then find **MOS NAS** and download it
+2. **Restart Home Assistant**
+3. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS NAS", or use this button:
+
+[![Open your Home Assistant instance and start setting up a new integration.][config-flow-badge]][config-flow-link]
 
 To install without HACS, copy `custom_components/mos/` into your Home Assistant `custom_components/` directory and restart.
 
@@ -110,6 +113,10 @@ Maintained by [@anym001][user_profile].
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/anym001/ha-mos.svg?style=for-the-badge
 [commits]: https://github.com/anym001/ha-mos/commits/main
+[config-flow-badge]: https://my.home-assistant.io/badges/config_flow_start.svg
+[config-flow-link]: https://my.home-assistant.io/redirect/config_flow_start/?domain=mos
+[hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
+[hacs-repo-link]: https://my.home-assistant.io/redirect/hacs_repository/?owner=anym001&repository=ha-mos&category=integration
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos.svg?style=for-the-badge
