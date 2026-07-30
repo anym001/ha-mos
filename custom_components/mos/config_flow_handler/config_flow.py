@@ -232,9 +232,19 @@ class MOSConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             The error key for display in the config flow form.
 
         """
-        LOGGER.warning("Error in config flow: %s", exception)
         exception_name = type(exception).__name__
-        return ERROR_MAP.get(exception_name, "unknown")
+        error_key = ERROR_MAP.get(exception_name)
+        if error_key is None:
+            # An exception type we don't recognize is potentially a bug rather
+            # than an expected "user mistyped the host/token" case, so it gets
+            # visibility at warning level.
+            LOGGER.warning("Unexpected error in config flow: %s", exception)
+            return "unknown"
+        # Wrong host/token/permission during setup is a routine user mistake,
+        # already surfaced to them via the form's error message - logging it at
+        # warning level would just be noise in the system log.
+        LOGGER.debug("Config flow validation failed (%s): %s", error_key, exception)
+        return error_key
 
 
 __all__ = ["MOSConfigFlowHandler"]

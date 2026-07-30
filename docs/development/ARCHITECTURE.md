@@ -11,8 +11,7 @@ custom_components/mos/
 ├── const.py                 # Constants and configuration keys
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
-│   ├── base.py              # Main coordinator class
-│   └── data_processing.py   # Data validation and transformation
+│   └── base.py              # Main coordinator class
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── manifest.json            # Integration metadata
@@ -61,7 +60,6 @@ updates to all entities. It is organized as a package with separate modules for 
 **Package structure:**
 
 - `base.py` - Main coordinator class (`MOSDataUpdateCoordinator`)
-- `data_processing.py` - Data validation, transformation, and caching utilities
 
 **Core functionality:**
 
@@ -80,7 +78,6 @@ updates to all entities. It is organized as a package with separate modules for 
   coordinator runs with `always_update=False`, a change to that set explicitly
   notifies listeners - a stale resource's data is unchanged by definition, so
   Home Assistant's own change comparison would otherwise suppress the update
-- Data validation and transformation before distribution
 
 **Key class:** `MOSDataUpdateCoordinator` (exported from `coordinator/__init__.py`)
 
