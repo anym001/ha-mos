@@ -1,0 +1,320 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Gib die Verbindungsdaten für deinen MOS-Server ein. Erstelle ein API-Token in der MOS-Web-UI. Falls du Hilfe brauchst, wirf einen Blick in die [Dokumentation]({documentation_url}).",
+        "data": {
+          "name": "Name",
+          "host": "Host",
+          "api_token": "API-Token",
+          "port": "Port",
+          "ssl": "HTTPS verwenden",
+          "verify_ssl": "TLS-Zertifikat überprüfen"
+        },
+        "data_description": {
+          "name": "Ein frei wählbarer Name für diesen MOS-Server. Dient als stabile Identität des Eintrags, unabhängig vom Host."
+        }
+      },
+      "reconfigure": {
+        "description": "Aktualisiere die Verbindungsdaten für diesen MOS-Server.",
+        "data": {
+          "host": "Host",
+          "api_token": "API-Token",
+          "port": "Port",
+          "ssl": "HTTPS verwenden",
+          "verify_ssl": "TLS-Zertifikat überprüfen"
+        }
+      },
+      "reauth_confirm": {
+        "title": "MOS NAS erneut authentifizieren",
+        "description": "Das API-Token für {host} ist nicht mehr gültig. Gib ein neues Token ein, um den Zugriff wiederherzustellen.",
+        "data": {
+          "api_token": "API-Token"
+        }
+      }
+    },
+    "error": {
+      "auth": "Das API-Token wurde von {host} abgelehnt. Prüfe, ob dies der richtige Host bzw. die richtige IP für deinen MOS-Server ist und ob du das vollständige Token korrekt kopiert hast.",
+      "connection": "Verbindung zu {host} nicht möglich. Prüfe Host/IP, Port und die HTTPS-Einstellungen.",
+      "permission": "Das API-Token ist gültig, hat aber keine Berechtigung, Systeminformationen zu lesen. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource.",
+      "unknown": "Unbekannter Fehler aufgetreten."
+    },
+    "abort": {
+      "already_configured": "Dieser MOS-Server ist bereits konfiguriert.",
+      "reauth_successful": "Die erneute Authentifizierung war erfolgreich.",
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MOS NAS Optionen",
+        "description": "Passe an, wie diese Integration arbeitet.",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)",
+          "enable_disks": "Festplatten aktivieren",
+          "enable_pools": "Speicherpools aktivieren",
+          "enable_services": "Dienste aktivieren",
+          "enable_lxc": "LXC-Container aktivieren",
+          "enable_docker": "Docker-Container aktivieren",
+          "enable_vm": "VMs aktivieren",
+          "enable_sensors": "Hardware-Sensoren aktivieren"
+        },
+        "data_description": {
+          "scan_interval": "Wie oft die MOS-API abgefragt wird (30 bis 3600 Sekunden).",
+          "enable_disks": "Entitäten für physische Festplatten anlegen.",
+          "enable_pools": "Entitäten für Speicherpools anlegen.",
+          "enable_services": "Entitäten für Systemdienste anlegen (Docker, VM, SSH, ...).",
+          "enable_lxc": "Entitäten für jeden LXC-Container anlegen.",
+          "enable_docker": "Entitäten für jeden Docker-Container anlegen.",
+          "enable_vm": "Entitäten für jede VM anlegen.",
+          "enable_sensors": "Entitäten für Hardware-Messwerte anlegen (Lüfter, Temperaturen, Spannungen, ...)."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "authentication_failed": {
+      "message": "Authentifizierung während der Datenaktualisierung fehlgeschlagen."
+    },
+    "authentication_failed_transient": {
+      "message": "Der Server hat das API-Token abgelehnt, das kann aber vorübergehend sein (z. B. weil der Server neu startet). Es wird erneut versucht, bevor eine erneute Authentifizierung nötig wird."
+    },
+    "update_failed": {
+      "message": "Aktualisierung der Daten vom Server fehlgeschlagen."
+    },
+    "lxc_start_failed": {
+      "message": "Start des LXC-Containers {name} fehlgeschlagen."
+    },
+    "lxc_stop_failed": {
+      "message": "Stopp des LXC-Containers {name} fehlgeschlagen."
+    },
+    "docker_start_failed": {
+      "message": "Start des Docker-Containers {name} fehlgeschlagen."
+    },
+    "docker_stop_failed": {
+      "message": "Stopp des Docker-Containers {name} fehlgeschlagen."
+    },
+    "vm_start_failed": {
+      "message": "Start der VM {name} fehlgeschlagen."
+    },
+    "vm_stop_failed": {
+      "message": "Stopp der VM {name} fehlgeschlagen."
+    },
+    "insufficient_write_permission": {
+      "message": "Das konfigurierte API-Token hat keinen Schreibzugriff auf {resource}."
+    },
+    "insufficient_read_permission": {
+      "message": "Das konfigurierte API-Token hat keinen Lesezugriff auf {resource}, den diese Integration immer benötigt. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "boot_time": {
+        "name": "Startzeit"
+      },
+      "mos_version": {
+        "name": "MOS-Version"
+      },
+      "mos_channel": {
+        "name": "Update-Kanal"
+      },
+      "mos_build": {
+        "name": "MOS-Build"
+      },
+      "mos_api": {
+        "name": "API-Version"
+      },
+      "mos_frontend": {
+        "name": "Frontend-Version"
+      },
+      "running_kernel": {
+        "name": "Laufender Kernel"
+      },
+      "recommended_kernel": {
+        "name": "Empfohlener Kernel"
+      },
+      "arch": {
+        "name": "Architektur"
+      },
+      "cpu_brand": {
+        "name": "CPU"
+      },
+      "base_os": {
+        "name": "Basis-Betriebssystem"
+      },
+      "pool_usage": {
+        "name": "Auslastung"
+      },
+      "pool_free_space": {
+        "name": "Freier Speicherplatz"
+      },
+      "pool_total_space": {
+        "name": "Gesamtspeicher"
+      },
+      "pool_used_space": {
+        "name": "Belegter Speicherplatz"
+      },
+      "pool_type": {
+        "name": "Typ"
+      },
+      "disk_power_status": {
+        "name": "Energiestatus"
+      },
+      "disk_temperature": {
+        "name": "Temperatur"
+      },
+      "disk_model": {
+        "name": "Modell"
+      },
+      "disk_size": {
+        "name": "Größe"
+      },
+      "disk_type": {
+        "name": "Typ"
+      },
+      "cpu_load": {
+        "name": "CPU-Auslastung"
+      },
+      "cpu_temperature": {
+        "name": "CPU-Temperatur"
+      },
+      "cpu_temperature_max": {
+        "name": "CPU-Temperatur Maximum"
+      },
+      "cpu_temperature_average": {
+        "name": "CPU-Temperatur Durchschnitt"
+      },
+      "memory_usage": {
+        "name": "Speicherauslastung"
+      },
+      "memory_used": {
+        "name": "Belegter Speicher"
+      },
+      "memory_total": {
+        "name": "Speicher gesamt"
+      },
+      "memory_free": {
+        "name": "Freier Speicher"
+      },
+      "memory_installed": {
+        "name": "Installierter Speicher"
+      },
+      "memory_reserved": {
+        "name": "Reservierter Speicher"
+      },
+      "memory_cache": {
+        "name": "Speicher-Cache"
+      },
+      "memory_docker": {
+        "name": "Speicher Docker"
+      },
+      "memory_system": {
+        "name": "Speicher System"
+      },
+      "memory_lxc": {
+        "name": "Speicher LXC"
+      },
+      "memory_vms": {
+        "name": "Speicher VMs"
+      },
+      "memory_zram": {
+        "name": "Speicher ZRAM"
+      },
+      "swap_usage": {
+        "name": "Swap-Auslastung"
+      },
+      "swap_used": {
+        "name": "Belegter Swap"
+      },
+      "swap_total": {
+        "name": "Swap gesamt"
+      },
+      "swap_free": {
+        "name": "Freier Swap"
+      },
+      "lxc_cpu_usage": {
+        "name": "CPU-Auslastung"
+      },
+      "lxc_memory_usage": {
+        "name": "Speicherauslastung"
+      },
+      "docker_installed_version": {
+        "name": "Installierte Version"
+      },
+      "docker_latest_version": {
+        "name": "Neueste Version"
+      },
+      "vm_cpu_usage": {
+        "name": "CPU-Auslastung"
+      },
+      "vm_memory_usage": {
+        "name": "Speicherauslastung"
+      }
+    },
+    "binary_sensor": {
+      "docker_running": {
+        "name": "Docker läuft"
+      },
+      "vm_running": {
+        "name": "VM läuft"
+      },
+      "ssh_enabled": {
+        "name": "SSH aktiviert"
+      },
+      "samba_enabled": {
+        "name": "Samba aktiviert"
+      },
+      "nfs_enabled": {
+        "name": "NFS aktiviert"
+      },
+      "tailscale_online": {
+        "name": "Tailscale online"
+      },
+      "netbird_online": {
+        "name": "Netbird online"
+      },
+      "pool_problem": {
+        "name": "Problem"
+      },
+      "pool_scrub_running": {
+        "name": "Scrub läuft"
+      },
+      "pool_balance_running": {
+        "name": "Balance läuft"
+      },
+      "pool_parity_running": {
+        "name": "Parity läuft"
+      },
+      "disk_smart_warning": {
+        "name": "SMART-Warnung"
+      },
+      "disk_preclear_running": {
+        "name": "Preclear läuft"
+      },
+      "lxc_autostart": {
+        "name": "Autostart"
+      },
+      "docker_update_available": {
+        "name": "Update verfügbar"
+      },
+      "docker_autostart": {
+        "name": "Autostart"
+      },
+      "vm_autostart": {
+        "name": "Autostart"
+      }
+    },
+    "switch": {
+      "lxc_power": {
+        "name": "Ein/Aus"
+      },
+      "docker_power": {
+        "name": "Ein/Aus"
+      },
+      "vm_power": {
+        "name": "Ein/Aus"
+      }
+    }
+  }
+}
