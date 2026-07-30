@@ -24,11 +24,11 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 - **Token permissions respected** — every write action checks your API token's scope first, and for custom-scoped tokens, entities are only created for categories the token can actually read
 - **Selective categories** — turn disks, pools, services, LXC, Docker, VMs or hardware sensors off entirely
 
-| Platform        | Entities                                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `sensor`        | System info and health, pool usage/space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors |
-| `binary_sensor` | Service status, pool health and maintenance operations, disk SMART, container/VM state                                 |
-| `switch`        | LXC container, Docker container and VM power                                                                           |
+Entities are spread across three platforms:
+
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors
+- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state
+- **`switch`** — LXC container, Docker container and VM power
 
 Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes.
 
@@ -45,14 +45,11 @@ To install without HACS, copy `custom_components/mos/` into your Home Assistant 
 
 ### What setup asks for
 
-| Field                      | Required | Default             |
-| -------------------------- | -------- | ------------------- |
-| **Name**                   | yes      | –                   |
-| **Host**                   | yes      | –                   |
-| **API token**              | yes      | –                   |
-| **Port**                   | no       | 80 (HTTP)/443 (TLS) |
-| **Use HTTPS**              | no       | off                 |
-| **Verify TLS certificate** | no       | on                  |
+Required: **Name**, **Host** and **API token**. Everything else is optional:
+
+- **Port** — 80 (HTTP) or 443 (TLS), depending on the setting below
+- **Use HTTPS** — off by default
+- **Verify TLS certificate** — on by default
 
 The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — read-only is enough for monitoring, starting and stopping needs write access to the respective resource.
 
@@ -62,10 +59,8 @@ Connection details can be changed later via **⋮** → **Reconfigure**, without
 
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
-| Option                                                            | Default | Description                              |
-| ----------------------------------------------------------------- | ------- | ---------------------------------------- |
-| Update interval                                                   | 30s     | How often to poll the MOS API (30–3600s) |
-| Enable disks / pools / services / LXC / Docker / VMs (individual) | On      | Create entities for that category        |
+- **Update interval** — how often to poll the MOS API, between 30 and 3600 seconds; 30 seconds by default
+- **Enable disks / pools / services / LXC / Docker / VMs** — create entities for that category; each can be toggled on its own and all are on by default
 
 System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
 
