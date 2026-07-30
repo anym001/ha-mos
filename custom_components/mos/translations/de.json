@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "description": "Gib die Verbindungsdaten für deinen MOS-Server ein. Erstelle ein API-Token in der MOS-Web-UI. Falls du Hilfe brauchst, wirf einen Blick in die [Dokumentation]({documentation_url}).",
+        "description": "Gib die Verbindungsdaten für deinen MOS-Server ein. Erstelle einen API-Token in der MOS-Web-UI. Falls du Hilfe brauchst, wirf einen Blick in die [Dokumentation]({documentation_url}).",
         "data": {
           "name": "Name",
           "host": "Host",
@@ -27,16 +27,16 @@
       },
       "reauth_confirm": {
         "title": "MOS NAS erneut authentifizieren",
-        "description": "Das API-Token für {host} ist nicht mehr gültig. Gib ein neues Token ein, um den Zugriff wiederherzustellen.",
+        "description": "Der API-Token für {host} ist nicht mehr gültig. Gib einen neuen Token ein, um den Zugriff wiederherzustellen.",
         "data": {
           "api_token": "API-Token"
         }
       }
     },
     "error": {
-      "auth": "Das API-Token wurde von {host} abgelehnt. Prüfe, ob dies der richtige Host bzw. die richtige IP für deinen MOS-Server ist und ob du das vollständige Token korrekt kopiert hast.",
+      "auth": "Der API-Token wurde von {host} abgelehnt. Prüfe, ob dies der richtige Host bzw. die richtige IP für deinen MOS-Server ist und ob du den vollständigen Token korrekt kopiert hast.",
       "connection": "Verbindung zu {host} nicht möglich. Prüfe Host/IP, Port und die HTTPS-Einstellungen.",
-      "permission": "Das API-Token ist gültig, hat aber keine Berechtigung, Systeminformationen zu lesen. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource.",
+      "permission": "Der API-Token ist gültig, hat aber keine Berechtigung, Systeminformationen zu lesen. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource.",
       "unknown": "Unbekannter Fehler aufgetreten."
     },
     "abort": {
@@ -78,7 +78,7 @@
       "message": "Authentifizierung während der Datenaktualisierung fehlgeschlagen."
     },
     "authentication_failed_transient": {
-      "message": "Der Server hat das API-Token abgelehnt, das kann aber vorübergehend sein (z. B. weil der Server neu startet). Es wird erneut versucht, bevor eine erneute Authentifizierung nötig wird."
+      "message": "Der Server hat den API-Token abgelehnt, das kann aber vorübergehend sein (z. B. weil der Server neu startet). Es wird erneut versucht, bevor eine erneute Authentifizierung nötig wird."
     },
     "update_failed": {
       "message": "Aktualisierung der Daten vom Server fehlgeschlagen."
@@ -102,10 +102,10 @@
       "message": "Stopp der VM {name} fehlgeschlagen."
     },
     "insufficient_write_permission": {
-      "message": "Das konfigurierte API-Token hat keinen Schreibzugriff auf {resource}."
+      "message": "Der konfigurierte API-Token hat keinen Schreibzugriff auf {resource}."
     },
     "insufficient_read_permission": {
-      "message": "Das konfigurierte API-Token hat keinen Lesezugriff auf {resource}, den diese Integration immer benötigt. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource."
+      "message": "Der konfigurierte API-Token hat keinen Lesezugriff auf {resource}, den diese Integration immer benötigt. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource."
     }
   },
   "entity": {
