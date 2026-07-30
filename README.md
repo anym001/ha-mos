@@ -21,7 +21,7 @@ MOS **0.5.1-beta** or newer must be installed on the server — earlier versions
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
-- **Token permissions respected** — start and stop honor what your API token is allowed to do
+- **Token permissions respected** — every write action (LXC/Docker/VM start/stop) checks your API token's scope first, and for custom-scoped tokens, entities are only created for categories the token can actually read
 - **Selective categories** — turn disks, pools, services, LXC, Docker, VMs or hardware sensors off entirely
 
 | Platform        | Entities                                                                                                               |
