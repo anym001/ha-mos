@@ -5,19 +5,16 @@
 
 ### Features
 
-* **ci:** enforce conventional commits and repair the hook setup ([789a53d](https://github.com/anym001/ha-mos/commit/789a53d38d45b8c688714e446c8402ef868f0966))
 * **ci:** enforce conventional commits with a commitlint hook ([0557160](https://github.com/anym001/ha-mos/commit/0557160977770c9f8eefe912e091271261a7ab5b))
 * **logging:** improve diagnostics and error visibility ([ac68746](https://github.com/anym001/ha-mos/commit/ac68746450db8f16f6877f381c37daab85155376))
 * **sensor:** add average CPU core temperature ([3cd366d](https://github.com/anym001/ha-mos/commit/3cd366d67bcdd5d1d32438c3d3f03c45dfc353cf))
 * **sensor:** add swap, RAM breakdown and max CPU temperature ([758e0c6](https://github.com/anym001/ha-mos/commit/758e0c6cf49dc2febdc7fb4007a8d8efcb3b8a15))
-* **sensor:** expand system health with swap, RAM breakdown and CPU temperatures ([e2107d7](https://github.com/anym001/ha-mos/commit/e2107d7efe2b812670c88865c1a64d7ae4aef5a4))
 * **translations:** add German translation ([e9392b0](https://github.com/anym001/ha-mos/commit/e9392b0bb9203fc8dec6e0d6ebe1f20346b5df2a))
 
 
 ### Bug Fixes
 
 * **ci:** spell-check AGENTS.md, CLAUDE.md and docs/ ([8a15188](https://github.com/anym001/ha-mos/commit/8a151887b7980cd3530068b7ad91cbac34d0d8ed))
-* **ci:** stop commitlint enforcing undocumented line-length rules ([0b1db77](https://github.com/anym001/ha-mos/commit/0b1db777d60ec2de9a2e69562161c86ab872f90a))
 * **ci:** stop commitlint enforcing undocumented line-length rules ([db8d1db](https://github.com/anym001/ha-mos/commit/db8d1db9efe3ce496559161bfe6b1728669e71c5))
 * **deps:** declare pre-commit and fail bootstrap when hooks are missing ([8b9fc43](https://github.com/anym001/ha-mos/commit/8b9fc4369b8c8963a8791be8a46a58a82b301ddb))
 * **translations:** use masculine article for Token in de.json ([a8e1919](https://github.com/anym001/ha-mos/commit/a8e1919a6899839003b0c6cd417a7d786f025d8c))
