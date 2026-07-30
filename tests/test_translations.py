@@ -81,7 +81,9 @@ def _untranslated_raises(path: Path) -> list[str]:
             continue
         keyword_names = {kw.arg for kw in node.exc.keywords}
         if not {"translation_domain", "translation_key"} <= keyword_names:
-            problems.append(f"{path.relative_to(INTEGRATION_PATH.parent)}:{node.lineno}: {name}(...) is missing translation_domain/translation_key")
+            problems.append(
+                f"{path.relative_to(INTEGRATION_PATH.parent)}:{node.lineno}: {name}(...) is missing translation_domain/translation_key"
+            )
     return problems
 
 
