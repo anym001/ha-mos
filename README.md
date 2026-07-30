@@ -9,9 +9,10 @@
 
 Home Assistant integration for a [MOS](https://mos-official.net/) server: monitors the system, its storage, containers and VMs — and lets you start and stop them.
 
-## Requirements
+## Prerequisites
 
-MOS **0.5.1-beta** or newer must be installed on the server — earlier versions don't return permission information on the API token, which this integration relies on.
+- MOS **0.5.1-beta** or later — earlier versions don't return permission information on the API token, which this integration relies on
+- Create an [API token](https://docs.mos-official.net/docs/API/MOS-API-Overview)
 
 ## Features
 
