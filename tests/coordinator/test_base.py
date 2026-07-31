@@ -785,6 +785,49 @@ async def test_denied_required_resource_fails_the_update_without_reauth(
     assert "osinfo" not in coordinator.forbidden_resources
 
 
+async def test_denied_required_resource_names_the_mos_scope_not_the_data_key(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """The error tells the user to grant "mos", which is what the MOS web UI calls it.
+
+    A custom token can set "mos" to "none", and osinfo is then refused on every
+    poll. Naming the internal data key would send the user looking for an
+    "osinfo" permission that does not exist.
+    """
+    mock_client.async_get_osinfo.side_effect = MOSApiClientPermissionError("no read scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.LOADED)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with pytest.raises(UpdateFailed) as error:
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == "insufficient_read_permission"
+    assert error.value.translation_placeholders == {"resource": "mos"}
+
+
+async def test_introspection_denied_by_scope_leaves_every_resource_probed(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A token denied "auth" cannot read its own scope, and must still set up.
+
+    Losing introspection costs the pre-poll skip, nothing else: without a scope
+    to consult every resource is treated as readable and the server decides,
+    exactly as it does on a server too old to offer introspection at all.
+    """
+    mock_client.async_get_token_permissions.side_effect = MOSApiClientPermissionError("no auth scope")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.token_permissions is None
+    assert coordinator.forbidden_resources == frozenset()
+    assert coordinator.last_update_success is True
+    mock_client.async_get_vm_machines.assert_called_once()
+
+
 async def test_read_scope_is_honoured_before_the_first_poll(
     hass: HomeAssistant,
     mock_client: AsyncMock,

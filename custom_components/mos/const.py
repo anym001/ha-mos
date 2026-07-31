@@ -193,26 +193,32 @@ MOS_PERMISSION_RESOURCES = frozenset(
 )
 
 # Maps a coordinator data key to the resource name MOS uses in a token's
-# permission scope, so a scoped token's read restrictions can be honoured before
-# the first poll rather than being discovered through a 403.
+# permission scope. Two jobs: honouring a scoped token's read restrictions before
+# the first poll, and naming the right thing when telling a user what to grant -
+# the data keys below are internal, only the values appear in the MOS web UI.
 #
 # The scope follows the API path, not the data key: /api/v1/mos/services and
 # /api/v1/mos/sensors are both governed by "mos", while disks, pools, lxc,
 # docker and vm each have a resource of their own.
-#
-# Only resources that may be *dropped* belong here. The always-fetched ones are
-# deliberately absent even though their scopes exist ("mos" for osinfo, "system"
-# for system_load): everything listed here is skipped outright when denied, and
-# skipping those two would leave nothing to show.
-READ_PERMISSION_RESOURCES = {
+PERMISSION_RESOURCE_BY_KEY = {
+    "osinfo": "mos",
+    "system_load": "system",
     "services": "mos",
+    "sensors": "mos",
     "disks": "disks",
     "pools": "pools",
     "lxc_containers": "lxc",
     "docker_containers": "docker",
     "docker_engine_containers": "docker",
     "vm_machines": "vm",
-    "sensors": "mos",
+}
+
+# The subset whose entities may be dropped when the scope denies them, which is
+# every mapped resource except the always-fetched ones: a denial there is fatal
+# for the whole poll (see ALWAYS_FETCHED_RESOURCES), so there is nothing to skip.
+# Derived rather than spelled out so the two cannot drift apart.
+READ_PERMISSION_RESOURCES = {
+    key: resource for key, resource in PERMISSION_RESOURCE_BY_KEY.items() if key not in ALWAYS_FETCHED_RESOURCES
 }
 
 # Optional resource categories - can be disabled via the options flow
