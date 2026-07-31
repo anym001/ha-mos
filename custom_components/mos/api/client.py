@@ -18,6 +18,7 @@ import asyncio
 from http import HTTPStatus
 import socket
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 
@@ -153,6 +154,37 @@ class _RateLimiter:
             delay = start_at - now
         if delay > 0:
             await asyncio.sleep(delay)
+
+
+def _quote_segment(value: str) -> str:
+    """
+    Percent-encode a value so it can only ever be a single URL path segment.
+
+    Container and VM names are interpolated into request paths. They come from
+    the MOS API rather than from user input, and Docker and LXC both restrict
+    names to characters that are harmless here - but nothing in this client
+    enforces that, and the consequence of the assumption not holding is not a
+    malformed URL, it is a request to a *different endpoint* carrying the
+    Bearer token.
+
+    yarl (which aiohttp parses the URL with) resolves ``..`` segments and starts
+    a query string at ``?`` while parsing, so an unescaped name decides where
+    the request goes::
+
+        "../../auth/admin-tokens/me" -> /api/v1/auth/admin-tokens/me/start
+        "x?all=true"                 -> /api/v1/docker/containers/x?all=true/start
+
+    Encoding the segment removes that coupling: whatever the name contains, it
+    stays one segment.
+
+    Args:
+        value: The raw path segment (a container or VM name).
+
+    Returns:
+        The segment with every reserved character percent-encoded.
+
+    """
+    return quote(value, safe="")
 
 
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
@@ -387,7 +419,7 @@ class MOSApiClient:
 
         """
         return await self._post(
-            f"lxc/containers/{name}/start",
+            f"lxc/containers/{_quote_segment(name)}/start",
             base_url=self._root_base_url,
             timeout=CONTAINER_ACTION_TIMEOUT,
         )
@@ -406,7 +438,7 @@ class MOSApiClient:
 
         """
         return await self._post(
-            f"lxc/containers/{name}/stop",
+            f"lxc/containers/{_quote_segment(name)}/stop",
             base_url=self._root_base_url,
             timeout=CONTAINER_ACTION_TIMEOUT,
         )
@@ -469,7 +501,7 @@ class MOSApiClient:
 
         """
         await self._post(
-            f"docker/containers/{name}/start",
+            f"docker/containers/{_quote_segment(name)}/start",
             base_url=self._root_base_url,
             timeout=CONTAINER_ACTION_TIMEOUT,
         )
@@ -488,7 +520,7 @@ class MOSApiClient:
 
         """
         await self._post(
-            f"docker/containers/{name}/stop",
+            f"docker/containers/{_quote_segment(name)}/stop",
             base_url=self._root_base_url,
             timeout=CONTAINER_ACTION_TIMEOUT,
         )
@@ -526,7 +558,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"vm/machines/{name}/start", base_url=self._root_base_url)
+        return await self._post(f"vm/machines/{_quote_segment(name)}/start", base_url=self._root_base_url)
 
     async def async_stop_vm_machine(self, name: str) -> dict[str, Any]:
         """
@@ -541,7 +573,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._post(f"vm/machines/{name}/stop", base_url=self._root_base_url)
+        return await self._post(f"vm/machines/{_quote_segment(name)}/stop", base_url=self._root_base_url)
 
     async def async_get_token_permissions(self) -> dict[str, Any]:
         """
