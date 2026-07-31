@@ -43,6 +43,7 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_SERVICES,
     DEFAULT_ENABLE_VM,
     LOGGER,
+    PERMISSION_RESOURCE_BY_KEY,
     READ_PERMISSION_RESOURCES,
     RESOURCE_STALE_GRACE_PERIOD,
     RESOURCE_STALE_MIN_FAILURES,
@@ -335,9 +336,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         if denied:
             LOGGER.warning(
                 "API token has no read access to %s - those entities will not be created. "
-                "Grant the token read access in the MOS web UI and reload the integration, "
+                "Grant the token read access to %s in the MOS web UI and reload the integration, "
                 "or disable the categories in the integration options",
                 ", ".join(sorted(denied)),
+                ", ".join(sorted({READ_PERMISSION_RESOURCES[key] for key in denied})),
             )
         self.forbidden_resources = frozenset(denied)
 
@@ -611,15 +613,20 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         denied_required = set(outcome.permission_errors) & ALWAYS_FETCHED_RESOURCES
         if denied_required:
             exception = outcome.permission_errors[min(denied_required)]
+            # The message tells the user what to grant, so it has to name the
+            # resource as the MOS web UI spells it - "mos", not "osinfo".
+            scopes = ", ".join(sorted({PERMISSION_RESOURCE_BY_KEY.get(key, key) for key in denied_required}))
             LOGGER.error(
-                "API token is not authorized to read %s, which the integration always needs: %s",
+                "API token is not authorized to read %s, which the integration always needs - "
+                "grant it read access to %s in the MOS web UI: %s",
                 ", ".join(sorted(denied_required)),
+                scopes,
                 exception,
             )
             raise UpdateFailed(
                 translation_domain="mos",
                 translation_key="insufficient_read_permission",
-                translation_placeholders={"resource": ", ".join(sorted(denied_required))},
+                translation_placeholders={"resource": scopes},
             ) from exception
 
         limited_required = set(outcome.rate_limit_errors) & ALWAYS_FETCHED_RESOURCES
