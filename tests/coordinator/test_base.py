@@ -810,8 +810,8 @@ async def test_unknown_resource_names_in_scope_are_not_pre_denied(
 ) -> None:
     """A custom scope that simply omits a resource is still probed.
 
-    READ_PERMISSION_RESOURCES only partly matches MOS's own naming, so treating
-    "absent" as "denied" would silently disable entities whenever a name differs.
+    A custom scope only lists what was configured, and a future MOS could rename
+    a resource, so treating "absent" as "denied" would silently disable entities.
     Absent means "ask the server", and a 403 handles it from there.
     """
     mock_client.async_get_token_permissions.return_value = {

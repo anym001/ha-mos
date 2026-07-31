@@ -169,25 +169,49 @@ RESOURCE_STALE_MIN_FAILURES = 3
 # only fails for itself and keeps its last-known-good data.
 ALWAYS_FETCHED_RESOURCES = frozenset({"osinfo", "system_load"})
 
+# Every resource name a MOS token's permission scope can carry
+# (``GET /auth/admin-tokens/me`` → ``permissions.resources``), as returned by a
+# custom-mode token on MOS 0.5.x. Kept as the authoritative list so a mapping
+# below cannot silently name a resource MOS does not have - the failure mode is
+# invisible, since an unknown name never matches and therefore never denies.
+MOS_PERMISSION_RESOURCES = frozenset(
+    {
+        "auth",
+        "disks",
+        "pools",
+        "iscsi",
+        "docker",
+        "lxc",
+        "vm",
+        "users",
+        "shares",
+        "cron",
+        "system",
+        "mos",
+        "terminal",
+    }
+)
+
 # Maps a coordinator data key to the resource name MOS uses in a token's
-# permission scope (``GET /auth/admin-tokens/me`` → ``permissions.resources``),
-# so a scoped token's read restrictions can be honoured before the first poll
-# rather than being discovered through a 403.
+# permission scope, so a scoped token's read restrictions can be honoured before
+# the first poll rather than being discovered through a 403.
 #
-# Only "lxc", "docker" and "vm" are confirmed against the MOS API; the rest are
-# best-effort. That is safe because ``has_read_access`` only treats an *explicit*
-# ``"none"`` as denied - a name MOS spells differently simply won't match, and
-# the resource is probed normally and dropped on a 403 like before.
+# The scope follows the API path, not the data key: /api/v1/mos/services and
+# /api/v1/mos/sensors are both governed by "mos", while disks, pools, lxc,
+# docker and vm each have a resource of their own.
+#
+# Only resources that may be *dropped* belong here. The always-fetched ones are
+# deliberately absent even though their scopes exist ("mos" for osinfo, "system"
+# for system_load): everything listed here is skipped outright when denied, and
+# skipping those two would leave nothing to show.
 READ_PERMISSION_RESOURCES = {
-    "services": "services",
+    "services": "mos",
     "disks": "disks",
     "pools": "pools",
     "lxc_containers": "lxc",
     "docker_containers": "docker",
     "docker_engine_containers": "docker",
     "vm_machines": "vm",
-    # Sensors have no permission scope of their own - they are covered by the
-    # general "mos" scope.
     "sensors": "mos",
 }
 
