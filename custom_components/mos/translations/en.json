@@ -12,7 +12,12 @@
           "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
-          "name": "A friendly name for this MOS server. Used as the entry's stable identity, independent of the host."
+          "name": "A friendly name for this MOS server. Used as the entry's stable identity, independent of the host.",
+          "host": "Host name or IP address of the MOS server.",
+          "api_token": "Read-only is enough for monitoring; starting and stopping needs write access. A token scoped to the areas you use is preferable to an admin token.",
+          "port": "Defaults to 443 with HTTPS, 80 without.",
+          "ssl": "Use HTTPS. Without it the API token is sent in clear text.",
+          "verify_ssl": "Check the server's TLS certificate. Turn this off only for a self-signed certificate."
         }
       },
       "reconfigure": {
@@ -23,6 +28,13 @@
           "port": "Port",
           "ssl": "Use HTTPS",
           "verify_ssl": "Verify TLS certificate"
+        },
+        "data_description": {
+          "host": "Host name or IP address of the MOS server.",
+          "api_token": "Read-only is enough for monitoring; starting and stopping needs write access. A token scoped to the areas you use is preferable to an admin token.",
+          "port": "Defaults to 443 with HTTPS, 80 without.",
+          "ssl": "Use HTTPS. Without it the API token is sent in clear text.",
+          "verify_ssl": "Check the server's TLS certificate. Turn this off only for a self-signed certificate."
         }
       },
       "reauth_confirm": {
@@ -30,6 +42,9 @@
         "description": "The API token for {host} is no longer valid. Please provide a new token to restore access.",
         "data": {
           "api_token": "API token"
+        },
+        "data_description": {
+          "api_token": "Create the new token in the MOS web UI under User Settings, Admin API Tokens. It needs the same access as the one it replaces."
         }
       }
     },
