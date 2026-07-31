@@ -197,9 +197,12 @@ MOS_PERMISSION_RESOURCES = frozenset(
 # the first poll, and naming the right thing when telling a user what to grant -
 # the data keys below are internal, only the values appear in the MOS web UI.
 #
-# The scope follows the API path, not the data key: /api/v1/mos/services and
-# /api/v1/mos/sensors are both governed by "mos", while disks, pools, lxc,
-# docker and vm each have a resource of their own.
+# The scope is the *first* path segment - not the data key, and not a later
+# segment that happens to look like a resource name. /api/v1/mos/services and
+# /api/v1/mos/sensors are governed by "mos", while /api/v1/docker/mos/containers
+# is governed by "docker" despite the "mos" in the middle of it: a token with
+# mos denied still reads it. Verified against MOS 0.5.x with tokens setting
+# "mos", "system" and "auth" to "none" one at a time.
 PERMISSION_RESOURCE_BY_KEY = {
     "osinfo": "mos",
     "system_load": "system",
