@@ -87,7 +87,7 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 Everything else — `iscsi`, `users`, `shares`, `cron`, `terminal` — is never requested and can stay at `none`.
 
-The integration reads the token's scope at setup and only creates entities for what the token can reach, so a narrow token costs nothing beyond the categories you deliberately left out. Without read access to `auth` it cannot do that: it still works, but it discovers each restriction through the server's refusal on the first poll instead of skipping the category up front.
+The integration reads the token's scope at setup and only creates entities for what the token can reach, so a narrow token costs nothing beyond the categories you deliberately left out. Setting a resource to `none` is the one thing worth double-checking: `mos` or `system` at `none` leaves nothing to show at all, and every entity goes unavailable with an error naming the missing permission. Denying `auth` is milder — the integration then can't read its own scope, so it discovers each restriction through the server's refusal on the first poll instead of skipping the category up front.
 
 **Prefer HTTPS.** The connection defaults to plain HTTP, and the API token then goes over the network in clear text with every poll — every 30 seconds by default. Within a trusted LAN segment that may be a fair trade for not having to deal with certificates; across VLANs, over Wi-Fi or through anything routed, it isn't. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
