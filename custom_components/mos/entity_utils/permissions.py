@@ -3,7 +3,9 @@
 MOS admin tokens can be scoped (see ``GET /auth/admin-tokens/me``): ``null``
 or mode ``"full"`` grants unrestricted access, ``"readonly"`` blocks all
 writes, and ``"custom"`` grants per-resource ``"none"``/``"read"``/``"write"``
-levels. Write actions (LXC/Docker/VM start/stop) must check this before
+levels. All three mode strings are confirmed against MOS 0.5.x, where ``"full"``
+and ``"readonly"`` carry no ``resources`` block at all - only ``"custom"`` does,
+which is why only that mode is ever asked for one. Write actions (LXC/Docker/VM start/stop) must check this before
 attempting the API call - not just for a nicer error message, but because a
 write attempt with an insufficiently-scoped token would otherwise fail with a
 generic 401/403 from the server instead of a clear, actionable one from here.
