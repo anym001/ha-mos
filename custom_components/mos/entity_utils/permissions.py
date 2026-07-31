@@ -56,10 +56,10 @@ def has_read_access(token_permissions: dict[str, Any] | None, resource: str) -> 
 
     The asymmetry is on purpose. For writes, guessing wrong means one switch
     reports a clear error instead of a cryptic one. For reads, guessing wrong
-    means silently disabling whole categories of entities - and the resource
-    names here are only partly confirmed against the MOS API (see
-    ``READ_PERMISSION_RESOURCES``). Being permissive keeps a mismatched name
-    harmless.
+    means silently disabling whole categories of entities. The names in
+    ``READ_PERMISSION_RESOURCES`` are confirmed against MOS 0.5.x, but a future
+    server that renames or splits a resource would otherwise take those entities
+    with it; being permissive keeps such a mismatch harmless.
 
     Args:
         token_permissions: The token's permission scope, i.e. the ``permissions``
