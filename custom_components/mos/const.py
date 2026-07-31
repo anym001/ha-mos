@@ -12,7 +12,7 @@ ATTRIBUTION = "Data provided by the local MOS API"
 # API
 API_BASE_PATH = "/api/v1/mos"
 API_ROOT_PATH = "/api/v1"
-CONF_API_TOKEN = "api_token"
+CONF_API_TOKEN = "api_token"  # noqa: S105 - the config entry key, not a credential
 DEFAULT_TIMEOUT = 10
 # Docker/LXC start/stop is proxied synchronously through to the container
 # runtime, which itself waits up to ~10s (SIGTERM grace period) before killing

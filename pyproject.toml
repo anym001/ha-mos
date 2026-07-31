@@ -148,7 +148,18 @@ select = [
     "RUF200", # Failed to parse pyproject.toml: {message}
     "S102",   # Use of exec detected
     "S103",   # bad-file-permissions
+    # S104-S701: security rules HA Core's list does not carry. This integration
+    # handles an API token that is admin-equivalent on the NAS, so the checks
+    # for leaked credentials, unverified TLS and untimed requests earn their
+    # keep here even though Core does without them.
+    "S104",   # hardcoded-bind-all-interfaces
+    "S105",   # hardcoded-password-string
+    "S106",   # hardcoded-password-func-arg
+    "S107",   # hardcoded-password-default
     "S108",   # hardcoded-temp-file
+    "S110",   # try-except-pass
+    "S112",   # try-except-continue
+    "S113",   # request-without-timeout
     "S306",   # suspicious-mktemp-usage
     "S307",   # suspicious-eval-usage
     "S313",   # suspicious-xmlc-element-tree-usage
@@ -158,11 +169,18 @@ select = [
     "S317",   # suspicious-xml-sax-usage
     "S318",   # suspicious-xml-mini-dom-usage
     "S319",   # suspicious-xml-pull-dom-usage
+    "S324",   # hashlib-insecure-hash-function
+    "S501",   # request-with-no-cert-validation
+    "S506",   # unsafe-yaml-load
+    "S508",   # snmp-insecure-version
+    "S509",   # snmp-weak-cryptography
     "S601",   # paramiko-call
     "S602",   # subprocess-popen-with-shell-equals-true
     "S604",   # call-with-shell-equals-true
     "S608",   # hardcoded-sql-expression
     "S609",   # unix-command-wildcard-injection
+    "S612",   # logging-config-insecure-listen
+    "S701",   # jinja2-autoescape-false
     "SIM",    # flake8-simplify
     "SLF",    # flake8-self
     "SLOT",   # flake8-slots
@@ -274,6 +292,8 @@ split-on-trailing-comma = false
 ]
 "tests/*" = [
     "S101",    # assert is fine in tests
+    "S105",    # Test fixtures use literal dummy tokens
+    "S106",    # Test fixtures pass literal dummy tokens as arguments
     "PLR2004", # Magic values are fine in tests
     "D",       # Docstrings not required in tests
     "PTH",     # Use pathlib - temporary exemption for tests
