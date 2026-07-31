@@ -60,6 +60,38 @@ def test_referenced_translation_keys_exist() -> None:
     assert not missing, f"translation keys used in code but missing from translations/en.json: {missing}"
 
 
+def _key_paths(node: Any, prefix: str = "") -> set[str]:
+    """Return the dotted path of every leaf in the translation tree.
+
+    Paths rather than bare key names, unlike `_collect_keys`: a string that ended
+    up under the wrong parent - `reconfigure.data.ssl` instead of
+    `reconfigure.data_description.ssl` - has the right name and the wrong home,
+    and only the path shows it.
+    """
+    if not isinstance(node, dict):
+        return {prefix}
+    return {path for key, value in node.items() for path in _key_paths(value, f"{prefix}.{key}" if prefix else key)}
+
+
+def test_every_language_carries_the_same_keys() -> None:
+    """Every translation file has exactly the key set of en.json.
+
+    Home Assistant falls back to English for a key a language file is missing -
+    no error, no log line, the field simply renders in English. Nothing else
+    here looks at anything but en.json, so a string added to one file and
+    forgotten in the other would be invisible until a user noticed it.
+    """
+    translations_path = INTEGRATION_PATH / "translations"
+    expected = _key_paths(json.loads((translations_path / "en.json").read_text(encoding="utf-8")))
+
+    for path in sorted(translations_path.glob("*.json")):
+        if path.name == "en.json":
+            continue
+        actual = _key_paths(json.loads(path.read_text(encoding="utf-8")))
+        assert not expected - actual, f"{path.name} is missing keys present in en.json: {sorted(expected - actual)}"
+        assert not actual - expected, f"{path.name} has keys en.json does not: {sorted(actual - expected)}"
+
+
 def _exception_class_name(func: ast.expr) -> str | None:
     """Return the raised exception's class name, for both `Foo(...)` and `module.Foo(...)` call forms."""
     if isinstance(func, ast.Name):
