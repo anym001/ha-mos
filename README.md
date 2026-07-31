@@ -55,7 +55,7 @@ Required: **Name**, **Host** and **API token**. Everything else is optional:
 - **Use HTTPS** — off by default
 - **Verify TLS certificate** — on by default
 
-The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — read-only is enough for monitoring, starting and stopping needs write access to the respective resource.
+The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — see [Security](#security) for how to scope it.
 
 Connection details can be changed later via **⋮** → **Reconfigure**, without removing the integration.
 
@@ -69,6 +69,14 @@ Click **Configure** on the integration to change these anytime — the integrati
 System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
 
 The default of 30 seconds suits container and VM states you want to react to; 5–30 minutes is plenty if you only watch slow-moving values like disk temperature or pool usage. Start/stop switches don't wait for the next poll — the new state shows immediately.
+
+## Security
+
+**Give the token only the access you need.** An admin or full-access token is more than this integration ever uses. Better is a custom token whose permissions are set per area: read access to the categories you want to monitor, and write access only to `lxc`, `docker` or `vm` if you actually use the start/stop switches — read-only is enough if you don't. The integration reads the token's scope at setup and only creates entities for what the token can reach, so a narrow token costs nothing beyond the switches you deliberately left out.
+
+**Prefer HTTPS.** The connection defaults to plain HTTP, and the API token then goes over the network in clear text with every poll — every 30 seconds by default. Within a trusted LAN segment that may be a fair trade for not having to deal with certificates; across VLANs, over Wi-Fi or through anything routed, it isn't. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
+
+**Diagnostics are redacted, but not anonymous.** The download strips the API token, the host and every identifier that would locate the machine or its hardware: hostname, API base URLs, disk serials and UUIDs, IP and MAC addresses, container network blocks, and the token's own ID and name. What remains is descriptive rather than identifying — container, VM and pool names, disk models and sizes, CPU model, MOS version, service status and entity IDs. Port, HTTPS and certificate-verification settings stay visible on purpose, because connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue if any of your container or pool names are themselves revealing.
 
 ## Troubleshooting
 
@@ -91,7 +99,7 @@ logger:
 
 **A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
-**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. The API token is redacted; host and container names are not, so review it before posting it publicly.
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. Credentials and identifying details are redacted — [Security](#security) lists exactly what is and isn't.
 
 ## Contributing
 
