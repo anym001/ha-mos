@@ -72,7 +72,22 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 ## Security
 
-**Give the token only the access you need.** An admin or full-access token is more than this integration ever uses. Better is a custom token whose permissions are set per area: read access to the categories you want to monitor, and write access only to `lxc`, `docker` or `vm` if you actually use the start/stop switches — read-only is enough if you don't. The integration reads the token's scope at setup and only creates entities for what the token can reach, so a narrow token costs nothing beyond the switches you deliberately left out.
+**Give the token only the access you need.** MOS tokens come in three modes. **Full** is more than this integration ever uses. **Read-only** covers all monitoring, and the start/stop switches then refuse with a clear error instead of a cryptic one. **Custom** sets the level per resource and is the better fit — these are the only ones the integration touches:
+
+| Resource | Level             | Needed for                                          |
+| -------- | ----------------- | --------------------------------------------------- |
+| `mos`    | `read`            | System info, services, hardware sensors — required  |
+| `system` | `read`            | CPU load, memory and swap — required                |
+| `auth`   | `read`            | Reading the token's own scope — recommended         |
+| `disks`  | `read`            | Disk entities, if the category is enabled           |
+| `pools`  | `read`            | Pool entities, if the category is enabled           |
+| `lxc`    | `read` or `write` | LXC entities — `write` only for the power switch    |
+| `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
+| `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
+
+Everything else — `iscsi`, `users`, `shares`, `cron`, `terminal` — is never requested and can stay at `none`.
+
+The integration reads the token's scope at setup and only creates entities for what the token can reach, so a narrow token costs nothing beyond the categories you deliberately left out. Without read access to `auth` it cannot do that: it still works, but it discovers each restriction through the server's refusal on the first poll instead of skipping the category up front.
 
 **Prefer HTTPS.** The connection defaults to plain HTTP, and the API token then goes over the network in clear text with every poll — every 30 seconds by default. Within a trusted LAN segment that may be a fair trade for not having to deal with certificates; across VLANs, over Wi-Fi or through anything routed, it isn't. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
