@@ -239,6 +239,65 @@ async def test_stop_vm_machine_posts_to_root_path(
     assert aioclient_mock.mock_calls[0][0] == "post"
 
 
+@pytest.mark.parametrize(
+    ("method_name", "expected_path"),
+    [
+        ("async_start_lxc_container", "/api/v1/lxc/containers/{name}/start"),
+        ("async_stop_lxc_container", "/api/v1/lxc/containers/{name}/stop"),
+        ("async_start_docker_container", "/api/v1/docker/containers/{name}/start"),
+        ("async_stop_docker_container", "/api/v1/docker/containers/{name}/stop"),
+        ("async_start_vm_machine", "/api/v1/vm/machines/{name}/start"),
+        ("async_stop_vm_machine", "/api/v1/vm/machines/{name}/stop"),
+    ],
+)
+async def test_write_actions_encode_the_name_as_one_path_segment(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    method_name: str,
+    expected_path: str,
+) -> None:
+    """
+    A name containing path separators cannot redirect the request to another endpoint.
+
+    yarl resolves ``..`` while parsing the URL, so an unescaped name would send
+    the Bearer token to whatever endpoint it points at - here the token
+    introspection resource - instead of the container action.
+    """
+    hostile = "../../auth/admin-tokens/me"
+    encoded = "..%2F..%2Fauth%2Fadmin-tokens%2Fme"
+    aioclient_mock.post(
+        f"http://10.0.1.30:80{expected_path.format(name=encoded)}",
+        json={"success": True, "message": "ok"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    await getattr(client, method_name)(hostile)
+
+    assert len(aioclient_mock.mock_calls) == 1
+    requested = aioclient_mock.mock_calls[0][1]
+    assert requested.raw_path == expected_path.format(name=encoded)
+    # The traversal target is never reached.
+    assert not requested.raw_path.startswith("/api/v1/auth/")
+
+
+async def test_write_actions_leave_ordinary_names_readable(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Encoding must not change the URL for the names that actually occur."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/docker/containers/PushBits/start",
+        json={"success": True},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    await client.async_start_docker_container("PushBits")
+
+    assert aioclient_mock.mock_calls[0][1].raw_path == "/api/v1/docker/containers/PushBits/start"
+
+
 async def test_token_permissions_use_root_path(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
