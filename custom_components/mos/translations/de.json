@@ -12,7 +12,12 @@
           "verify_ssl": "TLS-Zertifikat überprüfen"
         },
         "data_description": {
-          "name": "Ein frei wählbarer Name für diesen MOS-Server. Dient als stabile Identität des Eintrags, unabhängig vom Host."
+          "name": "Ein frei wählbarer Name für diesen MOS-Server. Dient als stabile Identität des Eintrags, unabhängig vom Host.",
+          "host": "Hostname oder IP-Adresse des MOS-Servers.",
+          "api_token": "Für die reine Überwachung genügt Lesezugriff; Starten und Stoppen braucht Schreibzugriff. Ein auf die genutzten Bereiche eingeschränkter Token ist einem Admin-Token vorzuziehen.",
+          "port": "Standard ist 443 mit HTTPS, sonst 80.",
+          "ssl": "HTTPS verwenden. Ohne HTTPS wird der API-Token im Klartext übertragen.",
+          "verify_ssl": "Das TLS-Zertifikat des Servers prüfen. Nur bei einem selbstsignierten Zertifikat deaktivieren."
         }
       },
       "reconfigure": {
@@ -23,6 +28,13 @@
           "port": "Port",
           "ssl": "HTTPS verwenden",
           "verify_ssl": "TLS-Zertifikat überprüfen"
+        },
+        "data_description": {
+          "host": "Hostname oder IP-Adresse des MOS-Servers.",
+          "api_token": "Für die reine Überwachung genügt Lesezugriff; Starten und Stoppen braucht Schreibzugriff. Ein auf die genutzten Bereiche eingeschränkter Token ist einem Admin-Token vorzuziehen.",
+          "port": "Standard ist 443 mit HTTPS, sonst 80.",
+          "ssl": "HTTPS verwenden. Ohne HTTPS wird der API-Token im Klartext übertragen.",
+          "verify_ssl": "Das TLS-Zertifikat des Servers prüfen. Nur bei einem selbstsignierten Zertifikat deaktivieren."
         }
       },
       "reauth_confirm": {
@@ -30,6 +42,9 @@
         "description": "Der API-Token für {host} ist nicht mehr gültig. Gib einen neuen Token ein, um den Zugriff wiederherzustellen.",
         "data": {
           "api_token": "API-Token"
+        },
+        "data_description": {
+          "api_token": "Erstelle den neuen Token in der MOS-Web-UI unter Benutzereinstellungen, Admin-API-Tokens. Er braucht dieselben Rechte wie der bisherige."
         }
       }
     },
