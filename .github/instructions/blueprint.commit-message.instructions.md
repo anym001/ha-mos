@@ -46,12 +46,12 @@ Scope is optional but clarifies the affected component. Use the name of the affe
 - **System:** `diagnostics`, `repairs`, `manifest`, `translations`, `deps`, `devcontainer`, `tests`
 
 A scope names the affected _component_, never a change _category_. Using a type
-name as a scope is rejected by commitlint (`scope-enum`), because it hides the
-change in the wrong changelog section: `feat(ci): …` is published under
-"Features" as if it were user-facing, while the `ci` **type** is configured as
-hidden in `release-please-config.json`. Pipeline and tooling work takes the
-`ci` or `chore` type — `ci: enable HACS brands validation`, not
-`feat(ci): enable HACS brands validation`.
+name as a scope is rejected by commitlint (`scope-enum`), because it publishes
+the change in the wrong changelog section: `feat(ci): …` lands under "Features"
+as if it were user-facing, while the `ci` **type** is `hidden` in
+`release-please-config.json`. Pipeline and tooling work takes the `ci` or
+`chore` type — `ci: enable brands validation`, not
+`feat(ci): enable brands validation`.
 
 ## Rules
 
