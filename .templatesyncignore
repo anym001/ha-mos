@@ -34,9 +34,28 @@ pyproject.toml
 
 # ── Runtime dependencies ──────────────────────────────────────
 # requirements.txt lists your integration's PyPI dependencies (synced with
-# manifest.json → requirements). This is user-owned content; requirements_dev.txt
-# and requirements_test.txt are blueprint-managed tooling and do get synced.
+# manifest.json → requirements). This is user-owned content; requirements_test.txt
+# is blueprint-managed tooling and does get synced.
 requirements.txt
+
+# ── Dependency pins Dependabot keeps ahead of the template ────
+# Dependabot bumps these here on its own schedule, so this repo is structurally
+# ahead of the blueprint and a sync can only ever propose a downgrade. It has
+# already cost twice: #21 needed a follow-up commit to undo a colorlog
+# regression, and #47 was closed unmerged because five of its six files were
+# rollbacks. Trade-off: tooling the blueprint newly adds has to be copied over
+# by hand — `script/compare-blueprint` shows what changed.
+requirements_dev.txt
+package.json
+package-lock.json
+
+# ── Spell-check coverage ─────────────────────────────────────
+# Widened in #48 to cover AGENTS.md, CLAUDE.md and docs/, and to drop the
+# DEPENDENCIES.md this repo deleted. codespell exits 0 on paths that do not
+# exist, so a sync would not fail here - it would silently stop checking three
+# of the five targets.
+script/spell
+script/spell-check
 
 # ── VS Code workspace settings ───────────────────────────────
 # launch.json and tasks.json reference your integration domain
