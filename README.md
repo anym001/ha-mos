@@ -11,7 +11,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 ## Prerequisites
 
-- MOS **0.5.1-beta** or later is recommended — from that version the API reports the token's permission scope, so the integration can skip categories the token cannot read instead of discovering each denial through a 403. Earlier versions work; they just lose that head start
+- MOS **0.5.1-beta** or later recommended — older versions work, but from 0.5.1-beta on the integration can see up front what a restricted token is allowed to read
 - Create an [API token](https://docs.mos-official.net/docs/API/MOS-API-Overview)
 
 ## Features
