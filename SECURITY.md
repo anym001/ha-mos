@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest release receives fixes. This integration is maintained by one person in their spare time — backporting to older releases is not practical, and HACS updates in place anyway.
+Only the latest release receives fixes. Backporting is not practical, and HACS updates in place anyway.
 
 | Version        | Supported |
 | -------------- | --------- |
@@ -15,7 +15,7 @@ Only the latest release receives fixes. This integration is maintained by one pe
 
 [**Report a vulnerability**](../../security/advisories/new)
 
-That opens a private advisory only you and the maintainer can see, so a fix can be prepared before anything is public.
+That opens a private advisory only you and the maintainers can see, so a fix can be prepared before anything is public.
 
 Helpful in a report:
 
@@ -24,7 +24,7 @@ Helpful in a report:
 - Steps to reproduce, ideally against a test server
 - Log output or a diagnostics download, with the token and anything identifying removed
 
-Expect an acknowledgement within about a week. This is a hobby project, so there is no guaranteed response time and no bug bounty. Credit in the release notes is offered by default and gladly withheld on request.
+Expect an acknowledgement within about a week. There is no guaranteed response time and no bug bounty. Credit in the release notes is offered by default and gladly withheld on request.
 
 ## What belongs here, and what doesn't
 
