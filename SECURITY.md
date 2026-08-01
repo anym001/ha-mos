@@ -4,11 +4,6 @@
 
 Only the latest release receives fixes. Backporting is not practical, and HACS updates in place anyway.
 
-| Version        | Supported |
-| -------------- | --------- |
-| Latest release | ✅        |
-| Anything older | ❌        |
-
 ## Reporting a vulnerability
 
 **Please do not open a public issue.** Use GitHub's private vulnerability reporting instead:
@@ -24,7 +19,7 @@ Helpful in a report:
 - Steps to reproduce, ideally against a test server
 - Log output or a diagnostics download, with the token and anything identifying removed
 
-Expect an acknowledgement within about a week. There is no guaranteed response time and no bug bounty. Credit in the release notes is offered by default and gladly withheld on request.
+Expect an acknowledgement within about a week. Please allow at least 90 days for a fixed release before going public; if that does not suit your timeline, say so in the report. There is no guaranteed response time and no bug bounty. Credit in the release notes is offered by default and gladly withheld on request.
 
 ## What belongs here, and what doesn't
 
