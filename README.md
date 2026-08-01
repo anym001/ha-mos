@@ -11,7 +11,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 ## Prerequisites
 
-- MOS **0.5.1-beta** or later — earlier versions don't return permission information on the API token, which this integration relies on
+- MOS **0.5.1-beta** or later is recommended — from that version the API reports the token's permission scope, so the integration can skip categories the token cannot read instead of discovering each denial through a 403. Earlier versions work; they just lose that head start
 - Create an [API token](https://docs.mos-official.net/docs/API/MOS-API-Overview)
 
 ## Features
@@ -72,7 +72,7 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 ## Security
 
-**Give the token only the access you need.** MOS tokens come in three modes. **Full** is more than this integration ever uses. **Read-only** covers all monitoring, and the start/stop switches then refuse with a clear error instead of a cryptic one. **Custom** sets the level per resource and is the better fit — these are the only ones the integration touches:
+**Give the token only the access it needs.** MOS tokens come in three modes. **Full** grants far more than this integration touches. **Read-only** blocks writes, so the start/stop switches refuse with a clear error. **Custom** sets the level per resource and is the best fit:
 
 | Resource | Level             | Needed for                                          |
 | -------- | ----------------- | --------------------------------------------------- |
@@ -84,13 +84,11 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 | `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
 | `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
 
-Everything else — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal` — can stay at `none`. `auth` looks like an exception, since the integration does read the token's own scope through it, but MOS lets a token do that regardless of what its `auth` level says.
+Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 
-The scope is read once at setup, and entities are only created for what the token can reach, so a narrow token costs nothing beyond the categories you deliberately left out. The two required rows are the ones to be careful with: `mos` or `system` at `none` leaves nothing to show at all, and every entity goes unavailable with an error naming the missing permission.
+**Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Prefer HTTPS.** The connection defaults to plain HTTP, and the API token then goes over the network in clear text with every poll — every 30 seconds by default. Within a trusted LAN segment that may be a fair trade for not having to deal with certificates; across VLANs, over Wi-Fi or through anything routed, it isn't. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
-
-**Diagnostics are redacted, but not anonymous.** The download strips the API token, the host and every identifier that would locate the machine or its hardware: hostname, API base URLs, disk serials and UUIDs, IP and MAC addresses, container network blocks, and the token's own ID and name. What remains is descriptive rather than identifying — container, VM and pool names, disk models and sizes, CPU model, MOS version, service status and entity IDs. Port, HTTPS and certificate-verification settings stay visible on purpose, because connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue if any of your container or pool names are themselves revealing.
+**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version and entity IDs remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue.
 
 ## Troubleshooting
 
@@ -113,7 +111,7 @@ logger:
 
 **A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
 
-**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. Credentials and identifying details are redacted — [Security](#security) lists exactly what is and isn't.
+**Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. Credentials and identifying details are redacted — [Security](#security) says what is and isn't.
 
 ## Contributing
 
