@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest release receives fixes. This is a HACS custom integration maintained by one person in their spare time — backporting to older releases is not practical, and HACS updates in place anyway.
+Only the latest release receives fixes. This integration is maintained by one person in their spare time — backporting to older releases is not practical, and HACS updates in place anyway.
 
 | Version        | Supported |
 | -------------- | --------- |

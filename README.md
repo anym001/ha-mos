@@ -35,11 +35,11 @@ Disks, pools, containers and VMs appear and disappear automatically as they chan
 
 ## Installation
 
-The integration is not in the HACS default store yet, so HACS has to be pointed at this repository:
+**MOS NAS** is in the HACS default store, so no custom repository is needed:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][hacs-repo-badge]][hacs-repo-link]
 
-1. Open the repository with the button above and click **Download** — or add it by hand in HACS: **⋮** → **Custom repositories** → `https://github.com/anym001/ha-mos` as an **Integration**, then find **MOS NAS** and download it
+1. Open HACS, search for **MOS NAS** and click **Download** — or use the button above to go straight there
 2. **Restart Home Assistant**
 3. **Settings** → **Devices & Services** → **+ Add Integration** → search for "MOS NAS", or use this button:
 
@@ -139,7 +139,7 @@ Maintained by [@anym001][user_profile].
 [hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
 [hacs-repo-link]: https://my.home-assistant.io/redirect/hacs_repository/?owner=anym001&repository=ha-mos&category=integration
 [hacs]: https://github.com/hacs/integration
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 [license-shield]: https://img.shields.io/github/license/anym001/ha-mos.svg?style=for-the-badge
 [maintenance-shield]: https://img.shields.io/badge/maintainer-%40anym001-blue.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/anym001/ha-mos.svg?style=for-the-badge
