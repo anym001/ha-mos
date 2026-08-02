@@ -31,6 +31,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
+    CONF_ENABLE_NUT,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SENSORS,
     CONF_ENABLE_SERVICES,
@@ -38,6 +39,7 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
+    DEFAULT_ENABLE_NUT,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SENSORS,
     DEFAULT_ENABLE_SERVICES,
@@ -535,6 +537,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             tasks["vm_machines"] = client.async_get_vm_machines()
         if wanted(CONF_ENABLE_SENSORS, DEFAULT_ENABLE_SENSORS, "sensors"):
             tasks["sensors"] = client.async_get_sensors()
+        if wanted(CONF_ENABLE_NUT, DEFAULT_ENABLE_NUT, "nut"):
+            tasks["nut"] = client.async_get_nut_status()
         return tasks
 
     def _triage_results(self, tasks: dict[str, Any], results: list[Any]) -> _UpdateOutcome:
@@ -918,6 +922,9 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             "sensors": [...],       # Hardware readings from /sensors, flattened
                                      # from their per-category grouping into one
                                      # list, each item tagged with "category"
+            "nut": {...},           # UPS status from /nut/status; {"reachable": False}
+                                     # when no UPS is attached, which is a normal
+                                     # answer rather than a failure
         }
 
         ``osinfo`` and ``system_load`` are always fetched. The other resources
@@ -978,6 +985,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("docker_containers", [])
         data.setdefault("vm_machines", [])
         data.setdefault("sensors", [])
+        # Defaults to an empty payload rather than {"reachable": False}: "not
+        # fetched" and "fetched, no UPS" must stay distinguishable, and an empty
+        # dict reads as unreachable everywhere it is consumed anyway.
+        data.setdefault("nut", {})
         if "docker_engine_containers" in data:
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],

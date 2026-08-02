@@ -8,12 +8,14 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
+    CONF_ENABLE_NUT,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
     CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
+    DEFAULT_ENABLE_NUT,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SERVICES,
     DEFAULT_ENABLE_VM,
@@ -24,6 +26,7 @@ from custom_components.mos.entity_utils import async_setup_dynamic_entities
 from .disks import build_disk_binary_sensors
 from .docker import build_docker_container_binary_sensors
 from .lxc import build_lxc_container_binary_sensors
+from .nut import ENTITY_DESCRIPTIONS as NUT_DESCRIPTIONS, MOSNutBinarySensor
 from .pools import build_pool_binary_sensors
 from .services import ENTITY_DESCRIPTIONS as SERVICE_DESCRIPTIONS, MOSServiceBinarySensor
 from .vm import build_vm_machine_binary_sensors
@@ -47,6 +50,14 @@ async def async_setup_entry(
                 entity_description=entity_description,
             )
             for entity_description in SERVICE_DESCRIPTIONS
+        )
+    if entry.options.get(CONF_ENABLE_NUT, DEFAULT_ENABLE_NUT):
+        async_add_entities(
+            MOSNutBinarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in NUT_DESCRIPTIONS
         )
 
     if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):

@@ -73,7 +73,8 @@
           "enable_lxc": "LXC-Container aktivieren",
           "enable_docker": "Docker-Container aktivieren",
           "enable_vm": "VMs aktivieren",
-          "enable_sensors": "Hardware-Sensoren aktivieren"
+          "enable_sensors": "Hardware-Sensoren aktivieren",
+          "enable_nut": "USV aktivieren"
         },
         "data_description": {
           "scan_interval": "Wie oft die MOS-API abgefragt wird (30 bis 3600 Sekunden).",
@@ -83,7 +84,8 @@
           "enable_lxc": "Entitäten für jeden LXC-Container anlegen.",
           "enable_docker": "Entitäten für jeden Docker-Container anlegen.",
           "enable_vm": "Entitäten für jede VM anlegen.",
-          "enable_sensors": "Entitäten für Hardware-Messwerte anlegen (Lüfter, Temperaturen, Spannungen, ...)."
+          "enable_sensors": "Entitäten für Hardware-Messwerte anlegen (Lüfter, Temperaturen, Spannungen, ...).",
+          "enable_nut": "Entitäten für die USV anlegen, die MOS über Network UPS Tools überwacht."
         }
       }
     }
@@ -265,6 +267,54 @@
       },
       "vm_memory_usage": {
         "name": "Speicherauslastung"
+      },
+      "ups_status": {
+        "name": "USV-Status"
+      },
+      "ups_name": {
+        "name": "USV-Name"
+      },
+      "ups_manufacturer": {
+        "name": "USV-Hersteller"
+      },
+      "ups_model": {
+        "name": "USV-Modell"
+      },
+      "ups_serial": {
+        "name": "USV-Seriennummer"
+      },
+      "ups_load": {
+        "name": "USV-Auslastung"
+      },
+      "ups_realpower_nominal": {
+        "name": "USV-Nennleistung"
+      },
+      "ups_battery_charge": {
+        "name": "USV-Batterie"
+      },
+      "ups_battery_charge_low": {
+        "name": "USV-Batterie Warnschwelle"
+      },
+      "ups_battery_runtime": {
+        "name": "USV-Batterielaufzeit"
+      },
+      "ups_battery_voltage": {
+        "name": "USV-Batteriespannung"
+      },
+      "ups_battery_type": {
+        "name": "USV-Batterietyp"
+      },
+      "ups_input_voltage": {
+        "name": "USV-Eingangsspannung"
+      },
+      "ups_input_frequency": {
+        "name": "USV-Eingangsfrequenz"
+      },
+      "ups_output_voltage": {
+        "name": "USV-Ausgangsspannung"
+      },
+      "ups_output_frequency": {
+        "name": "USV-Ausgangsfrequenz"
       }
     },
     "binary_sensor": {
@@ -318,6 +368,21 @@
       },
       "vm_autostart": {
         "name": "Autostart"
+      },
+      "ups_reachable": {
+        "name": "USV verbunden"
+      },
+      "ups_online": {
+        "name": "USV im Netzbetrieb"
+      },
+      "ups_on_battery": {
+        "name": "USV im Batteriebetrieb"
+      },
+      "ups_battery_low": {
+        "name": "USV-Batterie schwach"
+      },
+      "ups_battery_charging": {
+        "name": "USV-Batterie lädt"
       }
     },
     "switch": {

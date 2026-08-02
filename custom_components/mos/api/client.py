@@ -383,6 +383,36 @@ class MOSApiClient:
         """
         return await self._get("sensors")
 
+    async def async_get_nut_status(self) -> dict[str, Any]:
+        """
+        Get UPS status from ``/nut/status``.
+
+        MOS reads the UPS through Network UPS Tools and answers with a
+        ``reachable`` flag, the UPS name, its raw NUT status flags (``OL``,
+        ``OB``, ``LB``, ``CHRG``, ... - space separated when several apply) and
+        a ``data`` block with the values MOS has already parsed out of NUT's
+        variables (model, load, battery, input, output).
+
+        The endpoint answers even when no UPS is configured or the driver is
+        down: ``reachable`` is then ``false`` and ``name``/``status`` are
+        ``null``. That is a normal response, not an error, so it is left for the
+        entities to present rather than raised here.
+
+        The raw ``vars`` mapping that MOS also returns (the full ``upsc`` dump)
+        is deliberately ignored - everything the integration exposes comes from
+        the parsed ``data`` block, and the variable set differs per driver.
+
+        Returns:
+            The parsed ``nut/status`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("nut/status", base_url=self._root_base_url)
+
     async def async_get_lxc_containers(self) -> list[dict[str, Any]]:
         """
         Get LXC container status and resource usage from ``/lxc/containers/usage``.

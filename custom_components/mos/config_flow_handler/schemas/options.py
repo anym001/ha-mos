@@ -16,6 +16,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
+    CONF_ENABLE_NUT,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SENSORS,
     CONF_ENABLE_SERVICES,
@@ -23,6 +24,7 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
+    DEFAULT_ENABLE_NUT,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SENSORS,
     DEFAULT_ENABLE_SERVICES,
@@ -88,6 +90,10 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
             vol.Optional(
                 CONF_ENABLE_SENSORS,
                 default=defaults.get(CONF_ENABLE_SENSORS, DEFAULT_ENABLE_SENSORS),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_NUT,
+                default=defaults.get(CONF_ENABLE_NUT, DEFAULT_ENABLE_NUT),
             ): selector.BooleanSelector(),
         },
     )

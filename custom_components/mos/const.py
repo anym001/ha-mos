@@ -216,6 +216,16 @@ PERMISSION_RESOURCE_BY_KEY = {
     "vm_machines": "vm",
 }
 
+# Deliberately absent above: "nut". By the first-path-segment rule
+# /api/v1/nut/status would be governed by a "nut" resource, but no such name
+# appears in MOS_PERMISSION_RESOURCES - the scope list a MOS 0.5.x token
+# actually returns - and naming a resource MOS does not have would deny nothing
+# while looking like it did. Leaving the key unmapped means the scope is not
+# consulted for it: a token that cannot read it gets a 403 on the first poll,
+# which the coordinator treats as a transient per-resource failure (entities
+# keep their last state, then go unavailable once it stays denied). Map it here
+# once the real scope name is confirmed against a server that exposes NUT.
+
 # The subset whose entities may be dropped when the scope denies them, which is
 # every mapped resource except the always-fetched ones: a denial there is fatal
 # for the whole poll (see ALWAYS_FETCHED_RESOURCES), so there is nothing to skip.
@@ -232,6 +242,7 @@ CONF_ENABLE_LXC = "enable_lxc"
 CONF_ENABLE_DOCKER = "enable_docker"
 CONF_ENABLE_VM = "enable_vm"
 CONF_ENABLE_SENSORS = "enable_sensors"
+CONF_ENABLE_NUT = "enable_nut"
 DEFAULT_ENABLE_DISKS = True
 DEFAULT_ENABLE_POOLS = True
 DEFAULT_ENABLE_SERVICES = True
@@ -239,3 +250,4 @@ DEFAULT_ENABLE_LXC = True
 DEFAULT_ENABLE_DOCKER = True
 DEFAULT_ENABLE_VM = True
 DEFAULT_ENABLE_SENSORS = True
+DEFAULT_ENABLE_NUT = True

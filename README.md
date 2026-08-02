@@ -22,16 +22,17 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
+- **UPS** — status, load, battery charge/runtime/voltage, input and output voltage and frequency, plus on-line-power, on-battery, battery-low and charging flags
 - **Token permissions respected** — every write action checks your API token's scope first, and for custom-scoped tokens, entities are only created for categories the token can actually read
-- **Selective categories** — turn disks, pools, services, LXC, Docker, VMs or hardware sensors off entirely
+- **Selective categories** — turn disks, pools, services, LXC, Docker, VMs, hardware sensors or the UPS off entirely
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors
-- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors, UPS readings
+- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
 
-Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes.
+Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes. The UPS entities do too, and stay in place whether or not a UPS is attached: without one they report unavailable, apart from **UPS connected**, which reports the disconnection itself.
 
 ## Installation
 
@@ -64,7 +65,7 @@ Connection details can be changed later via **⋮** → **Reconfigure**, without
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
 - **Update interval** — how often to poll the MOS API, between 30 and 3600 seconds; 30 seconds by default
-- **Enable disks / pools / services / LXC / Docker / VMs** — create entities for that category; each can be toggled on its own and all are on by default
+- **Enable disks / pools / services / LXC / Docker / VMs / hardware sensors / UPS** — create entities for that category; each can be toggled on its own and all are on by default
 
 System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
 
@@ -83,6 +84,8 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 | `lxc`    | `read` or `write` | LXC entities — `write` only for the power switch    |
 | `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
 | `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
+
+The UPS endpoint (`/nut/status`) is the one exception to that table: it appeared after the resource list above was verified, so which scope governs it isn't confirmed. A token that can't read it makes the UPS entities go unavailable after a few polls and logs `nut` as the failing resource — turn the UPS category off if your server has no UPS anyway.
 
 Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 
