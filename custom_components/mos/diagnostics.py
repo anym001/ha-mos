@@ -237,6 +237,7 @@ async def async_get_config_entry_diagnostics(
             "lxc_containers": coordinator.data.get("lxc_containers"),
             "docker_containers": coordinator.data.get("docker_containers"),
             "vm_machines": coordinator.data.get("vm_machines"),
+            "sensors": coordinator.data.get("sensors"),
             "nut": coordinator.data.get("nut"),
         }
 
