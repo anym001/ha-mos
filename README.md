@@ -34,7 +34,7 @@ Entities are spread across three platforms:
 
 Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes. The UPS entities do too; they are created the first time a UPS answers, so a server without one gets none at all. If the UPS later stops answering they stay and report unavailable, apart from **UPS connected**, which reports the disconnection itself.
 
-**Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them — anything your server doesn't serve yet simply produces no entities. Nothing to configure, nothing that breaks, and no version numbers to look up: update MOS, and the matching entities show up on their own within a poll or two. This works the other way round as well, so an older MOS keeps working, just with fewer entities.
+**Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, and that counts as an answer rather than a failure: no entities are created for it, a single line in the log names what's missing, and nothing else is affected — no error, no repeated warnings, no impact on the entities that do work. Nothing to configure and no version numbers to look up either, since the request goes out on every poll anyway: update MOS and the matching entities appear on their own within a poll or two, no reload needed. It works the other way round as well, so an older MOS keeps working, just with fewer entities — and if you would rather it stopped asking at all, switch that category off in the options.
 
 ## Installation
 
@@ -88,7 +88,7 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 | `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
 | `nut`    | `read`            | UPS entities, if the category is enabled            |
 
-`nut` only exists on MOS versions that have the UPS endpoint, and only a **Custom** token lists it at all — on an older server the row simply isn't there, and the UPS entities are left out with a note in the log.
+A row can be missing on an older server: a resource only appears in this list once that MOS version has the matching endpoint. There is nothing to grant and nothing to fix then — the missing endpoint is handled as described [above](#features), and the row shows up in the token dialog once MOS is updated.
 
 Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 
