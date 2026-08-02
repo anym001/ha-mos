@@ -23,8 +23,8 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — status, load, battery charge/runtime/voltage, input and output voltage and frequency, plus on-line-power, on-battery, battery-low and charging flags; created once a UPS answers, so a server without one gets none
-- **Token permissions respected** — every write action checks your API token's scope first, and for custom-scoped tokens, entities are only created for categories the token can actually read
-- **Selective categories** — turn disks, pools, services, LXC, Docker, VMs, hardware sensors or the UPS off entirely
+- **Token permissions respected** — every write action checks your API token's scope first
+- **Selective categories** — every category can be turned off entirely
 
 Entities are spread across three platforms:
 
@@ -73,7 +73,7 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 
 ## Security
 
-**Give the token only the access it needs.** MOS tokens come in three modes. **Full** grants far more than this integration touches. **Read-only** blocks writes, so the start/stop switches refuse with a clear error. **Custom** sets the level per resource and is the best fit:
+**Give the token only the access it needs.** MOS tokens come in three modes. **Full** grants far more than this integration touches. **Read-only** blocks writes. **Custom** sets the level per resource and is the best fit:
 
 | Resource | Level             | Needed for                                          |
 | -------- | ----------------- | --------------------------------------------------- |
@@ -113,7 +113,7 @@ logger:
     custom_components.mos: debug
 ```
 
-**A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` in the MOS web UI and enter it via **⋮** → **Reconfigure**.
+**A switch reports missing permissions.** The API token has no write access to that resource. Create one with write access to `lxc`, `docker` or `vm` and enter it via **⋮** → **Reconfigure**.
 
 **Diagnostics.** **Settings** → **Devices & Services** → **MOS NAS** → **⋮** → **Download diagnostics** writes a JSON file with connection settings, coordinator status, the token's permissions and the created devices and entities. Credentials and identifying details are redacted — [Security](#security) says what is and isn't.
 
