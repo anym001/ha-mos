@@ -1,14 +1,12 @@
 name: HA Version Sync Check
 
 on:
+  # Deliberately unfiltered: as a required check this has to report on every
+  # pull request. A paths filter makes it silently not run for a PR that
+  # touches none of them, and GitHub then waits forever for a status that will
+  # never arrive - the PR stays unmergeable with nothing failing. The job is a
+  # checkout plus one script, a few seconds.
   pull_request:
-    paths:
-      - hacs.json
-      - requirements_test.txt
-      - .devcontainer/.env
-      - .github/workflows/*.yml
-      - script/ha-version-sync
-      - script/setup/bootstrap
   push:
     branches:
       - main
