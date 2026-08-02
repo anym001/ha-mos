@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import timedelta
+import logging
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -13,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.mos.api import (
     MOSApiClientAuthenticationError,
     MOSApiClientCommunicationError,
+    MOSApiClientNotFoundError,
     MOSApiClientPermissionError,
     MOSApiClientRateLimitError,
 )
@@ -1173,3 +1176,100 @@ async def test_listeners_are_notified_when_staleness_changes_without_data_changi
     assert coordinator.data == payload_before
     assert coordinator.stale_resources == frozenset({"vm_machines"})
     assert notifications, "entities were never told the resource had gone stale"
+
+
+async def test_endpoint_the_server_does_not_have_is_reported_once_and_costs_nothing(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A 404 on a resource that never answered means "this MOS is older", not "something broke".
+
+    The poll succeeds, the resource is simply left out, and the explanation is
+    logged once rather than every poll - there is nothing for the user to fix.
+    """
+    mock_client.async_get_nut_status.side_effect = MOSApiClientNotFoundError("no such endpoint: /api/v1/nut/status")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with caplog.at_level(logging.INFO):
+        await coordinator.async_config_entry_first_refresh()
+        first_poll_messages = [record.message for record in caplog.records]
+        caplog.clear()
+        await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is True
+    assert coordinator.unsupported_resources == frozenset({"nut"})
+    assert coordinator.data["nut"] == {}
+    # Not a failing resource: no staleness countdown, no degraded bookkeeping.
+    assert coordinator.stale_resources == frozenset()
+    assert coordinator._degraded_resources == {}
+
+    assert any("has no endpoint for nut" in message for message in first_poll_messages)
+    assert not [record for record in caplog.records if "has no endpoint" in record.message]
+
+
+async def test_endpoint_added_by_a_server_update_starts_being_used(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_nut: dict[str, Any],
+) -> None:
+    """Once the server answers an endpoint it previously 404'd, its data is used again.
+
+    This is what makes a MOS update bring the matching entities in on its own,
+    without a reload.
+    """
+    mock_client.async_get_nut_status.side_effect = MOSApiClientNotFoundError("no such endpoint")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+    assert coordinator.unsupported_resources == frozenset({"nut"})
+
+    mock_client.async_get_nut_status.side_effect = None
+    await coordinator.async_refresh()
+
+    assert coordinator.unsupported_resources == frozenset()
+    assert coordinator.data["nut"] == mock_nut
+
+
+async def test_endpoint_that_answered_before_is_treated_as_a_failure_not_as_missing(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_nut: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A 404 on a resource that used to answer is a regression, and warned about.
+
+    Silently classifying it as unsupported would hide a removed or renamed
+    endpoint and quietly freeze the entities' values instead.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_nut_status.side_effect = MOSApiClientNotFoundError("gone")
+    with caplog.at_level(logging.WARNING):
+        await coordinator.async_refresh()
+
+    assert coordinator.unsupported_resources == frozenset()
+    assert coordinator.data["nut"] == mock_nut
+    assert any("although it answered before" in record.message for record in caplog.records)
+
+
+async def test_nut_scope_denied_skips_the_endpoint(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """A custom token denying the "nut" scope skips the UPS endpoint before the first poll."""
+    mock_client.async_get_token_permissions.return_value = {
+        "id": "1",
+        "permissions": {"mode": "custom", "resources": {"nut": "none"}},
+    }
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_nut_status.assert_not_called()
+    assert "nut" in coordinator.forbidden_resources
+    assert coordinator.data["nut"] == {}
