@@ -32,7 +32,9 @@ Entities are spread across three platforms:
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
 
-Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes. The UPS entities do too, and stay in place whether or not a UPS is attached: without one they report unavailable, apart from **UPS connected**, which reports the disconnection itself.
+Disks, pools, containers and VMs appear and disappear automatically as they change on the server — no reload needed. Each disk, pool, container and VM gets its own device linked back to the server. Hardware sensor readings appear directly on the server device instead, since each one is already a single measurement rather than a physical item with several attributes. The UPS entities do too; they are created the first time a UPS answers, so a server without one gets none at all. If the UPS later stops answering they stay and report unavailable, apart from **UPS connected**, which reports the disconnection itself.
+
+**Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them — anything your server doesn't serve yet simply produces no entities. Nothing to configure, nothing that breaks, and no version numbers to look up: update MOS, and the matching entities show up on their own within a poll or two. This works the other way round as well, so an older MOS keeps working, just with fewer entities.
 
 ## Installation
 
@@ -85,7 +87,7 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 | `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
 | `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
 
-The UPS endpoint (`/nut/status`) is the one exception to that table: it appeared after the resource list above was verified, so which scope governs it isn't confirmed. A token that can't read it makes the UPS entities go unavailable after a few polls and logs `nut` as the failing resource — turn the UPS category off if your server has no UPS anyway.
+The UPS endpoint (`/nut/status`) is the one exception to that table: it appeared after the resource list above was verified, so which scope governs it isn't confirmed. A token that can't read it means no UPS entities are created and `nut` shows up in the log as the failing resource — turn the UPS category off if your server has no UPS anyway.
 
 Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 

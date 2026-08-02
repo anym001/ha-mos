@@ -7,11 +7,12 @@ main server device rather than a dynamic list: MOS reports at most one UPS, and
 it is a fixed part of the server's power supply rather than something that
 comes and goes like a disk or a container.
 
-When no UPS is attached (or its driver is down) MOS answers ``reachable:
-false`` with no ``data`` at all. The entities then report themselves
-unavailable rather than a value, which is the honest reading - "we cannot tell"
-rather than "zero volts" - and they come back on their own as soon as the UPS
-answers again.
+They are created the first time a UPS actually answers, and then stay
+(``async_setup_ups_entities``), so a server without a UPS gets no UPS entities
+at all. Should the UPS stop answering afterwards - unplugged, driver down - MOS
+answers ``reachable: false`` with no ``data``, and the entities report
+themselves unavailable rather than a value: the honest reading is "we cannot
+tell", not "zero volts". They recover on their own as soon as it answers again.
 """
 
 from __future__ import annotations
@@ -202,3 +203,8 @@ class MOSNutSensor(SensorEntity, MOSEntity):
         if not self.coordinator.last_update_success:
             return None
         return self.entity_description.value_fn(nut_payload(self.coordinator))
+
+
+def build_nut_sensors(coordinator: MOSDataUpdateCoordinator) -> list[MOSNutSensor]:
+    """Build every UPS sensor entity (entity_factory for the deferred setup helper)."""
+    return [MOSNutSensor(coordinator, description) for description in ENTITY_DESCRIPTIONS]

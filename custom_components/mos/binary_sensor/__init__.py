@@ -21,12 +21,12 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_VM,
     PARALLEL_UPDATES as PARALLEL_UPDATES,
 )
-from custom_components.mos.entity_utils import async_setup_dynamic_entities
+from custom_components.mos.entity_utils import async_setup_dynamic_entities, async_setup_ups_entities
 
 from .disks import build_disk_binary_sensors
 from .docker import build_docker_container_binary_sensors
 from .lxc import build_lxc_container_binary_sensors
-from .nut import ENTITY_DESCRIPTIONS as NUT_DESCRIPTIONS, MOSNutBinarySensor
+from .nut import build_nut_binary_sensors
 from .pools import build_pool_binary_sensors
 from .services import ENTITY_DESCRIPTIONS as SERVICE_DESCRIPTIONS, MOSServiceBinarySensor
 from .vm import build_vm_machine_binary_sensors
@@ -52,13 +52,7 @@ async def async_setup_entry(
             for entity_description in SERVICE_DESCRIPTIONS
         )
     if entry.options.get(CONF_ENABLE_NUT, DEFAULT_ENABLE_NUT):
-        async_add_entities(
-            MOSNutBinarySensor(
-                coordinator=entry.runtime_data.coordinator,
-                entity_description=entity_description,
-            )
-            for entity_description in NUT_DESCRIPTIONS
-        )
+        async_setup_ups_entities(entry, async_add_entities, build_nut_binary_sensors)
 
     if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
         async_setup_dynamic_entities(

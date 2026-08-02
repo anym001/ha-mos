@@ -6,10 +6,11 @@ currently set (``OL`` on line power, ``OB`` on battery, ``LB`` low battery,
 ``CHRG`` charging). The raw flag string stays available as a sensor for the
 combinations these do not cover.
 
-``ups_reachable`` stays available with no UPS attached - reporting "not
-connected" is its whole job - while the flag-backed sensors go unavailable
-along with the rest of the UPS entities, since NUT reports no status at all
-then.
+Like the UPS sensors, these are created the first time a UPS answers and then
+stay. From then on ``ups_reachable`` remains available even with no UPS
+attached - reporting "not connected" is its whole job - while the flag-backed
+sensors go unavailable along with the rest of the UPS entities, since NUT
+reports no status at all then.
 """
 
 from __future__ import annotations
@@ -118,3 +119,8 @@ class MOSNutBinarySensor(BinarySensorEntity, MOSEntity):
         if not self.coordinator.last_update_success:
             return None
         return self.entity_description.value_fn(nut_payload(self.coordinator))
+
+
+def build_nut_binary_sensors(coordinator: MOSDataUpdateCoordinator) -> list[MOSNutBinarySensor]:
+    """Build every UPS binary sensor entity (entity_factory for the deferred setup helper)."""
+    return [MOSNutBinarySensor(coordinator, description) for description in ENTITY_DESCRIPTIONS]
