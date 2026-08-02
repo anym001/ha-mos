@@ -45,6 +45,28 @@ class MOSApiClientCommunicationError(
     """Exception to indicate a communication error with the API."""
 
 
+class MOSApiClientNotFoundError(
+    MOSApiClientCommunicationError,
+):
+    """
+    Exception to indicate the server has no such endpoint (HTTP 404).
+
+    In practice this means one thing: the MOS version running on that server
+    predates the endpoint. MOS keeps adding resources, and this integration
+    asks for all the ones it knows about, so an older server is expected to
+    answer 404 for some of them - that is a fact about the server, not a fault,
+    and the coordinator reports it as such instead of as a failure (see
+    ``_classify_transient_resource_failures``).
+
+    Deliberately a *subclass* of ``MOSApiClientCommunicationError`` rather than
+    a sibling: every existing handler that treats a communication error as
+    "this resource is not answering, keep the last state and retry" stays
+    correct for a 404 without knowing about it, and only the places that want
+    to say something more specific have to look. The one caller that must not
+    be fooled is the coordinator's triage, which tests for this class first.
+    """
+
+
 class MOSApiClientAuthenticationError(
     MOSApiClientError,
 ):
@@ -199,6 +221,7 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     Raises:
         MOSApiClientAuthenticationError: For 401 (token rejected).
         MOSApiClientPermissionError: For 403 (token accepted, resource denied).
+        MOSApiClientNotFoundError: For 404 (server has no such endpoint).
         MOSApiClientRateLimitError: For 429 (rate limited, retry later).
         aiohttp.ClientResponseError: For other HTTP errors.
 
@@ -211,6 +234,11 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     if response.status == HTTPStatus.FORBIDDEN:
         msg = f"API token is not authorized for {response.url.path}"
         raise MOSApiClientPermissionError(
+            msg,
+        )
+    if response.status == HTTPStatus.NOT_FOUND:
+        msg = f"No such endpoint on this server: {response.url.path}"
+        raise MOSApiClientNotFoundError(
             msg,
         )
     if response.status == HTTPStatus.TOO_MANY_REQUESTS:
@@ -613,8 +641,8 @@ class MOSApiClient:
         the token's own scope (unlike other ``/auth`` resources, which are
         blocked for readonly tokens). Only available on MOS versions that
         support token permission scoping; older servers respond with a 404,
-        which surfaces as ``MOSApiClientCommunicationError`` like any other
-        failed request.
+        which surfaces as ``MOSApiClientNotFoundError`` and leaves the scope
+        unknown (i.e. assumed unrestricted).
 
         Returns:
             A payload of the shape ``{"id", "name", "role", "isBootToken",
@@ -730,6 +758,7 @@ class MOSApiClient:
         except (
             MOSApiClientAuthenticationError,
             MOSApiClientPermissionError,
+            MOSApiClientNotFoundError,
             MOSApiClientRateLimitError,
         ):
             # These are already the precise exception for this response; let them

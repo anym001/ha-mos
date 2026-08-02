@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.api import (
     MOSApiClientAuthenticationError,
     MOSApiClientError,
+    MOSApiClientNotFoundError,
     MOSApiClientPermissionError,
     MOSApiClientRateLimitError,
 )
@@ -104,22 +105,46 @@ class _UpdateOutcome:
     auth_errors: list[BaseException] = field(default_factory=list)
     permission_errors: dict[str, BaseException] = field(default_factory=dict)
     rate_limit_errors: dict[str, BaseException] = field(default_factory=dict)
+    not_found_errors: dict[str, BaseException] = field(default_factory=dict)
     communication_errors: dict[str, BaseException] = field(default_factory=dict)
 
     def transient_resource_errors(self) -> dict[str, BaseException]:
         """
-        Per-resource failures that should not tear the resource down (403 / 429 / unreachable).
+        Per-resource failures that should not tear the resource down (403 / 404 / 429 / unreachable).
 
-        All three are transient from the coordinator's point of view: the
+        All of them are transient from the coordinator's point of view: the
         resource keeps its last-known-good data and is retried on the next poll.
         Merged here so the update flow has a single view of "which resources
         failed but must be preserved".
+
+        404s are included, but most of them are filtered back out one step later:
+        an endpoint the server has never served is not a failure to preserve
+        anything for, it is a feature this MOS version does not have (see
+        ``_classify_transient_resource_failures``). What stays here is a 404 on a
+        resource that did answer before, which is a genuine regression and is
+        treated like any other unreachable resource.
 
         Authentication errors are deliberately absent. A rejected token is a
         property of the connection, not of one endpoint, so a 401 anywhere fails
         the whole cycle - see ``_handle_failed_resources``.
         """
-        return {**self.permission_errors, **self.rate_limit_errors, **self.communication_errors}
+        return {
+            **self.permission_errors,
+            **self.rate_limit_errors,
+            **self.not_found_errors,
+            **self.communication_errors,
+        }
+
+    def unreachable_errors(self) -> dict[str, BaseException]:
+        """
+        Failures that mean "no answer from this endpoint" - a transport error or a 404.
+
+        Used for the always-fetched resources, where the distinction does not
+        matter: osinfo or system_load answering 404 is as fatal to the cycle as
+        the connection dropping, since a server without them is not one this
+        integration can present anything from.
+        """
+        return {**self.communication_errors, **self.not_found_errors}
 
 
 def _merge_docker_engine_state(
@@ -247,6 +272,31 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     # notification. A time-based property could flip silently between two polls
     # and leave entities rendering the opposite of what the coordinator thinks.
     _stale_resources: frozenset[str] = frozenset()
+
+    # Optional resources this server answered 404 for without ever having served
+    # them: endpoints its MOS version does not have yet. Kept apart from every
+    # failure category above because it is not a failure - there is no data to
+    # retain, nothing to mark stale, and no entities to make unavailable. They
+    # are still requested every poll, so an update that adds the endpoint is
+    # picked up without a reload.
+    _unsupported_resources: frozenset[str] = frozenset()
+
+    # Resources that have returned data at least once since this coordinator was
+    # created. This is what makes the distinction above possible: a data key
+    # alone cannot tell "never served" from "served, then stopped", because every
+    # optional resource is defaulted to an empty payload at the end of each cycle
+    # and is therefore present either way.
+    _answered_resources: frozenset[str] = frozenset()
+
+    @property
+    def unsupported_resources(self) -> frozenset[str]:
+        """
+        Resources this MOS version has no endpoint for.
+
+        Empty against a server new enough for every endpoint the integration
+        knows about. Entities are simply not created for what is listed here.
+        """
+        return self._unsupported_resources
 
     @property
     def stale_resources(self) -> frozenset[str]:
@@ -564,6 +614,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 outcome.permission_errors[key] = result
             elif isinstance(result, MOSApiClientRateLimitError):
                 outcome.rate_limit_errors[key] = result
+            elif isinstance(result, MOSApiClientNotFoundError):
+                # Before the communication-error branch below, which it is a
+                # subclass of - the point of the class is to be told apart here.
+                outcome.not_found_errors[key] = result
             elif isinstance(result, MOSApiClientError):
                 outcome.communication_errors[key] = result
             else:
@@ -589,6 +643,15 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         (retryable) instead. Communication errors on those are caught earlier,
         in ``_handle_failed_resources``.
 
+        A 404 is the exception to all of that, and only for a resource that has
+        never returned data: the server does not have the endpoint, which is
+        what a MOS version older than the endpoint answers. There is nothing to
+        preserve, nothing to mark stale, and no entities to make unavailable -
+        so it is recorded as unsupported, logged once, and left out of the
+        degraded bookkeeping entirely. It is still requested on every poll, so a
+        server that gains the endpoint in an update is picked up without a
+        reload.
+
         Returns:
             The optional resource keys that failed transiently this cycle and
             whose previous data must be carried forward.
@@ -603,8 +666,50 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._raise_if_required_resource_failed(outcome)
 
         transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES
-        self._track_degraded_resources(outcome, transient)
-        return transient
+        unsupported = self._classify_unsupported_resources(outcome)
+        self._track_degraded_resources(outcome, transient - unsupported)
+        return transient - unsupported
+
+    def _classify_unsupported_resources(self, outcome: _UpdateOutcome) -> set[str]:
+        """
+        Record which optional resources this server simply does not have, and say so once.
+
+        A 404 counts as "not supported" only for a resource that has never
+        answered in this coordinator's lifetime. One that answered before and
+        404s now is a regression on the server's side, not a missing feature, so
+        it is left in the transient set and handled like any other endpoint that
+        stopped responding.
+
+        The message is deliberately informational: on a MOS version older than
+        an endpoint this is the expected, harmless outcome, and the user has
+        nothing to fix - so it explains what is missing and what makes it appear,
+        rather than reporting a problem.
+
+        Returns:
+            The optional resource keys this server has no endpoint for.
+
+        """
+        self._answered_resources |= outcome.payload.keys()
+        unsupported = {
+            key
+            for key in outcome.not_found_errors
+            if key not in self._answered_resources and key not in ALWAYS_FETCHED_RESOURCES
+        }
+
+        newly_unsupported = sorted(unsupported - self._unsupported_resources)
+        if newly_unsupported:
+            LOGGER.info(
+                "This MOS server has no endpoint for %s (HTTP 404) - its MOS version predates it. "
+                "No entities are created for it; update MOS and they appear on their own, no reload needed. "
+                "You can also switch the category off in the integration options to stop asking for it",
+                ", ".join(newly_unsupported),
+            )
+        now_supported = sorted(self._unsupported_resources - unsupported)
+        if now_supported:
+            LOGGER.info("This MOS server now provides %s - creating its entities", ", ".join(now_supported))
+
+        self._unsupported_resources = frozenset(unsupported)
+        return unsupported
 
     def _raise_if_required_resource_failed(self, outcome: _UpdateOutcome) -> None:
         """
@@ -738,7 +843,19 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         newly = transient - degraded
         newly_denied = sorted(newly & set(outcome.permission_errors))
         newly_limited = sorted(newly & set(outcome.rate_limit_errors))
+        newly_missing = sorted(newly & set(outcome.not_found_errors))
         newly_unreachable = sorted(newly & set(outcome.communication_errors))
+        if newly_missing:
+            # Only a resource that used to answer reaches this: one the server
+            # never had is reported as unsupported instead and never enters the
+            # transient set (see _classify_unsupported_resources).
+            LOGGER.warning(
+                "Server returned 404 for %s although it answered before - keeping last-known state and "
+                "retrying on the next poll. If this persists, the endpoint was removed or renamed on the "
+                "server: %s",
+                ", ".join(newly_missing),
+                outcome.not_found_errors[newly_missing[0]],
+            )
         if newly_unreachable:
             LOGGER.warning(
                 "Error communicating with API for %s (%s) - keeping last-known state and retrying "
@@ -801,15 +918,20 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         ones among them, so the entry goes unavailable as before rather than
         quietly serving stale data forever.
 
+        A 404 counts here too: a server that does not have /osinfo at all is not
+        a MOS server this integration can read anything from, so it fails the
+        cycle rather than being reported as an unsupported endpoint.
+
         Raises:
             UpdateFailed: If osinfo or system_load hit a communication error.
 
         """
-        unreachable_required = set(outcome.communication_errors) & ALWAYS_FETCHED_RESOURCES
+        unreachable = outcome.unreachable_errors()
+        unreachable_required = set(unreachable) & ALWAYS_FETCHED_RESOURCES
         if not unreachable_required:
             return
 
-        exception = outcome.communication_errors[min(unreachable_required)]
+        exception = unreachable[min(unreachable_required)]
         LOGGER.error(
             "Error communicating with API for %s, which the integration always needs: %s",
             ", ".join(sorted(unreachable_required)),
@@ -941,7 +1063,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         429 rate limit, or a communication error such as a timeout or 5xx -
         keeps its last-known-good data and is retried next poll, so the rest of
         the poll still succeeds and no entities are torn down over a passing
-        server hiccup. Only a rejected token (401, which is a property of the
+        server hiccup. An endpoint the server does not have at all (404, i.e. a
+        MOS version older than that endpoint) is not treated as a failure: it is
+        reported once and left out, and starts working on its own if a MOS update
+        adds it. Only a rejected token (401, which is a property of the
         connection rather than of one endpoint) or a failure on an always-fetched
         resource takes the whole cycle down.
 

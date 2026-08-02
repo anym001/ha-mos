@@ -158,6 +158,10 @@ async def async_get_config_entry_diagnostics(
             for key, streak in coordinator._degraded_resources.items()  # noqa: SLF001
         },
         "stale_resources": sorted(coordinator.stale_resources),
+        # Endpoints this server's MOS version does not have. Answers the other
+        # half of "why do I not have these entities" - too old a server, rather
+        # than too narrow a token (which is `forbidden_resources` below).
+        "unsupported_resources": sorted(coordinator.unsupported_resources),
     }
 
     # API client information. The token is reduced to "is one configured at
