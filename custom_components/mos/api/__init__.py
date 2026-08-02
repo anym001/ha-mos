@@ -9,14 +9,22 @@ Architecture:
 Exception hierarchy:
     MOSApiClientError (base)
     ├── MOSApiClientCommunicationError (network/timeout)
+    │   └── MOSApiClientNotFoundError (404 - server has no such endpoint)
     ├── MOSApiClientAuthenticationError (401 - token rejected)
     ├── MOSApiClientPermissionError (403 - token valid, resource denied)
     └── MOSApiClientRateLimitError (429 - rate limited, retry later)
 
-    401, 403 and 429 are kept apart on purpose. Only 401 says anything about the
-    token itself; 403 says the token is fine but its scope does not cover that
-    resource, which no amount of reauthenticating can fix; 429 says the token
-    and scope are both fine and the request should simply be retried later.
+    401, 403, 404 and 429 are kept apart on purpose. Only 401 says anything about
+    the token itself; 403 says the token is fine but its scope does not cover that
+    resource, which no amount of reauthenticating can fix; 404 says the server
+    simply does not have that endpoint, which is the normal answer from a MOS
+    version older than the endpoint; 429 says the token and scope are both fine
+    and the request should simply be retried later.
+
+    404 is the one that is *nested*, under the communication error: any handler
+    that does not care about the distinction keeps treating it as "this resource
+    is not answering", which is the safe reading everywhere it is not handled
+    explicitly.
 
 Coordinator exception mapping:
     ApiClientAuthenticationError → UpdateFailed (auto-retry, ConfigEntryNotReady
@@ -38,6 +46,15 @@ Coordinator exception mapping:
         reaches here is by construction not an explicit denial. Never escalates
         to reauth. If an always-fetched resource (osinfo, system_load) is denied,
         UpdateFailed instead - the integration cannot work without those.
+    ApiClientNotFoundError     → reported as an unsupported endpoint rather than a
+        failure, for an optional resource that has never returned data: it is
+        logged once, no entities are created for it, and it is re-probed on every
+        poll so a server that gains the endpoint in an update is picked up without
+        a reload. A 404 on a resource that *did* answer before is a regression
+        rather than a missing feature, and falls back to the transient handling
+        below. On an always-fetched resource (osinfo, system_load) it fails the
+        cycle like any other unreachable resource - a server without those is not
+        a MOS server this integration can talk to.
     ApiClientRateLimitError    → same transient per-resource handling as a 403:
         keep last-known-good data, retry next poll. An always-fetched resource
         being rate limited fails the cycle (UpdateFailed, auto-retry).
@@ -50,6 +67,7 @@ from .client import (
     MOSApiClientAuthenticationError,
     MOSApiClientCommunicationError,
     MOSApiClientError,
+    MOSApiClientNotFoundError,
     MOSApiClientPermissionError,
     MOSApiClientRateLimitError,
 )
@@ -59,6 +77,7 @@ __all__ = [
     "MOSApiClientAuthenticationError",
     "MOSApiClientCommunicationError",
     "MOSApiClientError",
+    "MOSApiClientNotFoundError",
     "MOSApiClientPermissionError",
     "MOSApiClientRateLimitError",
 ]

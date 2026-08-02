@@ -30,6 +30,11 @@ if TYPE_CHECKING:
 ERROR_MAP = {
     "MOSApiClientAuthenticationError": "auth",
     "MOSApiClientCommunicationError": "connection",
+    # Looked up by exact class name, so the 404 subclass has to be listed even
+    # though it is a communication error: something answered at that address,
+    # but it has no /osinfo - a wrong host, port or path, which is the same
+    # advice "connection" already gives.
+    "MOSApiClientNotFoundError": "connection",
     # A 403 on /osinfo means the token is genuine but too narrowly scoped, so
     # "the token was rejected" would send the user looking for the wrong problem.
     "MOSApiClientPermissionError": "permission",
