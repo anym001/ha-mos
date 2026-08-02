@@ -61,6 +61,8 @@ async def test_hardware_and_network_identifiers_are_redacted(
     assert data_sample["osinfo"]["hostname"] == REDACTED
     assert all(disk["serial"] == REDACTED for disk in data_sample["disks"])
     assert all(container["network"] == REDACTED for container in data_sample["lxc_containers"])
+    # Nested blocks are reached too, not just top-level keys.
+    assert data_sample["nut"]["data"]["serial"] == REDACTED
     # The address itself, not just the key holding it.
     assert "192.168.1.100" not in str(diagnostics)
 
@@ -93,6 +95,8 @@ async def test_data_sample_includes_all_resources(
     mock_lxc_containers: list[dict],
     mock_docker_containers: list[dict],
     mock_vm_machines: list[dict],
+    mock_sensors: dict[str, list[dict]],
+    mock_nut: dict,
 ) -> None:
     """The data sample surfaces every polled resource alongside osinfo."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
@@ -103,6 +107,12 @@ async def test_data_sample_includes_all_resources(
     assert data_sample["pools"] == mock_pools
     assert data_sample["system_load"] == mock_system_load
     assert data_sample["vm_machines"] == mock_vm_machines
+    # Complete but for the UPS serial (see test_hardware_and_network_identifiers_are_redacted).
+    assert data_sample["nut"] == {**mock_nut, "data": {**mock_nut["data"], "serial": REDACTED}}
+    # sensors arrives flattened across its categories, one entry per reading.
+    assert [item["id"] for item in data_sample["sensors"]] == [
+        item["id"] for items in mock_sensors.values() for item in items
+    ]
     # docker_containers has a "state" field merged in from the Docker Engine proxy.
     assert {c["name"] for c in data_sample["docker_containers"]} == {c["name"] for c in mock_docker_containers}
     assert all("state" in c for c in data_sample["docker_containers"])
