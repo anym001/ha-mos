@@ -22,7 +22,8 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
-- **UPS** — status, load, battery charge/runtime/voltage, input and output voltage and frequency, plus on-line-power, on-battery, battery-low and charging flags
+- **UPS** — status, load, battery charge/runtime/voltage, input and output voltage and frequency, plus on-line-power, on-battery, battery-low and charging flags; created once a UPS answers, so a server without one gets none
+- **Follows the server** — disks, pools, containers and VMs appear and disappear on their own as they change there, each as its own device; readings that stand on their own, hardware sensors and the UPS, sit on the server device
 - **Token permissions respected** — every write action checks your API token's scope first, and for custom-scoped tokens, entities are only created for categories the token can actually read
 - **Selective categories** — turn disks, pools, services, LXC, Docker, VMs, hardware sensors or the UPS off entirely
 
@@ -31,8 +32,6 @@ Entities are spread across three platforms:
 - **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors, UPS readings
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
-
-Anything the server can have several of — disks, pools, containers, VMs — appears and disappears on its own as it changes there, no reload needed, and each gets its own device linked back to the server. Single readings, hardware sensors and the UPS, sit on the server device instead. UPS entities are created the first time a UPS answers, so a server without one gets none; if it later stops answering they stay and report unavailable, apart from **UPS connected**, which reports the disconnection itself.
 
 **Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, which counts as an answer rather than a failure: those entities are left out, the log names them once, and nothing else is affected. The request goes out on every poll anyway, so after a MOS update the matching entities appear on their own within a poll or two — no version numbers to look up, nothing to reload. Switch the category off in the options if you would rather it stopped asking.
 
