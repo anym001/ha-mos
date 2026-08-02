@@ -189,6 +189,9 @@ MOS_PERMISSION_RESOURCES = frozenset(
         "system",
         "mos",
         "terminal",
+        # Added alongside /nut/status; only a custom-mode token lists it, same as
+        # every other name here (full/readonly carry no resources block at all).
+        "nut",
     }
 )
 
@@ -214,17 +217,8 @@ PERMISSION_RESOURCE_BY_KEY = {
     "docker_containers": "docker",
     "docker_engine_containers": "docker",
     "vm_machines": "vm",
+    "nut": "nut",
 }
-
-# Deliberately absent above: "nut". By the first-path-segment rule
-# /api/v1/nut/status would be governed by a "nut" resource, but no such name
-# appears in MOS_PERMISSION_RESOURCES - the scope list a MOS 0.5.x token
-# actually returns - and naming a resource MOS does not have would deny nothing
-# while looking like it did. Leaving the key unmapped means the scope is not
-# consulted for it: a token that cannot read it gets a 403 on the first poll,
-# which the coordinator treats as a transient per-resource failure (entities
-# keep their last state, then go unavailable once it stays denied). Map it here
-# once the real scope name is confirmed against a server that exposes NUT.
 
 # The subset whose entities may be dropped when the scope denies them, which is
 # every mapped resource except the always-fetched ones: a denial there is fatal
