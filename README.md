@@ -86,8 +86,9 @@ The default of 30 seconds suits container and VM states you want to react to; 5�
 | `lxc`    | `read` or `write` | LXC entities — `write` only for the power switch    |
 | `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
 | `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
+| `nut`    | `read`            | UPS entities, if the category is enabled            |
 
-The UPS endpoint (`/nut/status`) is the one exception to that table: it appeared after the resource list above was verified, so which scope governs it isn't confirmed. A token that can't read it means no UPS entities are created and `nut` shows up in the log as the failing resource — turn the UPS category off if your server has no UPS anyway.
+`nut` only exists on MOS versions that have the UPS endpoint, and only a **Custom** token lists it at all — on an older server the row simply isn't there, and the UPS entities are left out with a note in the log.
 
 Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 
