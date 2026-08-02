@@ -73,7 +73,8 @@
           "enable_lxc": "Enable LXC containers",
           "enable_docker": "Enable Docker containers",
           "enable_vm": "Enable VMs",
-          "enable_sensors": "Enable hardware sensors"
+          "enable_sensors": "Enable hardware sensors",
+          "enable_nut": "Enable UPS"
         },
         "data_description": {
           "scan_interval": "How often to poll the MOS API (30 to 3600 seconds).",
@@ -83,7 +84,8 @@
           "enable_lxc": "Create entities for each LXC container.",
           "enable_docker": "Create entities for each Docker container.",
           "enable_vm": "Create entities for each VM.",
-          "enable_sensors": "Create entities for hardware readings (fans, temperatures, voltages, ...)."
+          "enable_sensors": "Create entities for hardware readings (fans, temperatures, voltages, ...).",
+          "enable_nut": "Create entities for the UPS MOS monitors via Network UPS Tools."
         }
       }
     }
@@ -265,6 +267,54 @@
       },
       "vm_memory_usage": {
         "name": "Memory usage"
+      },
+      "ups_status": {
+        "name": "UPS status"
+      },
+      "ups_name": {
+        "name": "UPS name"
+      },
+      "ups_manufacturer": {
+        "name": "UPS manufacturer"
+      },
+      "ups_model": {
+        "name": "UPS model"
+      },
+      "ups_serial": {
+        "name": "UPS serial number"
+      },
+      "ups_load": {
+        "name": "UPS load"
+      },
+      "ups_realpower_nominal": {
+        "name": "UPS nominal power"
+      },
+      "ups_battery_charge": {
+        "name": "UPS battery"
+      },
+      "ups_battery_charge_low": {
+        "name": "UPS battery low threshold"
+      },
+      "ups_battery_runtime": {
+        "name": "UPS battery runtime"
+      },
+      "ups_battery_voltage": {
+        "name": "UPS battery voltage"
+      },
+      "ups_battery_type": {
+        "name": "UPS battery type"
+      },
+      "ups_input_voltage": {
+        "name": "UPS input voltage"
+      },
+      "ups_input_frequency": {
+        "name": "UPS input frequency"
+      },
+      "ups_output_voltage": {
+        "name": "UPS output voltage"
+      },
+      "ups_output_frequency": {
+        "name": "UPS output frequency"
       }
     },
     "binary_sensor": {
@@ -318,6 +368,21 @@
       },
       "vm_autostart": {
         "name": "Autostart"
+      },
+      "ups_reachable": {
+        "name": "UPS connected"
+      },
+      "ups_online": {
+        "name": "UPS on line power"
+      },
+      "ups_on_battery": {
+        "name": "UPS on battery"
+      },
+      "ups_battery_low": {
+        "name": "UPS battery low"
+      },
+      "ups_battery_charging": {
+        "name": "UPS battery charging"
       }
     },
     "switch": {

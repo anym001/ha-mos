@@ -76,6 +76,7 @@ async def test_fetches_all_resources_by_default(
         ],
         "vm_machines": mock_client.async_get_vm_machines.return_value,
         "sensors": [{**item, "category": category} for category, items in mock_sensors.items() for item in items],
+        "nut": mock_client.async_get_nut_status.return_value,
     }
 
 

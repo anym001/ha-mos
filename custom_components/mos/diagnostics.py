@@ -233,6 +233,7 @@ async def async_get_config_entry_diagnostics(
             "lxc_containers": coordinator.data.get("lxc_containers"),
             "docker_containers": coordinator.data.get("docker_containers"),
             "vm_machines": coordinator.data.get("vm_machines"),
+            "nut": coordinator.data.get("nut"),
         }
 
     # One redaction pass over everything, rather than per-section: a dump is

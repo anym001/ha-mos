@@ -330,6 +330,30 @@ def mock_sensors() -> dict[str, list[dict[str, Any]]]:
 
 
 @pytest.fixture
+def mock_nut() -> dict[str, Any]:
+    """Return a realistic ``/nut/status`` payload for an attached, online UPS.
+
+    The raw ``vars`` block MOS also returns is left out on purpose: nothing in
+    the integration reads it (see ``MOSApiClient.async_get_nut_status``).
+    """
+    return {
+        "reachable": True,
+        "name": "ups",
+        "status": "OL",
+        "data": {
+            "model": "ACMT1000E",
+            "manufacturer": "CPS",
+            "serial": "XTBLP2000067",
+            "load": 6,
+            "realpowerNominal": 700,
+            "battery": {"charge": 100, "chargeLow": 10, "runtime": 15780, "voltage": 24, "type": "PbAcid"},
+            "input": {"voltage": 228, "frequency": 50},
+            "output": {"voltage": 228, "frequency": 50},
+        },
+    }
+
+
+@pytest.fixture
 def mock_token_permissions() -> dict[str, Any]:
     """Return a realistic ``/auth/admin-tokens/me`` payload for a full-access token."""
     return {
@@ -372,6 +396,7 @@ def mock_client(
     mock_docker_engine_containers: list[dict[str, Any]],
     mock_vm_machines: list[dict[str, Any]],
     mock_sensors: dict[str, list[dict[str, Any]]],
+    mock_nut: dict[str, Any],
     mock_token_permissions: dict[str, Any],
 ) -> AsyncMock:
     """Return an AsyncMock standing in for MOSApiClient."""
@@ -386,6 +411,7 @@ def mock_client(
     client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
     client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_sensors.return_value = mock_sensors
+    client.async_get_nut_status.return_value = mock_nut
     client.async_get_token_permissions.return_value = mock_token_permissions
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"

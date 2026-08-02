@@ -8,12 +8,14 @@ from custom_components.mos.const import (
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
+    CONF_ENABLE_NUT,
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SENSORS,
     CONF_ENABLE_VM,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
+    DEFAULT_ENABLE_NUT,
     DEFAULT_ENABLE_POOLS,
     DEFAULT_ENABLE_SENSORS,
     DEFAULT_ENABLE_VM,
@@ -25,6 +27,7 @@ from .disks import build_disk_sensors
 from .docker import build_docker_container_sensors
 from .hardware import build_hardware_sensors, sensor_key
 from .lxc import build_lxc_container_sensors
+from .nut import ENTITY_DESCRIPTIONS as NUT_DESCRIPTIONS, MOSNutSensor
 from .pools import build_pool_sensors
 from .system import ENTITY_DESCRIPTIONS as SYSTEM_DESCRIPTIONS, MOSSystemSensor
 from .system_health import ENTITY_DESCRIPTIONS as SYSTEM_HEALTH_DESCRIPTIONS, MOSSystemHealthSensor
@@ -56,6 +59,14 @@ async def async_setup_entry(
         )
         for entity_description in SYSTEM_HEALTH_DESCRIPTIONS
     )
+    if entry.options.get(CONF_ENABLE_NUT, DEFAULT_ENABLE_NUT):
+        async_add_entities(
+            MOSNutSensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in NUT_DESCRIPTIONS
+        )
 
     if entry.options.get(CONF_ENABLE_DISKS, DEFAULT_ENABLE_DISKS):
         async_setup_dynamic_entities(
