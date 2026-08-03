@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.9](https://github.com/anym001/ha-mos/compare/v0.1.8...v0.1.9) (2026-08-03)
+
+
+### Features
+
+* **api:** add UPS entities from the nut/status endpoint ([e356cef](https://github.com/anym001/ha-mos/commit/e356cef010ba995ee6c70f80e2e8121f0d393f68))
+* **api:** report missing endpoints as unsupported instead of failures ([fab7625](https://github.com/anym001/ha-mos/commit/fab762518c944b7b0262446fa1e713bede04c8ba))
+* **coordinator:** map the UPS resource to the nut token scope ([0a4dd45](https://github.com/anym001/ha-mos/commit/0a4dd4507731024a43774f95c903e2b54d0f160f))
+* **coordinator:** warn once when MOS cannot read its UPS ([63f7193](https://github.com/anym001/ha-mos/commit/63f71937fabd446cbb9904983f1b9077e148ce60))
+* **entity:** create UPS entities only once a UPS answers ([01cc076](https://github.com/anym001/ha-mos/commit/01cc0764349dc08ad6d9df727ae2d5a84b08e083))
+* **translations:** describe the connection fields in both languages ([8b2a452](https://github.com/anym001/ha-mos/commit/8b2a4527502898290d728f28b846dcebd99e8dfc))
+
+
+### Bug Fixes
+
+* **api:** url-encode container and vm names in request paths ([290fc86](https://github.com/anym001/ha-mos/commit/290fc86c162d3f2743984cc76a5200896aa3f560))
+* **coordinator:** map services to the mos scope, not a made-up one ([6f71bee](https://github.com/anym001/ha-mos/commit/6f71bee6bff4ee1c6f76874819dd200415067d88))
+* **coordinator:** name the MOS permission resource in denial messages ([9c7100b](https://github.com/anym001/ha-mos/commit/9c7100be165295f1dcda26bae926aa75e2b60e7f))
+* **diagnostics:** include the hardware sensor readings ([59c30a4](https://github.com/anym001/ha-mos/commit/59c30a45d7252b49764a466fca0d514355e725fb))
+* **diagnostics:** redact host and hardware identifiers from dumps ([c95c708](https://github.com/anym001/ha-mos/commit/c95c7080bee365786461b64604e03394eee417ee))
+
 ## [0.1.8](https://github.com/anym001/ha-mos/compare/v0.1.7...v0.1.8) (2026-07-30)
 
 
