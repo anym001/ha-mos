@@ -73,12 +73,13 @@ if not m:
 pkg_version = m.group(1)
 
 # Which HA version this pin pulls in is only knowable from PyPI, so this is the
-# one part of the check that needs the network. A PyPI outage, a proxy, an
-# offline commit - none of those say anything about whether the versions in this
-# repository agree, so they skip this source rather than failing the check: the
-# workflow runs on every pull request, and a red check nobody can act on is
-# worse than a check that says what it could not compare. Only the reply itself
-# being unusable is still fatal, since that is structural rather than transient.
+# one part of the check that needs the network. A PyPI outage, a proxy, or a
+# plain offline commit says nothing about whether the versions in this
+# repository agree, so those skip this source instead of failing the check: the
+# pre-commit hook runs on every commit that touches the version files, and
+# blocking a commit over an unreachable third party helps nobody. The remaining
+# sources are still compared, and the run reports what it could not check. Only
+# an unusable reply stays fatal, since that is structural, not transient.
 pytest_ha: str | None = None
 try:
     with urllib.request.urlopen(
