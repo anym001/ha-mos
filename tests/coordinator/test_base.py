@@ -1256,6 +1256,92 @@ async def test_endpoint_that_answered_before_is_treated_as_a_failure_not_as_miss
     assert any("although it answered before" in record.message for record in caplog.records)
 
 
+# What MOS answers once NUT is switched on but the driver is not attached - the
+# UPS is on a different machine, or usbhid-ups is not running. Kept verbatim,
+# newlines included, because collapsing them is part of what is under test.
+UPS_DRIVER_DOWN: dict[str, Any] = {
+    "reachable": False,
+    "name": "ups",
+    "error": "Command failed: upsc ups@127.0.0.1:3493\nInit SSL without certificate database\nError: Driver not connected\n",
+}
+
+# What it answers with NUT switched off entirely: no UPS, and nothing to say
+# about it.
+UPS_NOT_CONFIGURED: dict[str, Any] = {"reachable": False, "name": None, "status": None}
+
+
+async def test_a_ups_the_server_cannot_read_is_explained_once(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A configured-but-unreadable UPS is the one case with no entity to show it, so it is logged.
+
+    Once, not every poll - and on a single line, since the server passes the
+    failed command's multi-line output straight through.
+    """
+    mock_client.async_get_nut_status.return_value = UPS_DRIVER_DOWN
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with caplog.at_level(logging.WARNING):
+        await coordinator.async_config_entry_first_refresh()
+        first_poll = [record.getMessage() for record in caplog.records]
+        caplog.clear()
+        await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is True
+    reported = [message for message in first_poll if "cannot read it" in message]
+    assert len(reported) == 1
+    assert "Error: Driver not connected" in reported[0]
+    assert "\n" not in reported[0]
+    assert not [record for record in caplog.records if "cannot read it" in record.message]
+
+
+async def test_a_server_without_a_ups_says_nothing(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """No UPS configured is the normal case for most users, and must not produce a warning.
+
+    The endpoint answers, it simply reports nothing attached and no error - the
+    absence of ``error`` is what separates "nothing set up" from "set up and
+    broken".
+    """
+    mock_client.async_get_nut_status.return_value = UPS_NOT_CONFIGURED
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    with caplog.at_level(logging.WARNING):
+        await coordinator.async_config_entry_first_refresh()
+
+    assert coordinator.data["nut"] == UPS_NOT_CONFIGURED
+    assert not [record for record in caplog.records if "cannot read it" in record.message]
+
+
+async def test_a_ups_that_breaks_again_is_reported_again(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_nut: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Recovering rearms the message, so a later failure is not swallowed by an old one."""
+    mock_client.async_get_nut_status.return_value = UPS_DRIVER_DOWN
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_nut_status.return_value = mock_nut
+    await coordinator.async_refresh()
+
+    mock_client.async_get_nut_status.return_value = UPS_DRIVER_DOWN
+    with caplog.at_level(logging.WARNING):
+        await coordinator.async_refresh()
+
+    assert [record for record in caplog.records if "cannot read it" in record.message]
+
+
 async def test_nut_scope_denied_skips_the_endpoint(
     hass: HomeAssistant,
     mock_client: AsyncMock,
