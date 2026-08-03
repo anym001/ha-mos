@@ -63,6 +63,7 @@ async def test_every_flag_of_a_combined_status_is_read(
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
     mock_nut: dict[str, Any],
+    *,
     status: str,
     expected_on: set[str],
 ) -> None:
