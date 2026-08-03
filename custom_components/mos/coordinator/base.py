@@ -288,6 +288,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     # and is therefore present either way.
     _answered_resources: frozenset[str] = frozenset()
 
+    # The last ``error`` /nut/status reported for a UPS it could not read, so the
+    # explanation is logged once instead of every poll. ``None`` means there is
+    # currently nothing to report - see ``_log_unreadable_ups``.
+    _nut_error: str | None = None
+
     @property
     def unsupported_resources(self) -> frozenset[str]:
         """
@@ -886,6 +891,43 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         if recovered:
             LOGGER.info("%s recovered after a transient failure - fresh data again", ", ".join(recovered))
 
+    def _log_unreadable_ups(self, payload: dict[str, Any]) -> None:
+        """
+        Say once when the server knows a UPS but cannot read it.
+
+        ``/nut/status`` carries an ``error`` in exactly one situation: NUT is
+        configured on the server and querying it failed - a driver that is not
+        running, or a UPS whose USB cable is on a different machine than the one
+        MOS runs on. A server with NUT switched off answers ``reachable: false``
+        and no error, and a working one has nothing to report either, so keying
+        on the field's presence stays silent for everyone without a UPS and
+        speaks up only for the person who configured one.
+
+        A log line is the only place this can go. The UPS entities are created on
+        the first reachable poll and never before (see
+        ``async_setup_ups_entities``), so in this exact case there is no entity
+        to carry the message - which is also why it is worth logging at all:
+        without it the symptom is silence, and nothing anywhere says why. The
+        raw payload including the error is in the diagnostics dump for the
+        follow-up.
+
+        Repeats only when the error text changes, and rearms once it clears, so
+        a UPS that fails again later is reported again rather than suppressed by
+        a stale note from hours ago.
+        """
+        error = payload.get("error") if not payload.get("reachable") else None
+        if error == self._nut_error:
+            return
+        if error:
+            LOGGER.warning(
+                "MOS knows a UPS but cannot read it, so no UPS entities are created - "
+                "check the NUT configuration on the server: %s",
+                # The server passes the failed command's output through verbatim,
+                # newlines and all, and a log record is one line.
+                " ".join(str(error).split()),
+            )
+        self._nut_error = error
+
     def _retain_last_known_good(self, data: dict[str, Any], transient: set[str]) -> None:
         """
         Carry a transiently-failed resource's previous data forward into this cycle's payload.
@@ -1114,6 +1156,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # fetched" and "fetched, no UPS" must stay distinguishable, and an empty
         # dict reads as unreachable everywhere it is consumed anyway.
         data.setdefault("nut", {})
+        self._log_unreadable_ups(data["nut"])
         if "docker_engine_containers" in data:
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],
