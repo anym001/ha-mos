@@ -125,6 +125,11 @@
       "message": "Der konfigurierte API-Token hat keinen Lesezugriff auf {resource}, den diese Integration immer benötigt. Gewähre ihm in der MOS-Web-UI Lesezugriff auf diese Ressource."
     }
   },
+  "device": {
+    "nut": {
+      "name": "{server} USV"
+    }
+  },
   "entity": {
     "sensor": {
       "boot_time": {
@@ -269,52 +274,52 @@
         "name": "Speicherauslastung"
       },
       "ups_status": {
-        "name": "USV-Status"
+        "name": "Status"
       },
       "ups_name": {
-        "name": "USV-Name"
+        "name": "Name"
       },
       "ups_manufacturer": {
-        "name": "USV-Hersteller"
+        "name": "Hersteller"
       },
       "ups_model": {
-        "name": "USV-Modell"
+        "name": "Modell"
       },
       "ups_serial": {
-        "name": "USV-Seriennummer"
+        "name": "Seriennummer"
       },
       "ups_load": {
-        "name": "USV-Auslastung"
+        "name": "Auslastung"
       },
       "ups_realpower_nominal": {
-        "name": "USV-Nennleistung"
+        "name": "Nennleistung"
       },
       "ups_battery_charge": {
-        "name": "USV-Batterie"
+        "name": "Batterie"
       },
       "ups_battery_charge_low": {
-        "name": "USV-Batterie Warnschwelle"
+        "name": "Batterie Warnschwelle"
       },
       "ups_battery_runtime": {
-        "name": "USV-Batterielaufzeit"
+        "name": "Batterielaufzeit"
       },
       "ups_battery_voltage": {
-        "name": "USV-Batteriespannung"
+        "name": "Batteriespannung"
       },
       "ups_battery_type": {
-        "name": "USV-Batterietyp"
+        "name": "Batterietyp"
       },
       "ups_input_voltage": {
-        "name": "USV-Eingangsspannung"
+        "name": "Eingangsspannung"
       },
       "ups_input_frequency": {
-        "name": "USV-Eingangsfrequenz"
+        "name": "Eingangsfrequenz"
       },
       "ups_output_voltage": {
-        "name": "USV-Ausgangsspannung"
+        "name": "Ausgangsspannung"
       },
       "ups_output_frequency": {
-        "name": "USV-Ausgangsfrequenz"
+        "name": "Ausgangsfrequenz"
       }
     },
     "binary_sensor": {
@@ -370,19 +375,52 @@
         "name": "Autostart"
       },
       "ups_reachable": {
-        "name": "USV verbunden"
+        "name": "Verbunden"
       },
       "ups_online": {
-        "name": "USV im Netzbetrieb"
+        "name": "Im Netzbetrieb"
       },
       "ups_on_battery": {
-        "name": "USV im Batteriebetrieb"
+        "name": "Im Batteriebetrieb"
       },
       "ups_battery_low": {
-        "name": "USV-Batterie schwach"
+        "name": "Batterie schwach"
       },
       "ups_battery_charging": {
-        "name": "USV-Batterie lädt"
+        "name": "Batterie lädt"
+      },
+      "ups_discharging": {
+        "name": "Batterie entlädt"
+      },
+      "ups_battery_high": {
+        "name": "Batterie überladen"
+      },
+      "ups_replace_battery": {
+        "name": "Batterie tauschen"
+      },
+      "ups_bypass": {
+        "name": "Bypass aktiv"
+      },
+      "ups_calibrating": {
+        "name": "Kalibrierung"
+      },
+      "ups_output_off": {
+        "name": "Ausgang aus"
+      },
+      "ups_overload": {
+        "name": "Überlast"
+      },
+      "ups_voltage_trim": {
+        "name": "Spannungsabsenkung"
+      },
+      "ups_voltage_boost": {
+        "name": "Spannungsanhebung"
+      },
+      "ups_forced_shutdown": {
+        "name": "Zwangsabschaltung"
+      },
+      "ups_alarm": {
+        "name": "Alarm"
       }
     },
     "switch": {

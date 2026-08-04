@@ -78,6 +78,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         *,
         unique_id: str | None = None,
         container_device: tuple[str, str] | None = None,
+        device_translation_key: str | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -97,6 +98,15 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 the server device via ``via_device``, and its name is
                 prefixed with the server name so it stays unique/identifiable
                 across multiple configured MOS servers.
+            device_translation_key: Optional key under ``device`` in the
+                translation files, naming the container device through a
+                translated string instead of ``display_name``. Only for
+                devices whose name is fixed vocabulary rather than something
+                the user named themselves: a UPS is "UPS" in English and
+                "USV" in German, while a disk or container carries the name
+                its owner gave it and has nothing to translate. The server
+                name is passed in as the ``server`` placeholder so the
+                translation keeps the same prefix as the untranslated names.
 
         """
         super().__init__(coordinator)
@@ -109,12 +119,19 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             device_key, device_name = container_device
             # Prefix with the server name so container devices/entities stay unique and
             # identifiable when more than one MOS server is configured (e.g. two servers
-            # both happen to run a container named "database").
+            # both happen to run a container named "database"). A translated device gets
+            # the same prefix from its ``server`` placeholder instead, and is named by
+            # the device registry rather than here.
+            device_naming: DeviceInfo = (
+                {"translation_key": device_translation_key, "translation_placeholders": {"server": entry.title}}
+                if device_translation_key
+                else {"name": f"{entry.title} {device_name}" if entry.title else device_name}
+            )
             self._attr_device_info = DeviceInfo(
                 identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
-                name=f"{entry.title} {device_name}" if entry.title else device_name,
                 manufacturer="MOS",
                 via_device=(entry.domain, entry.entry_id),
+                **device_naming,
             )
             return
 

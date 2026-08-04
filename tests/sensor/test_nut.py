@@ -112,7 +112,9 @@ async def test_ups_entities_get_their_own_device_linked_to_server(
 
     The unique_id stays exactly what it was when these entities lived on the
     server device, so existing users are moved to the new device automatically
-    instead of getting a duplicate entity.
+    instead of getting a duplicate entity. The entity_id is preserved too: the
+    device now carries the "UPS" part of the name, so the entities dropped it
+    from theirs and the two still compose into the same slug.
     """
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
@@ -124,6 +126,8 @@ async def test_ups_entities_get_their_own_device_linked_to_server(
     assert entry.unique_id == f"{setup_integration.entry_id}_ups_status"
 
     ups_device = device_registry.async_get(entry.device_id)
+    # Resolved from the "device" translations rather than hardcoded, so this
+    # also catches the name falling back to the bare translation key ("nut").
     assert ups_device.name == "Sirius UPS"
     assert ups_device.via_device_id == server_device.id
     assert ups_device.id != server_device.id

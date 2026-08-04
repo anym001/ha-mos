@@ -1,10 +1,12 @@
 """UPS binary sensors for mos, sourced from the ``/nut/status`` endpoint.
 
-Splits the two boolean facts out of the payload that automations actually key
-on: whether MOS can see a UPS at all, and which of NUT's status flags are
-currently set (``OL`` on line power, ``OB`` on battery, ``LB`` low battery,
-``CHRG`` charging). The raw flag string stays available as a sensor for the
-combinations these do not cover.
+Splits the boolean facts out of the payload that automations actually key on:
+whether MOS can see a UPS at all, plus one sensor per NUT status flag. NUT
+reports ``ups.status`` as a space-separated set of flags that apply at once
+("OB DISCHRG LB" on a draining battery), so a flag is a boolean in its own
+right rather than one value of an enumeration - which is why each gets its own
+sensor instead of the raw string being mapped to a single state. That raw
+string stays available as a sensor for reading the combination as a whole.
 
 Like the UPS sensors, these are created the first time a UPS answers and then
 stay. From then on ``ups_reachable`` remains available even with no UPS
@@ -26,6 +28,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 
 if TYPE_CHECKING:
     from custom_components.mos.coordinator import MOSDataUpdateCoordinator
@@ -88,6 +91,100 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=_has_flag("CHRG"),
     ),
+    # The remaining NUT flags. All diagnostic except the calibration run: they
+    # describe how the UPS is coping rather than whether it is protecting the
+    # server, which is what the sensors above answer.
+    MOSNutBinarySensorEntityDescription(
+        key="ups_discharging",
+        translation_key="ups_discharging",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Not BATTERY_CHARGING inverted: a UPS on mains with a full battery is
+        # neither charging nor discharging, so the two are separate facts.
+        icon="mdi:battery-minus-variant",
+        value_fn=_has_flag("DISCHRG"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_battery_high",
+        translation_key="ups_battery_high",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Not the BATTERY device class: that one reads "on = battery low", so
+        # using it for the opposite condition would invert its meaning.
+        icon="mdi:battery-high",
+        value_fn=_has_flag("HB"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_replace_battery",
+        translation_key="ups_replace_battery",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # No icon: PROBLEM already flips between an alert and an all-clear,
+        # which a fixed icon would override (same as the disk/pool sensors).
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_has_flag("RB"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_bypass",
+        translation_key="ups_bypass",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # A problem rather than a mode: the load is on raw mains, so the next
+        # power cut goes straight through to the server.
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_has_flag("BYPASS"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_calibrating",
+        translation_key="ups_calibrating",
+        # Not diagnostic and not a problem: a calibration is a normal
+        # maintenance run, but it does briefly put the load on battery, so it
+        # is worth seeing next to the primary sensors rather than filed away.
+        device_class=BinarySensorDeviceClass.RUNNING,
+        value_fn=_has_flag("CAL"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_output_off",
+        translation_key="ups_output_off",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:power-off",
+        value_fn=_has_flag("OFF"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_overload",
+        translation_key="ups_overload",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_has_flag("OVER"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_voltage_trim",
+        translation_key="ups_voltage_trim",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Regulation doing its job, not a fault - hence a direction arrow
+        # rather than a warning icon.
+        icon="mdi:arrow-collapse-down",
+        value_fn=_has_flag("TRIM"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_voltage_boost",
+        translation_key="ups_voltage_boost",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:arrow-collapse-up",
+        value_fn=_has_flag("BOOST"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_forced_shutdown",
+        translation_key="ups_forced_shutdown",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_has_flag("FSD"),
+    ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_alarm",
+        translation_key="ups_alarm",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Driver-specific: what raised it has to be read off ups_status, so
+        # this only reports that something did.
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=_has_flag("ALARM"),
+    ),
 )
 
 
@@ -106,7 +203,12 @@ class MOSNutBinarySensor(BinarySensorEntity, MOSEntity):
         entity_description: MOSNutBinarySensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, entity_description, container_device=("nut", "UPS"))
+        super().__init__(
+            coordinator,
+            entity_description,
+            container_device=("nut", "UPS"),
+            device_translation_key="nut",
+        )
 
     @property
     def available(self) -> bool:
