@@ -22,7 +22,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
-- **UPS** — grouped on its own device: status, load, battery charge/runtime/voltage, input and output voltage and frequency, plus one flag per NUT status (on line power, on battery, charging/discharging, battery low/high, replace battery, bypass, calibrating, output off, overload, voltage trim/boost, forced shutdown, alarm); created once a UPS answers, so a server without one gets none
+- **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
 - **Selective categories** — every category can be turned off entirely
 
