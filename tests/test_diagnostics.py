@@ -155,10 +155,11 @@ async def test_devices_and_entities_are_reported(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """The server device plus one device per disk/pool/LXC/Docker/VM item are reported."""
+    """The server device plus one device per disk/pool/LXC/Docker/VM/UPS item are reported."""
     diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
 
-    # 1 server device + 2 disks + 2 pools + 2 LXC containers + 2 Docker containers + 2 VMs.
-    assert len(diagnostics["devices"]) == 11
+    # 1 server device + 2 disks + 2 pools + 2 LXC containers + 2 Docker containers
+    # + 2 VMs + 1 UPS.
+    assert len(diagnostics["devices"]) == 12
     for device in diagnostics["devices"]:
         assert device["entity_count"] > 0
