@@ -55,21 +55,24 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolBinarySensorEntityDescription, ...] = (
     MOSPoolBinarySensorEntityDescription(
         key="scrub_running",
         translation_key="pool_scrub_running",
-        icon="mdi:refresh",
+        # Icon is state-dependent (icons.json), not set here: mdi:refresh
+        # while running, a neutral icon once idle.
         presence_key="scrub_operation",
         value_fn=lambda pool: (pool.get("status") or {}).get("scrub_operation"),
     ),
     MOSPoolBinarySensorEntityDescription(
         key="balance_running",
         translation_key="pool_balance_running",
-        icon="mdi:refresh",
+        # Icon is state-dependent (icons.json), not set here: mdi:refresh
+        # while running, a neutral icon once idle.
         presence_key="balance_operation",
         value_fn=lambda pool: (pool.get("status") or {}).get("balance_operation"),
     ),
     MOSPoolBinarySensorEntityDescription(
         key="parity_running",
         translation_key="pool_parity_running",
-        icon="mdi:refresh",
+        # Icon is state-dependent (icons.json), not set here: mdi:refresh
+        # while running, a neutral icon once idle.
         presence_key="parity_operation",
         value_fn=lambda pool: (pool.get("status") or {}).get("parity_operation"),
     ),

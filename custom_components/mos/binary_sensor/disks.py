@@ -47,7 +47,8 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskBinarySensorEntityDescription, ...] = (
     MOSDiskBinarySensorEntityDescription(
         key="preclear_running",
         translation_key="disk_preclear_running",
-        icon="mdi:progress-clock",
+        # Icon is state-dependent (icons.json), not set here: mdi:progress-clock
+        # while running, a neutral icon once idle.
         value_fn=lambda disk: disk.get("preclearRunning"),
     ),
 )
