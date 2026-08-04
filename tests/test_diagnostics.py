@@ -8,6 +8,7 @@ from custom_components.mos.const import CONF_API_TOKEN
 from custom_components.mos.diagnostics import async_get_config_entry_diagnostics
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import area_registry as ar, device_registry as dr
 
 REDACTED = "**REDACTED**"
 
@@ -163,3 +164,35 @@ async def test_devices_and_entities_are_reported(
     assert len(diagnostics["devices"]) == 12
     for device in diagnostics["devices"]:
         assert device["entity_count"] > 0
+
+
+async def test_a_renamed_device_is_reported_as_renamed(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A user-set device name and area are reported next to the integration's own name.
+
+    Home Assistant freezes an entity_id at registration from
+    ``name_by_user or name``, so a device renamed part-way through its life
+    leaves entity_ids carrying a name that appears nowhere else in the dump.
+    Reporting the override is what makes those entity_ids explicable - and
+    reporting the area is what rules it out as the cause, since a room name
+    that matches the rename looks like the culprit but never reaches an
+    entity_id.
+    """
+    device_registry = dr.async_get(hass)
+    server = device_registry.async_get_device(identifiers={("mos", setup_integration.entry_id)})
+    area = ar.async_get(hass).async_create("Control room")
+    device_registry.async_update_device(server.id, name_by_user="Control room Sirius", area_id=area.id)
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
+    devices = {device["id"]: device for device in diagnostics["devices"]}
+
+    assert devices[server.id]["name"] == "Sirius"
+    assert devices[server.id]["name_by_user"] == "Control room Sirius"
+    assert devices[server.id]["area_id"] == area.id
+    # An untouched device reports the absence rather than leaving the reader to
+    # guess whether the field was omitted or the override simply is not set.
+    ups = next(device for device in diagnostics["devices"] if device["name"] == "Sirius UPS")
+    assert ups["name_by_user"] is None
+    assert ups["area_id"] is None

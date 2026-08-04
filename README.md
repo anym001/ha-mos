@@ -92,7 +92,7 @@ Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, 
 
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version and entity IDs remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue.
+**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version, entity IDs, your own device names and the area each device is assigned to remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue.
 
 ## Troubleshooting
 
