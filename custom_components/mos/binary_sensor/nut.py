@@ -68,7 +68,9 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
     MOSNutBinarySensorEntityDescription(
         key="ups_on_battery",
         translation_key="ups_on_battery",
-        icon="mdi:power-plug-off",
+        # Icon is state-dependent (icons.json), not set here: this is the
+        # loss-of-mains signal, so the shape should flip between on/off, not
+        # just the color.
         # Not simply the inverse of ups_online: a UPS in bypass or on a failed
         # battery reports neither flag, and conflating the two would claim mains
         # power is fine when NUT never said so.

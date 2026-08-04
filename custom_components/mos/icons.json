@@ -1,0 +1,41 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "ups_on_battery": {
+        "default": "mdi:power-plug-off",
+        "state": {
+          "on": "mdi:battery-alert",
+          "off": "mdi:power-plug"
+        }
+      },
+      "pool_scrub_running": {
+        "default": "mdi:refresh",
+        "state": {
+          "on": "mdi:refresh",
+          "off": "mdi:check-circle-outline"
+        }
+      },
+      "pool_balance_running": {
+        "default": "mdi:refresh",
+        "state": {
+          "on": "mdi:refresh",
+          "off": "mdi:check-circle-outline"
+        }
+      },
+      "pool_parity_running": {
+        "default": "mdi:refresh",
+        "state": {
+          "on": "mdi:refresh",
+          "off": "mdi:check-circle-outline"
+        }
+      },
+      "disk_preclear_running": {
+        "default": "mdi:progress-clock",
+        "state": {
+          "on": "mdi:progress-clock",
+          "off": "mdi:check-circle-outline"
+        }
+      }
+    }
+  }
+}
