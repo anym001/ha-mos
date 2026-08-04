@@ -97,7 +97,7 @@ class MOSNutBinarySensor(BinarySensorEntity, MOSEntity):
     entity_description: MOSNutBinarySensorEntityDescription
 
     # Declared explicitly rather than stamped on by async_setup_dynamic_entities:
-    # this is a fixed set of entities on the server device, not a dynamic list.
+    # this is a fixed set of entities on their own UPS device, not a dynamic list.
     resource_keys = frozenset({"nut"})
 
     def __init__(
@@ -106,7 +106,7 @@ class MOSNutBinarySensor(BinarySensorEntity, MOSEntity):
         entity_description: MOSNutBinarySensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, entity_description)
+        super().__init__(coordinator, entity_description, container_device=("nut", "UPS"))
 
     @property
     def available(self) -> bool:

@@ -2,10 +2,10 @@
 
 MOS talks to the UPS through Network UPS Tools and hands back a parsed ``data``
 block next to the raw NUT variables; only the parsed block is used here, since
-the raw variable set differs per driver. The entities are a fixed set on the
-main server device rather than a dynamic list: MOS reports at most one UPS, and
-it is a fixed part of the server's power supply rather than something that
-comes and goes like a disk or a container.
+the raw variable set differs per driver. The entities are a fixed set on their
+own UPS device (linked to the server device via ``via_device``) rather than a
+dynamic list: MOS reports at most one UPS, so unlike disks or containers there
+is never more than one such device to create or remove.
 
 They are created the first time a UPS actually answers, and then stay
 (``async_setup_ups_entities``), so a server without a UPS gets no UPS entities
@@ -191,7 +191,7 @@ class MOSNutSensor(SensorEntity, MOSEntity):
     entity_description: MOSNutSensorEntityDescription
 
     # Declared explicitly rather than stamped on by async_setup_dynamic_entities:
-    # this is a fixed set of entities on the server device, not a dynamic list.
+    # this is a fixed set of entities on their own UPS device, not a dynamic list.
     resource_keys = frozenset({"nut"})
 
     def __init__(
@@ -200,7 +200,7 @@ class MOSNutSensor(SensorEntity, MOSEntity):
         entity_description: MOSNutSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, entity_description)
+        super().__init__(coordinator, entity_description, container_device=("nut", "UPS"))
 
     @property
     def available(self) -> bool:

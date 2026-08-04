@@ -11,6 +11,7 @@ from custom_components.mos.const import CONF_ENABLE_NUT
 from homeassistant.components.sensor import ATTR_STATE_CLASS
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 UPS_OFFLINE = {"reachable": False, "name": None, "status": None}
 
@@ -101,6 +102,31 @@ async def test_sensors_appear_only_once_a_ups_has_answered(
         await hass.async_block_till_done()
 
     assert hass.states.get("sensor.sirius_ups_status").state == "OL"
+
+
+async def test_ups_entities_get_their_own_device_linked_to_server(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """UPS entities live on their own device, linked to the server device via via_device.
+
+    The unique_id stays exactly what it was when these entities lived on the
+    server device, so existing users are moved to the new device automatically
+    instead of getting a duplicate entity.
+    """
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+
+    server_device = device_registry.async_get_device(identifiers={("mos", setup_integration.entry_id)})
+    assert server_device is not None
+
+    entry = entity_registry.async_get("sensor.sirius_ups_status")
+    assert entry.unique_id == f"{setup_integration.entry_id}_ups_status"
+
+    ups_device = device_registry.async_get(entry.device_id)
+    assert ups_device.name == "Sirius UPS"
+    assert ups_device.via_device_id == server_device.id
+    assert ups_device.id != server_device.id
 
 
 async def test_disabled_category_creates_no_sensors(
