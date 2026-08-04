@@ -125,6 +125,19 @@ async def async_get_config_entry_diagnostics(
             {
                 "id": device.id,
                 "name": device.name,
+                # The name the user gave the device, and the area it sits in.
+                # Neither is set by this integration, which is exactly why they
+                # belong in a dump: Home Assistant derives an entity_id from
+                # `name_by_user or name` at the moment an entity is first
+                # registered and then freezes it. A device renamed part-way
+                # through its life therefore ends up with entity_ids carrying a
+                # name that appears nowhere else - the older ones from before
+                # the rename, the newer ones from after it. Without these two
+                # fields such a dump reads as if the integration had invented
+                # the prefix itself, and the area is the first thing suspected
+                # when it happens to match the room the server sits in.
+                "name_by_user": device.name_by_user,
+                "area_id": device.area_id,
                 "manufacturer": device.manufacturer,
                 "model": device.model,
                 "sw_version": device.sw_version,
