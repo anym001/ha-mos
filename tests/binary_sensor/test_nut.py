@@ -8,14 +8,26 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 FLAG_SENSORS = (
     "binary_sensor.sirius_ups_on_line_power",
     "binary_sensor.sirius_ups_on_battery",
     "binary_sensor.sirius_ups_battery_low",
     "binary_sensor.sirius_ups_battery_charging",
+    "binary_sensor.sirius_ups_battery_discharging",
+    "binary_sensor.sirius_ups_battery_high",
+    "binary_sensor.sirius_ups_replace_battery",
+    "binary_sensor.sirius_ups_bypass_active",
+    "binary_sensor.sirius_ups_calibrating",
+    "binary_sensor.sirius_ups_output_off",
+    "binary_sensor.sirius_ups_overload",
+    "binary_sensor.sirius_ups_voltage_trim",
+    "binary_sensor.sirius_ups_voltage_boost",
+    "binary_sensor.sirius_ups_forced_shutdown",
+    "binary_sensor.sirius_ups_alarm",
 )
 
 
@@ -56,6 +68,33 @@ async def test_flags_reflect_the_reported_status(
             "OL CHRG",
             {"binary_sensor.sirius_ups_on_line_power", "binary_sensor.sirius_ups_battery_charging"},
         ),
+        # The flags beyond the four primary ones, each on its own and in the
+        # combinations a UPS actually reports them in.
+        ("RB", {"binary_sensor.sirius_ups_replace_battery"}),
+        ("HB", {"binary_sensor.sirius_ups_battery_high"}),
+        ("BYPASS", {"binary_sensor.sirius_ups_bypass_active"}),
+        ("CAL", {"binary_sensor.sirius_ups_calibrating"}),
+        ("OFF", {"binary_sensor.sirius_ups_output_off"}),
+        ("OVER", {"binary_sensor.sirius_ups_overload"}),
+        ("TRIM", {"binary_sensor.sirius_ups_voltage_trim"}),
+        ("BOOST", {"binary_sensor.sirius_ups_voltage_boost"}),
+        ("ALARM", {"binary_sensor.sirius_ups_alarm"}),
+        (
+            "OB DISCHRG LB",
+            {
+                "binary_sensor.sirius_ups_on_battery",
+                "binary_sensor.sirius_ups_battery_discharging",
+                "binary_sensor.sirius_ups_battery_low",
+            },
+        ),
+        (
+            "OB FSD LB",
+            {
+                "binary_sensor.sirius_ups_on_battery",
+                "binary_sensor.sirius_ups_forced_shutdown",
+                "binary_sensor.sirius_ups_battery_low",
+            },
+        ),
     ],
 )
 async def test_every_flag_of_a_combined_status_is_read(
@@ -73,6 +112,32 @@ async def test_every_flag_of_a_combined_status_is_read(
     for entity_id in FLAG_SENSORS:
         expected = STATE_ON if entity_id in expected_on else STATE_OFF
         assert hass.states.get(entity_id).state == expected, entity_id
+
+
+async def test_secondary_flags_are_diagnostic(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The added flags are filed as diagnostic, except the calibration run.
+
+    They describe how the UPS is coping rather than whether it is still
+    protecting the server, which is what the four primary sensors answer. A
+    calibration is the exception: it briefly puts the load on battery, so it
+    belongs next to those rather than in the diagnostics section.
+    """
+    registry = er.async_get(hass)
+
+    for entity_id in (
+        "binary_sensor.sirius_ups_replace_battery",
+        "binary_sensor.sirius_ups_bypass_active",
+        "binary_sensor.sirius_ups_overload",
+        "binary_sensor.sirius_ups_alarm",
+        "binary_sensor.sirius_ups_voltage_boost",
+    ):
+        assert registry.async_get(entity_id).entity_category is EntityCategory.DIAGNOSTIC, entity_id
+
+    assert registry.async_get("binary_sensor.sirius_ups_calibrating").entity_category is None
+    assert registry.async_get("binary_sensor.sirius_ups_on_battery").entity_category is None
 
 
 async def test_connected_keeps_reporting_when_the_ups_disappears(

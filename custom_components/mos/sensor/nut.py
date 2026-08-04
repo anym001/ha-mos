@@ -200,7 +200,12 @@ class MOSNutSensor(SensorEntity, MOSEntity):
         entity_description: MOSNutSensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, entity_description, container_device=("nut", "UPS"))
+        super().__init__(
+            coordinator,
+            entity_description,
+            container_device=("nut", "UPS"),
+            device_translation_key="nut",
+        )
 
     @property
     def available(self) -> bool:

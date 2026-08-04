@@ -125,6 +125,11 @@
       "message": "The configured API token does not have read access to {resource}, which this integration always needs. Grant it read access to this resource in the MOS web UI."
     }
   },
+  "device": {
+    "nut": {
+      "name": "{server} UPS"
+    }
+  },
   "entity": {
     "sensor": {
       "boot_time": {
@@ -269,52 +274,52 @@
         "name": "Memory usage"
       },
       "ups_status": {
-        "name": "UPS status"
+        "name": "Status"
       },
       "ups_name": {
-        "name": "UPS name"
+        "name": "Name"
       },
       "ups_manufacturer": {
-        "name": "UPS manufacturer"
+        "name": "Manufacturer"
       },
       "ups_model": {
-        "name": "UPS model"
+        "name": "Model"
       },
       "ups_serial": {
-        "name": "UPS serial number"
+        "name": "Serial number"
       },
       "ups_load": {
-        "name": "UPS load"
+        "name": "Load"
       },
       "ups_realpower_nominal": {
-        "name": "UPS nominal power"
+        "name": "Nominal power"
       },
       "ups_battery_charge": {
-        "name": "UPS battery"
+        "name": "Battery"
       },
       "ups_battery_charge_low": {
-        "name": "UPS battery low threshold"
+        "name": "Battery low threshold"
       },
       "ups_battery_runtime": {
-        "name": "UPS battery runtime"
+        "name": "Battery runtime"
       },
       "ups_battery_voltage": {
-        "name": "UPS battery voltage"
+        "name": "Battery voltage"
       },
       "ups_battery_type": {
-        "name": "UPS battery type"
+        "name": "Battery type"
       },
       "ups_input_voltage": {
-        "name": "UPS input voltage"
+        "name": "Input voltage"
       },
       "ups_input_frequency": {
-        "name": "UPS input frequency"
+        "name": "Input frequency"
       },
       "ups_output_voltage": {
-        "name": "UPS output voltage"
+        "name": "Output voltage"
       },
       "ups_output_frequency": {
-        "name": "UPS output frequency"
+        "name": "Output frequency"
       }
     },
     "binary_sensor": {
@@ -370,19 +375,52 @@
         "name": "Autostart"
       },
       "ups_reachable": {
-        "name": "UPS connected"
+        "name": "Connected"
       },
       "ups_online": {
-        "name": "UPS on line power"
+        "name": "On line power"
       },
       "ups_on_battery": {
-        "name": "UPS on battery"
+        "name": "On battery"
       },
       "ups_battery_low": {
-        "name": "UPS battery low"
+        "name": "Battery low"
       },
       "ups_battery_charging": {
-        "name": "UPS battery charging"
+        "name": "Battery charging"
+      },
+      "ups_discharging": {
+        "name": "Battery discharging"
+      },
+      "ups_battery_high": {
+        "name": "Battery high"
+      },
+      "ups_replace_battery": {
+        "name": "Replace battery"
+      },
+      "ups_bypass": {
+        "name": "Bypass active"
+      },
+      "ups_calibrating": {
+        "name": "Calibrating"
+      },
+      "ups_output_off": {
+        "name": "Output off"
+      },
+      "ups_overload": {
+        "name": "Overload"
+      },
+      "ups_voltage_trim": {
+        "name": "Voltage trim"
+      },
+      "ups_voltage_boost": {
+        "name": "Voltage boost"
+      },
+      "ups_forced_shutdown": {
+        "name": "Forced shutdown"
+      },
+      "ups_alarm": {
+        "name": "Alarm"
       }
     },
     "switch": {
