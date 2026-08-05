@@ -23,6 +23,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
+- **One room for the whole server** — set the area on the server device and its pools, disks, containers, VMs and UPS follow, including ones that appear later; move a single device somewhere else and it stays put
 - **Token permissions respected** — every write action checks your API token's scope first
 - **Selective categories** — every category can be turned off entirely
 
@@ -57,6 +58,8 @@ Required: **Name**, **Host** and **API token**. Everything else is optional:
 - **Verify TLS certificate** — on by default
 
 The name becomes the device name and keeps entity IDs apart if you add several servers. Create the API token in the MOS web UI under **User Settings → Admin API Tokens** — see [Security](#security) for how to scope it.
+
+Home Assistant follows the form with a list of every device it just created, each with an area picker. You can fill in the **first row only** — the server itself — and skip the rest: the other devices take that area from it, and so does anything that appears later. Nothing there is mandatory, so skipping all of it is fine too.
 
 Connection details can be changed later via **⋮** → **Reconfigure**, without removing the integration.
 

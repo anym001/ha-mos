@@ -40,6 +40,7 @@ from .const import (
 )
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
+from .entity_utils import async_setup_area_inheritance
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -127,6 +128,10 @@ async def async_setup_entry(
 
     # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
     await coordinator.async_config_entry_first_refresh()
+
+    # Before the platforms, so a device created during their setup is already
+    # covered by it rather than being the one that slipped through.
+    async_setup_area_inheritance(hass, entry)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
