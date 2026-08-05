@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.1.10](https://github.com/anym001/ha-mos/compare/v0.1.9...v0.1.10) (2026-08-05)
+
+
+### Features
+
+* **binary-sensor:** add a sensor for every NUT status flag ([1767aa2](https://github.com/anym001/ha-mos/commit/1767aa254db75166a9f6f8d2cb1f0bda88e5df53))
+* **binary-sensor:** add state-dependent icons for in-progress sensors ([420eab5](https://github.com/anym001/ha-mos/commit/420eab540a21c68c2037345710d56f6dbc9b3246))
+* **diagnostics:** report the device name override and area ([3df0dc5](https://github.com/anym001/ha-mos/commit/3df0dc5f4d98d8a6a0022104990352af29889617))
+* **entity:** group UPS sensors under their own device ([afdc6c9](https://github.com/anym001/ha-mos/commit/afdc6c9fe68179862d6b7e3bb27bdbaff9a6fcb6))
+* **entity:** let container devices follow the server's area ([749799d](https://github.com/anym001/ha-mos/commit/749799d65b6e05edd70dda26a62179b541f08a08))
+
+
+### Bug Fixes
+
+* **api:** tell a rejected token apart from a denied resource ([aa1c134](https://github.com/anym001/ha-mos/commit/aa1c134997a20453c428f7858afab2dedcb58e4c))
+* **binary-sensor:** file the UPS calibration run as diagnostic ([a217421](https://github.com/anym001/ha-mos/commit/a217421aee7a3e8cdbe47fa07ae38973d5b4b880))
+* **binary-sensor:** show the UPS discharge flag as primary ([ba48108](https://github.com/anym001/ha-mos/commit/ba48108487cbbb4285e3006245a99e23dd27a73f))
+* **coordinator:** stop re-asking for a resource the server refused ([10c332e](https://github.com/anym001/ha-mos/commit/10c332e48727375557b6a3fe2ca64cbbc37c6b48))
+* **entity:** keep the container device info type-checked ([a888118](https://github.com/anym001/ha-mos/commit/a8881182025f7ebf92ffa92f04129a54f9a11776))
+* **entity:** name the UPS's own maker on its device page ([6e09f96](https://github.com/anym001/ha-mos/commit/6e09f966d37341985d112d61693bd194944bd3e0))
+* **sensor:** clean up misleading and colliding UPS icons ([0ce304d](https://github.com/anym001/ha-mos/commit/0ce304db9eba818a98105e09d32180de6d049244))
+* **sensor:** file the UPS nameplate sensors as diagnostic ([6f63e6c](https://github.com/anym001/ha-mos/commit/6f63e6c4867197783d32701949930aa477ea71a9))
+* **tests:** count the UPS device in the diagnostics device total ([a5765ec](https://github.com/anym001/ha-mos/commit/a5765ec7e584efdd12d206697f6e53863e65bf49))
+* **translations:** correct the German name of the HB flag ([0d6f56a](https://github.com/anym001/ha-mos/commit/0d6f56a10203e3ac088dbad0abe8c5fd955a3c10))
+
 ## [0.1.9](https://github.com/anym001/ha-mos/compare/v0.1.8...v0.1.9) (2026-08-03)
 
 
