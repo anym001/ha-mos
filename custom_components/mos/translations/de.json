@@ -393,7 +393,7 @@
         "name": "Batterie entlädt"
       },
       "ups_battery_high": {
-        "name": "Batterie überladen"
+        "name": "Batterie voll"
       },
       "ups_replace_battery": {
         "name": "Batterie tauschen"
