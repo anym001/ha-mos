@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
-from custom_components.mos.entity_utils import is_ups_reachable, nut_payload, nut_status_flags
+from custom_components.mos.entity_utils import is_ups_reachable, nut_device_hardware, nut_payload, nut_status_flags
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -227,6 +227,7 @@ class MOSNutBinarySensor(BinarySensorEntity, MOSEntity):
             entity_description,
             container_device=("nut", "UPS"),
             device_translation_key="nut",
+            device_hardware=nut_device_hardware(coordinator),
         )
 
     @property

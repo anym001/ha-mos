@@ -1,7 +1,14 @@
 """Entity utilities package for mos."""
 
 from .dynamic_entities import async_setup_dynamic_entities
-from .nut_status import async_setup_ups_entities, is_ups_reachable, nut_data, nut_payload, nut_status_flags
+from .nut_status import (
+    async_setup_ups_entities,
+    is_ups_reachable,
+    nut_data,
+    nut_device_hardware,
+    nut_payload,
+    nut_status_flags,
+)
 from .permissions import has_read_access, has_write_access
 
 __all__ = [
@@ -11,6 +18,7 @@ __all__ = [
     "has_write_access",
     "is_ups_reachable",
     "nut_data",
+    "nut_device_hardware",
     "nut_payload",
     "nut_status_flags",
 ]

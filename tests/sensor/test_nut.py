@@ -171,6 +171,59 @@ async def test_ups_entities_get_their_own_device_linked_to_server(
     assert ups_device.id != server_device.id
 
 
+async def test_ups_device_names_its_own_maker_not_mos(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A UPS is third-party hardware, so its device page says who actually built it.
+
+    Every other container device is something MOS provides and stays "MOS";
+    only the UPS is a box MOS merely talks to over NUT.
+    """
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+
+    ups_device = device_registry.async_get(entity_registry.async_get("sensor.sirius_ups_status").device_id)
+    assert ups_device.manufacturer == "CPS"
+    assert ups_device.model == "ACMT1000E"
+    assert ups_device.serial_number == "XTBLP2000067"
+
+    pool_device = device_registry.async_get(
+        entity_registry.async_get("binary_sensor.sirius_pool_test1_problem").device_id,
+    )
+    assert pool_device.manufacturer == "MOS"
+
+
+async def test_ups_device_omits_hardware_the_driver_does_not_report(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_nut: dict[str, Any],
+) -> None:
+    """A driver that reports no model leaves the field empty rather than inventing one.
+
+    Losing "MOS" as the blanket manufacturer is the point: a wrong name reads
+    as fact, while a blank field reads as "not reported".
+    """
+    mock_client.async_get_nut_status.return_value = {
+        **mock_nut,
+        "data": {**mock_nut["data"], "model": None, "serial": None},
+    }
+    mock_config_entry.add_to_hass(hass)
+
+    with patch("custom_components.mos.MOSApiClient", return_value=mock_client):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    ups_device = device_registry.async_get(entity_registry.async_get("sensor.sirius_ups_status").device_id)
+
+    assert ups_device.manufacturer == "CPS"
+    assert ups_device.model is None
+    assert ups_device.serial_number is None
+
+
 async def test_disabled_category_creates_no_sensors(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,

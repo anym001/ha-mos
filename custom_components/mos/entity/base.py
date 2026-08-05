@@ -20,6 +20,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 if TYPE_CHECKING:
+    from custom_components.mos.data import MOSDeviceHardware
     from homeassistant.helpers.entity import EntityDescription
 
 
@@ -79,6 +80,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         unique_id: str | None = None,
         container_device: tuple[str, str] | None = None,
         device_translation_key: str | None = None,
+        device_hardware: MOSDeviceHardware | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -107,6 +109,9 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 its owner gave it and has nothing to translate. The server
                 name is passed in as the ``server`` placeholder so the
                 translation keeps the same prefix as the untranslated names.
+            device_hardware: Optional maker/model/serial for a container
+                device that is not MOS's own hardware. Only the UPS passes
+                this; see ``MOSDeviceHardware``.
 
         """
         super().__init__(coordinator)
@@ -124,12 +129,20 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             # the device registry rather than here.
             device_info = DeviceInfo(
                 identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
-                manufacturer="MOS",
                 via_device=(entry.domain, entry.entry_id),
             )
             # Assigned rather than passed as **kwargs: unpacking a DeviceInfo into
             # the constructor erases the per-key types, leaving every field an
             # untyped object.
+            if device_hardware is None:
+                device_info["manufacturer"] = "MOS"
+            else:
+                if device_hardware.manufacturer:
+                    device_info["manufacturer"] = device_hardware.manufacturer
+                if device_hardware.model:
+                    device_info["model"] = device_hardware.model
+                if device_hardware.serial_number:
+                    device_info["serial_number"] = device_hardware.serial_number
             if device_translation_key:
                 device_info["translation_key"] = device_translation_key
                 device_info["translation_placeholders"] = {"server": entry.title}
