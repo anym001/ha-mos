@@ -118,12 +118,11 @@ async def test_secondary_flags_are_diagnostic(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """The added flags are filed as diagnostic, except the calibration run.
+    """Both sides of the split are pinned, not just the diagnostic one.
 
-    They describe how the UPS is coping rather than whether it is still
-    protecting the server, which is what the four primary sensors answer. A
-    calibration is the exception: it briefly puts the load on battery, so it
-    belongs next to those rather than in the diagnostics section.
+    Listing only what should be diagnostic lets a later edit quietly promote a
+    flag onto the primary card without failing anything; naming the primary
+    ones too is what catches that.
     """
     registry = er.async_get(hass)
 
@@ -131,13 +130,21 @@ async def test_secondary_flags_are_diagnostic(
         "binary_sensor.sirius_ups_replace_battery",
         "binary_sensor.sirius_ups_bypass_active",
         "binary_sensor.sirius_ups_overload",
+        "binary_sensor.sirius_ups_forced_shutdown",
+        "binary_sensor.sirius_ups_output_off",
+        "binary_sensor.sirius_ups_battery_discharging",
         "binary_sensor.sirius_ups_alarm",
         "binary_sensor.sirius_ups_voltage_boost",
     ):
         assert registry.async_get(entity_id).entity_category is EntityCategory.DIAGNOSTIC, entity_id
 
-    assert registry.async_get("binary_sensor.sirius_ups_calibrating").entity_category is None
-    assert registry.async_get("binary_sensor.sirius_ups_on_battery").entity_category is None
+    for entity_id in (
+        "binary_sensor.sirius_ups_on_battery",
+        "binary_sensor.sirius_ups_battery_low",
+        "binary_sensor.sirius_ups_battery_charging",
+        "binary_sensor.sirius_ups_calibrating",
+    ):
+        assert registry.async_get(entity_id).entity_category is None, entity_id
 
 
 async def test_connected_keeps_reporting_when_the_ups_disappears(
