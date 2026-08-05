@@ -139,7 +139,21 @@ def _follow_server_area(
     so it needs nothing remembered between restarts and reads the same whether
     the user made their choice through this mechanism or by hand.
     """
-    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
-        if device.id == server.id or device.area_id != previous_area_id:
-            continue
+    moved = [
+        device
+        for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+        if device.id != server.id and device.area_id == previous_area_id
+    ]
+    for device in moved:
         device_registry.async_update_device(device.id, area_id=server.area_id)
+
+    # A dozen devices changing room at once is startling to come across, and
+    # without this the log holds nothing to explain it. One line for the whole
+    # move rather than one per device: they all went to the same place, for the
+    # same reason, and the names are what makes the entry answerable.
+    if moved:
+        LOGGER.debug(
+            "Server device moved to area %s, taking %s along",
+            server.area_id,
+            ", ".join(sorted(device.name or device.id for device in moved)),
+        )
