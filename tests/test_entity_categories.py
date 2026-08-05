@@ -3,8 +3,8 @@
 Only entities that genuinely serve diagnosing a problem or a pending action
 should be EntityCategory.DIAGNOSTIC: a disk's SMART warning, a pool's health
 problem, a Docker container's update-available flag, and the UPS flags
-reporting the UPS's own condition rather than the mains supply it watches.
-Everything else (system info, pool usage/free space, disk power
+reporting the UPS's own health, mode or internals rather than the live power
+situation. Everything else (system info, pool usage/free space, disk power
 status/model/type, service status, pool maintenance operations, LXC/Docker
 container state, and the UPS sensors and readings) is a regular sensor.
 """
@@ -24,7 +24,6 @@ DIAGNOSTIC_ENTITY_SUFFIXES = ("_smart_warning", "_problem", "_update_available")
 # spelled out - which also makes moving a flag across the split a visible edit.
 DIAGNOSTIC_UPS_TRANSLATION_KEYS = frozenset(
     {
-        "ups_discharging",
         "ups_battery_high",
         "ups_calibrating",
         "ups_replace_battery",

@@ -91,26 +91,26 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=_has_flag("CHRG"),
     ),
+    MOSNutBinarySensorEntityDescription(
+        key="ups_discharging",
+        translation_key="ups_discharging",
+        # Not BATTERY_CHARGING inverted: a UPS on mains with a full battery is
+        # neither charging nor discharging, so the two are separate facts. They
+        # are one pair for categorising though - the same battery, the same kind
+        # of statement - so both sit here rather than one on each side.
+        icon="mdi:battery-minus-variant",
+        value_fn=_has_flag("DISCHRG"),
+    ),
     # The remaining NUT flags, all diagnostic. The split is not about how
-    # serious a state is but about whose state it is: what a device reports
-    # about the world it watches is primary, what it reports about itself is
-    # diagnostic - which is why a smoke detector's own flat battery is filed
-    # away and the smoke is not. The sensors above read the mains supply, the
-    # one thing here that is not the UPS; every flag below reports the UPS's
-    # own battery, mode or internals, however urgent it happens to be.
+    # serious a state is but about what the flag answers. Everything above
+    # tracks the live power situation - mains present or lost, and the battery
+    # countdown that follows from it - which is what decides whether the server
+    # is still up in a few minutes. Everything below reports the UPS's own
+    # health, mode or internals, however urgent it happens to be.
     #
     # Urgency is not lost by this: a diagnostic entity sits one section down on
     # the same device page and stays fully available to automations, so
     # anything worth being woken up for belongs in an automation either way.
-    MOSNutBinarySensorEntityDescription(
-        key="ups_discharging",
-        translation_key="ups_discharging",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        # Not BATTERY_CHARGING inverted: a UPS on mains with a full battery is
-        # neither charging nor discharging, so the two are separate facts.
-        icon="mdi:battery-minus-variant",
-        value_fn=_has_flag("DISCHRG"),
-    ),
     MOSNutBinarySensorEntityDescription(
         key="ups_battery_high",
         translation_key="ups_battery_high",
