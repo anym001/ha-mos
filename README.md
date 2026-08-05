@@ -23,7 +23,6 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
-- **One room for the whole server** — set the area on the server device and its pools, disks, containers, VMs and UPS follow, including ones that appear later; move a single device somewhere else and it stays put
 - **Token permissions respected** — every write action checks your API token's scope first
 - **Selective categories** — every category can be turned off entirely
 
