@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 from http import HTTPStatus
+import re
 import socket
 from typing import Any
 from urllib.parse import quote
@@ -70,21 +71,34 @@ class MOSApiClientNotFoundError(
 class MOSApiClientAuthenticationError(
     MOSApiClientError,
 ):
-    """Exception to indicate the server rejected the API token (HTTP 401)."""
+    """
+    Exception to indicate the server rejected the API token itself.
+
+    Not tied to a single status code, because MOS does not use one. It answers
+    401 only when no ``Authorization`` header arrives at all - which this client
+    never does, since it always sends one - and answers **403** for a token it
+    does not know: deleted in the web UI, expired, or mistyped. Both mean the
+    same thing to the user, and both have to reach the reauth flow, so both
+    raise this. Which of the two kinds of 403 arrived is decided in
+    ``_raise_for_forbidden``.
+    """
 
 
 class MOSApiClientPermissionError(
     MOSApiClientError,
 ):
     """
-    Exception to indicate the token is valid but not authorized for a resource (HTTP 403).
+    Exception to indicate the token is valid but not authorized for a resource.
 
-    Deliberately *not* a subclass of ``MOSApiClientAuthenticationError``. A 403
-    means the server accepted the token and refused the resource, so prompting
-    for reauthentication cannot fix it - the user would enter the same (valid)
-    token, the flow would succeed, and the next poll would fail again. The
-    coordinator drops the affected resource instead; see
-    ``MOSDataUpdateCoordinator._async_update_data``.
+    The other half of MOS's 403 (see ``_raise_for_forbidden``): the server
+    recognized the token and refused the resource because the token's scope does
+    not cover it.
+
+    Deliberately *not* a subclass of ``MOSApiClientAuthenticationError``. The
+    token is fine, so prompting for reauthentication cannot fix it - the user
+    would enter the same (valid) token, the flow would succeed, and the next
+    poll would fail again. The coordinator drops the affected resource instead;
+    see ``MOSDataUpdateCoordinator._async_update_data``.
     """
 
 
@@ -209,7 +223,91 @@ def _quote_segment(value: str) -> str:
     return quote(value, safe="")
 
 
-def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
+async def _server_error_message(response: aiohttp.ClientResponse) -> str:
+    """
+    Return the ``error`` string MOS puts in a failed response, or "" if there is none.
+
+    Everything is best-effort: a reverse proxy, a captive portal or a future MOS
+    version may answer with HTML, an empty body, or a differently shaped JSON
+    object, and none of those should turn into an exception of their own on top
+    of the error that is already being reported.
+
+    Args:
+        response: The failed response to read the body of.
+
+    Returns:
+        The server's error message, or "" if the body was unreadable or shaped
+        differently.
+
+    """
+    try:
+        body = await response.json(content_type=None)
+    except aiohttp.ClientError, ValueError, UnicodeDecodeError:
+        return ""
+    if isinstance(body, dict) and isinstance(message := body.get("error"), str):
+        return message
+    return ""
+
+
+# Matches the scope half of MOS's 403, e.g.
+#     Access denied. This token does not have 'read' permission for 'pools'.
+# The invalid-token half reads "Invalid or expired token." and matches nothing
+# here, which is the whole point - see ``_raise_for_forbidden``.
+_SCOPE_DENIAL_PATTERN = re.compile(r"does not have '[^']*' permission for '([^']*)'")
+
+
+async def _raise_for_forbidden(response: aiohttp.ClientResponse) -> None:
+    """
+    Decide which of MOS's two very different 403s this is, and raise accordingly.
+
+    MOS returns 403 both for a token it does not know (deleted, expired,
+    mistyped) and for a valid token whose scope does not cover the resource.
+    The status code cannot tell them apart; only the body can:
+
+        {"error": "Invalid or expired token."}
+        {"error": "Access denied. This token does not have 'read' permission for 'pools'."}
+
+    Telling them apart matters twice over. The user gets the message that names
+    their actual problem instead of being sent into the MOS UI to grant a
+    permission to a token that no longer exists - and, less visibly, a revoked
+    token reaches the reauth flow at all. Reauth hangs off
+    ``MOSApiClientAuthenticationError``, so while every 403 mapped to a
+    permission error, a token deleted at runtime could only ever fail ``osinfo``
+    forever: all entities unavailable, no prompt, nothing to act on.
+
+    The scope case is matched *positively* and everything else falls through to
+    the token being rejected, rather than the other way round. Both directions
+    are a guess about wording we do not control, so the question is which way to
+    be wrong: a 403 we cannot read becomes a reauth prompt, which is visible and
+    which the user can dismiss or act on, instead of a silent permanent
+    degradation. The scope message is also the more structured of the two - it
+    names a permission level and a resource - so it is the safer one to key on.
+
+    Args:
+        response: The 403 response to classify.
+
+    Raises:
+        MOSApiClientAuthenticationError: If the server does not know this token.
+        MOSApiClientPermissionError: If the token's scope excludes the resource.
+
+    """
+    message = await _server_error_message(response)
+    if scope_denial := _SCOPE_DENIAL_PATTERN.search(message):
+        # The resource named by the server, not the one we asked for: MOS scopes
+        # cover a whole first path segment, so /api/v1/mos/services is refused
+        # as "mos". Repeating its name is what makes the message actionable -
+        # it is the name shown in the web UI's token editor.
+        msg = f"API token has no permission for {scope_denial.group(1)} ({response.url.path})"
+        raise MOSApiClientPermissionError(
+            msg,
+        )
+    msg = f"Invalid API token{f' - {message}' if message else ''}"
+    raise MOSApiClientAuthenticationError(
+        msg,
+    )
+
+
+async def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     """
     Verify that the API response is valid.
 
@@ -219,23 +317,25 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
         response: The aiohttp ClientResponse to verify.
 
     Raises:
-        MOSApiClientAuthenticationError: For 401 (token rejected).
-        MOSApiClientPermissionError: For 403 (token accepted, resource denied).
+        MOSApiClientAuthenticationError: For 401, and for the 403 that means the
+            token was rejected (see ``_raise_for_forbidden``).
+        MOSApiClientPermissionError: For the 403 that means the token's scope
+            does not cover the resource.
         MOSApiClientNotFoundError: For 404 (server has no such endpoint).
         MOSApiClientRateLimitError: For 429 (rate limited, retry later).
         aiohttp.ClientResponseError: For other HTTP errors.
 
     """
     if response.status == HTTPStatus.UNAUTHORIZED:
-        msg = "Invalid API token"
+        # Unreachable in practice - this client always sends the header MOS
+        # wants here - but kept so a proxy that strips it is not misreported as
+        # a bad token.
+        msg = "Invalid API token - no credentials reached the server"
         raise MOSApiClientAuthenticationError(
             msg,
         )
     if response.status == HTTPStatus.FORBIDDEN:
-        msg = f"API token is not authorized for {response.url.path}"
-        raise MOSApiClientPermissionError(
-            msg,
-        )
+        await _raise_for_forbidden(response)
     if response.status == HTTPStatus.NOT_FOUND:
         msg = f"No such endpoint on this server: {response.url.path}"
         raise MOSApiClientNotFoundError(
@@ -747,7 +847,7 @@ class MOSApiClient:
                     headers=request_headers,
                     json=data,
                 )
-                _verify_response_or_raise(response)
+                await _verify_response_or_raise(response)
                 if response.status == 204 or not await response.read():
                     # The raw Docker Engine proxy returns 204 No Content on
                     # successful start/stop, unlike every JSON-bodied MOS
