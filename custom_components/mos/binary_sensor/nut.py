@@ -82,6 +82,9 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
     MOSNutBinarySensorEntityDescription(
         key="ups_battery_low",
         translation_key="ups_battery_low",
+        # The end of the countdown, not just a level: NUT's own upsmon shuts
+        # the host down on OB together with LB. Its counterpart ups_battery_high
+        # is diagnostic on purpose - see there.
         device_class=BinarySensorDeviceClass.BATTERY,
         value_fn=_has_flag("LB"),
     ),
@@ -115,6 +118,12 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         key="ups_battery_high",
         translation_key="ups_battery_high",
         entity_category=EntityCategory.DIAGNOSTIC,
+        # Diagnostic while ups_battery_low is primary, and that asymmetry is
+        # deliberate rather than an oversight like the charge/discharge pair
+        # was: HB reports the charge sitting in its upper range, which
+        # sensor.ups_battery already says continuously and more precisely,
+        # while LB is what the shutdown hangs on. Plenty of drivers never send
+        # HB at all, so promoting it would mostly add an always-off row.
         # Not the BATTERY device class: that one reads "on = battery low", so
         # using it for the opposite condition would invert its meaning.
         icon="mdi:battery-high",
