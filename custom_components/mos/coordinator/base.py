@@ -232,20 +232,26 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     config_entry: MOSConfigEntry
     token_permissions: dict[str, Any] | None = None
 
-    # Optional resources the token's scope explicitly denies reading. Seeded once
-    # at setup from the token's permission scope (see ``_seed_forbidden_resources``)
-    # and never extended at runtime: a 403 that still reaches a poll is, by
-    # construction, on a resource the scope did *not* explicitly deny, so it is
-    # treated as transient rather than a permanent denial (see
-    # ``_classify_transient_resource_failures``). Fixing the token's scope is
-    # picked up by reloading the entry.
+    # Optional resources the token's scope denies reading. Filled from two
+    # sources, because the token's own permission block is not complete: seeded
+    # at setup from what the scope lists (see ``_seed_forbidden_resources``), and
+    # extended at runtime whenever the server itself refuses a resource by name
+    # (see ``_absorb_scope_denials``).
+    #
+    # The second source exists because MOS omits resources from that block that
+    # it nonetheless enforces - ``nut`` is absent from a custom-mode scope on MOS
+    # 0.5.x while ``/nut/status`` is still refused - so seeding alone leaves the
+    # integration asking forever for something it will never be given.
+    #
+    # Fixing the token's scope is picked up by reloading the entry, for both
+    # halves alike.
     #
     # Rebound rather than mutated (hence frozenset) - a mutable class attribute
     # would be shared by every coordinator instance in the process.
     forbidden_resources: frozenset[str] = frozenset()
 
-    # Resources whose last poll failed transiently (403 on a scope-allowed
-    # resource, a 429 rate limit, or a communication error) and are currently
+    # Resources whose last poll failed transiently (a 429 rate limit or a
+    # communication error) and are currently
     # being served from last-known-good data, mapped to how long and how often
     # they have been failing.
     #
@@ -633,15 +639,15 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         """
         Decide how to react to per-resource failures, and return the ones to preserve.
 
-        A 403 or 429 that reaches here is transient: the token's *explicit* scope
-        denials are seeded into ``forbidden_resources`` before the first poll and
-        never requested, so anything the server refuses at runtime is on a
-        resource the scope allowed (or was silent about). A communication error
-        (timeout, dropped connection, 5xx) is transient by nature. Rather than
-        dropping such a resource - which would empty it and make the
-        dynamic-entity sync tear down its devices until a reload - the
-        coordinator keeps that resource's last-known-good data (see
+        A 429 or a communication error (timeout, dropped connection, 5xx) is
+        transient by nature. Rather than dropping such a resource - which would
+        empty it and make the dynamic-entity sync tear down its devices until a
+        reload - the coordinator keeps that resource's last-known-good data (see
         ``_retain_last_known_good``) and retries it on the next poll.
+
+        A scope denial is not transient and is taken out of this set first, in
+        ``_absorb_scope_denials``: the server named a resource this token may not
+        read, which no amount of retrying changes.
 
         The one exception is an always-fetched resource (osinfo, system_load):
         there is nothing meaningful to show without it, so the whole cycle fails
@@ -669,11 +675,66 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         """
         self._raise_if_required_resource_failed(outcome)
+        denied = self._absorb_scope_denials(outcome)
 
-        transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES
+        transient = set(outcome.transient_resource_errors()) - ALWAYS_FETCHED_RESOURCES - denied
         unsupported = self._classify_unsupported_resources(outcome)
         self._track_degraded_resources(outcome, transient - unsupported)
         return transient - unsupported
+
+    def _absorb_scope_denials(self, outcome: _UpdateOutcome) -> set[str]:
+        """
+        Record resources the server refused by name, and stop asking for them.
+
+        A permission error only reaches the coordinator when the server spelled
+        out which resource the token may not read (see ``_raise_for_forbidden``
+        in the API client), so this is a fact about the token's scope, not a
+        server hiccup. Retrying it every 30 seconds for the lifetime of the entry
+        can only produce the same refusal.
+
+        This is the half of the scope that ``_seed_forbidden_resources`` cannot
+        see. MOS enforces permissions it does not list: on 0.5.x a custom-mode
+        token's ``resources`` block has no ``nut`` key at all, yet
+        ``/nut/status`` is refused all the same. ``has_read_access`` reads a
+        missing key as permitted - deliberately, so an unknown name never
+        silently removes entities - which left exactly one gap: a resource the
+        server enforces and the scope never mentions. Before this, that gap meant
+        the UPS entities never appeared, the endpoint was re-requested on every
+        poll forever, and nothing in the log said why.
+
+        Newly denied resources are *not* dropped from ``data``. Their entities
+        keep their registry entries, their history and their names, and go
+        unavailable instead (``_update_stale_resources`` counts anything
+        forbidden as stale) - the same treatment a resource gets when it has been
+        failing too long to still be believed. Deleting them would take the
+        recorder history with it over what may well be a scope the user is about
+        to widen again.
+
+        Returns:
+            The resource keys denied for the first time this cycle.
+
+        """
+        denied = set(outcome.permission_errors) - ALWAYS_FETCHED_RESOURCES - self.forbidden_resources
+        if not denied:
+            return set()
+
+        # A MOS scope covers a whole first path segment, so one refusal settles
+        # every resource governed by the same name: /docker/mos/containers being
+        # denied means the raw Engine proxy is too, whether or not it happened to
+        # fail in this same cycle.
+        scopes = {PERMISSION_RESOURCE_BY_KEY[key] for key in denied if key in PERMISSION_RESOURCE_BY_KEY}
+        denied |= {key for key, resource in READ_PERMISSION_RESOURCES.items() if resource in scopes}
+
+        LOGGER.warning(
+            "API token has no read access to %s - the server refused it, even though the token's own "
+            "permission list does not say so. No entities are created for it, and it will not be requested "
+            "again. Grant the token read access to %s in the MOS web UI and reload the integration, "
+            "or switch the category off in the integration options",
+            ", ".join(sorted(denied)),
+            ", ".join(sorted(scopes)) or "it",
+        )
+        self.forbidden_resources |= frozenset(denied)
+        return denied
 
     def _classify_unsupported_resources(self, outcome: _UpdateOutcome) -> set[str]:
         """
@@ -784,7 +845,15 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         """
         Recompute which resources have been failing long enough to stop counting as current.
 
-        Only resources that have satisfied *both* halves of the guard qualify.
+        Only resources that have satisfied *both* halves of the guard qualify,
+        plus anything the token's scope forbids: a resource that will not be
+        requested again has stopped updating for good, which is the stronger form
+        of the same statement. For a scope denied since setup that changes
+        nothing - there are no entities to mark - but a resource denied while
+        running keeps its entities and its history and reports itself
+        unavailable, rather than showing the values it happened to have when the
+        permission went away.
+
         Always-fetched resources are subtracted as a fail-safe: they can never
         get this far (a failure on one raises ``UpdateFailed`` before any
         per-resource bookkeeping), and the integration must never end up with
@@ -808,12 +877,16 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 for key, degraded in self._degraded_resources.items()
                 if degraded.failures >= RESOURCE_STALE_MIN_FAILURES and now - degraded.started_at >= grace_period
             )
-            - ALWAYS_FETCHED_RESOURCES
-        )
+            | self.forbidden_resources
+        ) - ALWAYS_FETCHED_RESOURCES
         if stale == self._stale_resources:
             return
 
-        newly_stale = sorted(stale - self._stale_resources)
+        # Scope denials are excluded from this message, not from the set: they
+        # are unavailable for a different reason than "stopped answering", they
+        # do not recover on their own, and ``_absorb_scope_denials`` has already
+        # said so in terms the user can act on.
+        newly_stale = sorted(stale - self._stale_resources - self.forbidden_resources)
         if newly_stale:
             LOGGER.error(
                 "%s has been failing for over %d minutes - its entities are now marked unavailable rather than "
@@ -1143,8 +1216,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data: dict[str, Any] = outcome.payload
         # Carry transiently-failed resources forward before defaulting, so their
         # entities keep their last state instead of the dynamic-entity sync
-        # removing them over an empty list.
-        self._retain_last_known_good(data, transient)
+        # removing them over an empty list. Scope-denied resources are carried
+        # forward for the same reason - their entities are marked unavailable
+        # rather than deleted - and cost nothing when the denial predates the
+        # first poll, since there is no previous data to carry.
+        self._retain_last_known_good(data, transient | self.forbidden_resources)
         data.setdefault("services", {})
         data.setdefault("disks", [])
         data.setdefault("pools", [])

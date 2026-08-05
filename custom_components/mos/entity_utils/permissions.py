@@ -53,8 +53,12 @@ def has_read_access(token_permissions: dict[str, Any] | None, resource: str) -> 
 
     Deliberately more optimistic than `has_write_access`: only an explicit
     ``"none"`` counts as denied. A resource that is simply absent from a
-    ``"custom"`` scope is treated as readable and left for the server to refuse
-    with a 403, which the coordinator handles per resource.
+    ``"custom"`` scope is treated as readable and left for the server to refuse,
+    which the coordinator then records permanently (see
+    ``_absorb_scope_denials``). MOS does leave names out that it enforces - 0.5.x
+    omits ``nut`` entirely - so this is the normal path for those, not an edge
+    case: one wasted request per reload, and the entities are gone from then on
+    just as if the scope had said so.
 
     The asymmetry is on purpose. For writes, guessing wrong means one switch
     reports a clear error instead of a cryptic one. For reads, guessing wrong

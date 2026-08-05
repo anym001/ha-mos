@@ -44,14 +44,14 @@ Coordinator exception mapping:
         failure count is the other half of that, so it does not collapse to two
         polls at a long one. It is kept per config entry so setup retries do not
         restart it.
-    ApiClientPermissionError   → treated as a *transient* per-resource failure:
-        the resource keeps its last-known-good data and is re-probed on the next
-        poll, so a spurious 403 (e.g. the MOS server reloading) never tears down
-        that resource's entities until a reload. Scope restrictions the token
-        genuinely lacks are handled ahead of the first poll from the token's
-        permission scope (see ``_seed_forbidden_resources``), so a 403 that still
-        reaches here is by construction not an explicit denial. Never escalates
-        to reauth. If an always-fetched resource (osinfo, system_load) is denied,
+    ApiClientPermissionError   → a permanent per-resource denial, recorded in
+        ``forbidden_resources`` and not requested again (see
+        ``_absorb_scope_denials``). The server named the resource, so retrying
+        can only repeat the refusal; the scope has to change and the entry be
+        reloaded. Its entities are kept rather than deleted - the data is carried
+        forward and the resource counts as stale, so they report unavailable
+        instead of losing their history. Never escalates to reauth: the token is
+        valid. If an always-fetched resource (osinfo, system_load) is denied,
         UpdateFailed instead - the integration cannot work without those.
     ApiClientNotFoundError     → reported as an unsupported endpoint rather than a
         failure, for an optional resource that has never returned data: it is

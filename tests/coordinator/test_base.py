@@ -651,49 +651,73 @@ async def test_denied_resource_is_dropped_without_failing_the_poll(
     assert coordinator.data["vm_machines"] == []
 
 
-async def test_runtime_403_is_transient_and_reprobed(
+async def test_scope_denial_stops_the_resource_being_requested_again(
     hass: HomeAssistant,
     mock_client: AsyncMock,
 ) -> None:
-    """A 403 the scope did not explicitly deny is transient, not a permanent ban.
+    """A resource the server refuses by name is never asked for again.
 
-    Explicit scope denials are seeded into forbidden_resources before the first
-    poll and never requested, so a 403 that still reaches a running poll is on a
-    resource the token *may* read - a passing server-side hiccup, not a
-    permission gap. It must therefore be retried on the next poll (and never
-    added to forbidden_resources), so the resource recovers on its own without a
-    reload.
+    The client only raises a permission error when the server spelled out which
+    resource the token may not read, so this is the token's scope talking, not a
+    hiccup - retrying it every 30 seconds can only produce the same refusal.
+
+    Seeding from the token's own permission list does not cover this: MOS
+    enforces names it does not list. A custom-mode token on 0.5.x has no ``nut``
+    key at all while ``/nut/status`` is still refused, and the resource was
+    re-probed forever with nothing in the log to explain the missing entities.
     """
-    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("transient 403")
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no permission for vm")
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
     await coordinator.async_config_entry_first_refresh()
     assert mock_client.async_get_vm_machines.call_count == 1
-    assert "vm_machines" not in coordinator.forbidden_resources
+    assert "vm_machines" in coordinator.forbidden_resources
+    # The rest of the poll is unaffected - one denied resource is not an outage.
     assert coordinator.last_update_success is True
 
-    # Re-probed on the next poll rather than dropped for good...
     await coordinator.async_refresh()
-    assert mock_client.async_get_vm_machines.call_count == 2
-
-    # ...and once the server answers again, the resource comes back on its own.
-    mock_client.async_get_vm_machines.side_effect = None
-    await coordinator.async_refresh()
-    assert coordinator.data["vm_machines"] == mock_client.async_get_vm_machines.return_value
+    assert mock_client.async_get_vm_machines.call_count == 1
 
 
-async def test_transient_403_retains_last_known_good_data(
+async def test_scope_denial_settles_every_resource_under_the_same_scope(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """One refusal covers every resource MOS governs under that scope name.
+
+    A MOS permission covers a whole first path segment, so "docker" denied means
+    both the MOS container list and the raw Engine proxy are gone. Waiting for
+    each to fail on its own would spend an extra request and an extra warning on
+    an answer already known.
+    """
+    mock_client.async_get_docker_containers.side_effect = MOSApiClientPermissionError("no permission for docker")
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    assert "docker_containers" in coordinator.forbidden_resources
+    assert "docker_engine_containers" in coordinator.forbidden_resources
+    # Resources under a different scope are untouched.
+    assert "lxc_containers" not in coordinator.forbidden_resources
+
+
+async def test_scope_denial_keeps_its_data_but_reports_it_unavailable(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     mock_vm_machines: list[dict],
 ) -> None:
-    """A resource that 403s after a good poll keeps its previous data, not an empty list.
+    """A resource denied while running keeps its entities and marks them unavailable.
 
-    This is what stops the reported "VMs/containers disappear" symptom: the
-    dynamic-entity sync removes a device the moment its resource list is empty,
-    so a transient 403 must carry the last-known-good list forward instead of
-    letting the resource default to empty.
+    Dropping it would empty the list, and the dynamic-entity sync deletes a
+    device the moment its resource list is empty - taking the recorder history,
+    custom names and every automation referencing the entity_id with it, over a
+    permission the user may well be about to grant back.
+
+    Keeping the data without saying anything would be the other failure: values
+    frozen at the moment the permission went away, still rendering as if they
+    were current. So the data stays and the resource counts as stale.
     """
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
@@ -702,12 +726,12 @@ async def test_transient_403_retains_last_known_good_data(
     await coordinator.async_config_entry_first_refresh()
     assert coordinator.data["vm_machines"] == mock_vm_machines
 
-    # The next poll 403s on VMs only; the list must survive unchanged.
-    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("transient 403")
+    mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no permission for vm")
     await coordinator._async_update_data()
 
     assert coordinator.last_update_success is True
     assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert "vm_machines" in coordinator.stale_resources
     # Other resources keep updating normally.
     assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
 
