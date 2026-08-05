@@ -10,16 +10,23 @@ Exception hierarchy:
     MOSApiClientError (base)
     ├── MOSApiClientCommunicationError (network/timeout)
     │   └── MOSApiClientNotFoundError (404 - server has no such endpoint)
-    ├── MOSApiClientAuthenticationError (401 - token rejected)
-    ├── MOSApiClientPermissionError (403 - token valid, resource denied)
+    ├── MOSApiClientAuthenticationError (401, and the 403 that rejects the token)
+    ├── MOSApiClientPermissionError (the 403 that denies one resource)
     └── MOSApiClientRateLimitError (429 - rate limited, retry later)
 
-    401, 403, 404 and 429 are kept apart on purpose. Only 401 says anything about
-    the token itself; 403 says the token is fine but its scope does not cover that
-    resource, which no amount of reauthenticating can fix; 404 says the server
-    simply does not have that endpoint, which is the normal answer from a MOS
-    version older than the endpoint; 429 says the token and scope are both fine
-    and the request should simply be retried later.
+    These are kept apart on purpose. An authentication error says the server does
+    not know this token; a permission error says the token is fine but its scope
+    does not cover that resource, which no amount of reauthenticating can fix;
+    404 says the server simply does not have that endpoint, which is the normal
+    answer from a MOS version older than the endpoint; 429 says the token and
+    scope are both fine and the request should simply be retried later.
+
+    The split does not follow the status code, because MOS's does not either: it
+    answers 403 both for a token it does not know and for a resource outside a
+    valid token's scope, and only the response body says which. That is decided
+    in ``_raise_for_forbidden``, which is where the reasoning lives. 401 exists
+    on the server only for a request carrying no credentials at all, which this
+    client cannot produce.
 
     404 is the one that is *nested*, under the communication error: any handler
     that does not care about the distinction keeps treating it as "this resource
@@ -31,7 +38,7 @@ Coordinator exception mapping:
         during setup) while transient, escalating to ConfigEntryAuthFailed
         (reauth) only after auth has been rejected for AUTH_FAILURE_GRACE_PERIOD
         *and* AUTH_FAILURE_MIN_FAILURES consecutive polls, so a rebooting or
-        unreachable server that briefly returns 401 does not throw away a
+        unreachable server that briefly rejects a request does not throw away a
         still-valid token. The grace period is a duration rather than a poll
         count so it does not shrink at a short scan interval; the minimum
         failure count is the other half of that, so it does not collapse to two

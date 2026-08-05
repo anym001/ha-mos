@@ -374,23 +374,75 @@ async def test_401_raises_authentication_error(
         await client.async_get_osinfo()
 
 
-async def test_403_raises_permission_error_not_authentication_error(
+async def test_403_on_a_scope_denial_raises_permission_error(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
 ) -> None:
-    """A 403 is a scope problem, and must not be mistaken for an invalid token.
+    """A scope denial is a scope problem, and must not be mistaken for an invalid token.
 
     Conflating the two is what produced the reauth loop: the token is valid, so
     the reauth flow succeeds, and the very next poll fails again the same way.
     """
-    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=403)
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/pools",
+        status=403,
+        json={"error": "Access denied. This token does not have 'read' permission for 'pools'."},
+    )
 
     client = MOSApiClient(host="10.0.1.30", token="scoped-token", session=async_get_clientsession(hass))
 
-    with pytest.raises(MOSApiClientPermissionError):
+    with pytest.raises(MOSApiClientPermissionError) as raised:
+        await client.async_get_pools()
+
+    # The resource is named so the message points at the entry in the MOS web
+    # UI's token editor rather than at our own internal resource key.
+    assert "pools" in str(raised.value)
+    assert not issubclass(MOSApiClientPermissionError, MOSApiClientAuthenticationError)
+
+
+async def test_403_on_an_unknown_token_raises_authentication_error(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """MOS rejects a deleted or expired token with 403, not 401.
+
+    The status code alone therefore says nothing, and reading it as a scope
+    problem broke two things at once: the config flow told the user to grant a
+    permission to a token that no longer exists, and - because reauth hangs off
+    the authentication error - a token revoked at runtime could never reach the
+    reauth flow at all. It just failed osinfo forever with every entity
+    unavailable and no prompt.
+    """
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/mos/osinfo",
+        status=403,
+        json={"error": "Invalid or expired token."},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="deleted-token", session=async_get_clientsession(hass))
+
+    with pytest.raises(MOSApiClientAuthenticationError):
         await client.async_get_osinfo()
 
-    assert not issubclass(MOSApiClientPermissionError, MOSApiClientAuthenticationError)
+
+async def test_403_without_a_readable_body_counts_as_a_rejected_token(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """An unreadable 403 errs towards the token, which is the visible failure.
+
+    Both halves of MOS's 403 are matched on wording we do not control, so one of
+    them has to be the fallback. A reverse proxy answering with HTML, or a
+    future MOS rewording its message, then produces a reauth prompt - something
+    the user can see and act on - rather than a resource that silently stays
+    empty forever.
+    """
+    aioclient_mock.get("http://10.0.1.30:80/api/v1/mos/osinfo", status=403, text="<html>Forbidden</html>")
+
+    client = MOSApiClient(host="10.0.1.30", token="tok", session=async_get_clientsession(hass))
+
+    with pytest.raises(MOSApiClientAuthenticationError):
+        await client.async_get_osinfo()
 
 
 async def test_429_raises_rate_limit_error(
