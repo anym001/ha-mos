@@ -135,6 +135,7 @@ async def test_secondary_flags_are_diagnostic(
         "binary_sensor.sirius_ups_battery_discharging",
         "binary_sensor.sirius_ups_alarm",
         "binary_sensor.sirius_ups_voltage_boost",
+        "binary_sensor.sirius_ups_calibrating",
     ):
         assert registry.async_get(entity_id).entity_category is EntityCategory.DIAGNOSTIC, entity_id
 
@@ -142,7 +143,6 @@ async def test_secondary_flags_are_diagnostic(
         "binary_sensor.sirius_ups_on_battery",
         "binary_sensor.sirius_ups_battery_low",
         "binary_sensor.sirius_ups_battery_charging",
-        "binary_sensor.sirius_ups_calibrating",
     ):
         assert registry.async_get(entity_id).entity_category is None, entity_id
 

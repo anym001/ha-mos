@@ -133,9 +133,11 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
     MOSNutBinarySensorEntityDescription(
         key="ups_calibrating",
         translation_key="ups_calibrating",
-        # Not diagnostic and not a problem: a calibration is a normal
-        # maintenance run, but it does briefly put the load on battery, so it
-        # is worth seeing next to the primary sensors rather than filed away.
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Not a problem: a calibration is a scheduled maintenance run the UPS
+        # starts and ends on its own. It does put the load on battery while it
+        # runs, but so does an outage, and ups_discharging reports the draining
+        # either way - this flag only says what caused it.
         device_class=BinarySensorDeviceClass.RUNNING,
         value_fn=_has_flag("CAL"),
     ),
