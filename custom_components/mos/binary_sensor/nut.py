@@ -91,9 +91,17 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=_has_flag("CHRG"),
     ),
-    # The remaining NUT flags. All diagnostic except the calibration run: they
-    # describe how the UPS is coping rather than whether it is protecting the
-    # server, which is what the sensors above answer.
+    # The remaining NUT flags, all diagnostic. The split is not about how
+    # serious a state is but about whose state it is: what a device reports
+    # about the world it watches is primary, what it reports about itself is
+    # diagnostic - which is why a smoke detector's own flat battery is filed
+    # away and the smoke is not. The sensors above read the mains supply, the
+    # one thing here that is not the UPS; every flag below reports the UPS's
+    # own battery, mode or internals, however urgent it happens to be.
+    #
+    # Urgency is not lost by this: a diagnostic entity sits one section down on
+    # the same device page and stays fully available to automations, so
+    # anything worth being woken up for belongs in an automation either way.
     MOSNutBinarySensorEntityDescription(
         key="ups_discharging",
         translation_key="ups_discharging",

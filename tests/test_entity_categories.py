@@ -2,12 +2,11 @@
 
 Only entities that genuinely serve diagnosing a problem or a pending action
 should be EntityCategory.DIAGNOSTIC: a disk's SMART warning, a pool's health
-problem, a Docker container's update-available flag, and the UPS flags that
-describe how the UPS is coping rather than whether it is still protecting the
-server. Everything else (system info, pool usage/free space, disk power
+problem, a Docker container's update-available flag, and the UPS flags
+reporting the UPS's own condition rather than the mains supply it watches.
+Everything else (system info, pool usage/free space, disk power
 status/model/type, service status, pool maintenance operations, LXC/Docker
-container state, and the UPS sensors that answer "is the server still
-covered") is a regular sensor.
+container state, and the UPS sensors and readings) is a regular sensor.
 """
 
 from __future__ import annotations
