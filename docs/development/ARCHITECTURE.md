@@ -32,7 +32,9 @@ custom_components/mos/
 │   ├── __init__.py          # Exports MOSEntity
 │   └── base.py              # Base entity class implementation
 ├── entity_utils/            # Entity helper utilities
+│   ├── device_area.py       # Container devices follow the server device's area
 │   ├── dynamic_entities.py  # Add/remove entities as server resources change
+│   ├── nut_status.py        # UPS payload access and status-flag decoding
 │   └── permissions.py       # API token permission checks
 ├── utils/                   # Generic helpers
 │   ├── string_helpers.py    # Naming and slug helpers
@@ -66,10 +68,17 @@ updates to all entities. It is organized as a package with separate modules for 
 - Configurable update interval (default: 30 seconds, 30–3600 via the options flow)
 - Shared data access for all entities
 - Automatic retry on transient failures
-- Per-resource failure handling: a transient 403, 429 or communication error on
-  an optional resource keeps last-known-good data instead of tearing down
-  entities, while the rest of the poll is applied normally. A rejected token
-  (401) or a failure on an always-fetched resource still fails the whole cycle
+- Per-resource failure handling: a transient 429 or communication error on an
+  optional resource keeps last-known-good data instead of tearing down entities,
+  while the rest of the poll is applied normally. A rejected token or a failure
+  on an always-fetched resource still fails the whole cycle
+- Scope denials are permanent rather than transient: a 403 naming the resource
+  is recorded in `forbidden_resources` (`_absorb_scope_denials`), which stops it
+  being requested again for the life of the entry and covers every resource
+  sharing that scope. The data is kept but reported stale, so the entities go
+  unavailable without leaving the registry. This is the only way to learn about
+  a permission MOS enforces but omits from the token's own scope list - 0.5.x
+  does exactly that with `nut`
 - A cap on that retention: once a resource has been failing for both
   `RESOURCE_STALE_GRACE_PERIOD` and `RESOURCE_STALE_MIN_FAILURES`, it is listed
   in `stale_resources` and the entities backed by it report themselves
@@ -101,7 +110,10 @@ Handles all communication with external APIs or devices. Implements:
 - Authentication handling
 - Request pacing (`_RateLimiter`) to stay under the server's per-token rate
   limit, applied to reads, writes and config-flow validation alike
-- Error translation to custom exceptions
+- Error translation to custom exceptions. The auth split follows the response
+  body, not the status code: MOS answers 403 both for a token it does not know
+  and for a resource that token may not read, and only ever answers 401 when no
+  credentials arrive at all. `_raise_for_forbidden` tells the two apart
 
 **Key class:** `MOSApiClient`
 
