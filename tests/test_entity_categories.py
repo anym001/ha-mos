@@ -27,6 +27,7 @@ DIAGNOSTIC_UPS_TRANSLATION_KEYS = frozenset(
     {
         "ups_discharging",
         "ups_battery_high",
+        "ups_calibrating",
         "ups_replace_battery",
         "ups_bypass",
         "ups_output_off",
