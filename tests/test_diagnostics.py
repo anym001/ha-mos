@@ -195,4 +195,8 @@ async def test_a_renamed_device_is_reported_as_renamed(
     # guess whether the field was omitted or the override simply is not set.
     ups = next(device for device in diagnostics["devices"] if device["name"] == "Sirius UPS")
     assert ups["name_by_user"] is None
-    assert ups["area_id"] is None
+    # Its area is not untouched, though: the container devices follow the server
+    # into a room (see async_setup_area_inheritance), so the dump showing them
+    # all in the same area is the expected picture rather than a sign that the
+    # user filed each one by hand.
+    assert ups["area_id"] == area.id
