@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.const import LOGGER
+from custom_components.mos.data import MOSDeviceHardware
 from homeassistant.core import callback
 
 if TYPE_CHECKING:
@@ -45,6 +46,28 @@ def nut_data(payload: dict[str, Any]) -> dict[str, Any]:
 def is_ups_reachable(payload: dict[str, Any]) -> bool:
     """Return whether MOS could talk to a UPS on the last poll."""
     return bool(payload.get("reachable"))
+
+
+def nut_device_hardware(coordinator: MOSDataUpdateCoordinator) -> MOSDeviceHardware:
+    """
+    Return the UPS's own maker, model and serial for its device entry.
+
+    The same three values are also sensors, deliberately: the device page shows
+    them once at the top where HA shows every other device's hardware, and the
+    sensors keep them readable from a template or a dashboard. Both read the
+    payload, so neither can drift from the other.
+
+    Read once, when the entities are constructed. That is enough because these
+    only change if the UPS itself is swapped, which means a different unit on
+    the same NUT name - and a reload (or restart) re-registers the device with
+    the new values.
+    """
+    data = nut_data(nut_payload(coordinator))
+    return MOSDeviceHardware(
+        manufacturer=data.get("manufacturer"),
+        model=data.get("model"),
+        serial_number=data.get("serial"),
+    )
 
 
 def nut_status_flags(payload: dict[str, Any]) -> frozenset[str]:
