@@ -24,7 +24,14 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.entity import MOSEntity
 from custom_components.mos.entity_utils import is_ups_reachable, nut_data, nut_payload
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
-from homeassistant.const import PERCENTAGE, UnitOfElectricPotential, UnitOfFrequency, UnitOfPower, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfElectricPotential,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfTime,
+)
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -59,33 +66,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutSensorEntityDescription, ...] = (
         value_fn=lambda payload: payload.get("status"),
     ),
     MOSNutSensorEntityDescription(
-        key="ups_name",
-        translation_key="ups_name",
-        icon="mdi:tag-outline",
-        value_fn=lambda payload: payload.get("name"),
-    ),
-    MOSNutSensorEntityDescription(
-        key="ups_manufacturer",
-        translation_key="ups_manufacturer",
-        icon="mdi:factory",
-        value_fn=lambda payload: nut_data(payload).get("manufacturer"),
-    ),
-    MOSNutSensorEntityDescription(
-        key="ups_model",
-        translation_key="ups_model",
-        # Not power-plug-battery: that icon is reserved for the ups_reachable
-        # connectivity sensor, and reusing it here would make the two
-        # unrelated entities indistinguishable at a glance.
-        icon="mdi:chip",
-        value_fn=lambda payload: nut_data(payload).get("model"),
-    ),
-    MOSNutSensorEntityDescription(
-        key="ups_serial",
-        translation_key="ups_serial",
-        icon="mdi:identifier",
-        value_fn=lambda payload: nut_data(payload).get("serial"),
-    ),
-    MOSNutSensorEntityDescription(
         key="ups_load",
         translation_key="ups_load",
         icon="mdi:gauge",
@@ -94,33 +74,12 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutSensorEntityDescription, ...] = (
         value_fn=lambda payload: nut_data(payload).get("load"),
     ),
     MOSNutSensorEntityDescription(
-        key="ups_realpower_nominal",
-        translation_key="ups_realpower_nominal",
-        device_class=SensorDeviceClass.POWER,
-        native_unit_of_measurement=UnitOfPower.WATT,
-        # No state class: this is the UPS's nameplate rating, not a reading, so
-        # it has no business in long-term statistics.
-        value_fn=lambda payload: nut_data(payload).get("realpowerNominal"),
-    ),
-    MOSNutSensorEntityDescription(
         key="ups_battery_charge",
         translation_key="ups_battery_charge",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_battery("charge"),
-    ),
-    MOSNutSensorEntityDescription(
-        key="ups_battery_charge_low",
-        translation_key="ups_battery_charge_low",
-        # Not battery-alert: that icon reads as an active alarm, but this is a
-        # static configured threshold, not a reflection of the current charge.
-        # ups_battery_low is the actual alert and earns that iconography.
-        icon="mdi:battery-arrow-down-outline",
-        native_unit_of_measurement=PERCENTAGE,
-        # A configured threshold rather than a measurement - same reasoning as
-        # the nameplate rating above.
-        value_fn=_battery("chargeLow"),
     ),
     MOSNutSensorEntityDescription(
         key="ups_battery_runtime",
@@ -143,12 +102,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_battery("voltage"),
-    ),
-    MOSNutSensorEntityDescription(
-        key="ups_battery_type",
-        translation_key="ups_battery_type",
-        icon="mdi:battery",
-        value_fn=_battery("type"),
     ),
     MOSNutSensorEntityDescription(
         key="ups_input_voltage",
@@ -181,6 +134,81 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=_line("output", "frequency"),
+    ),
+    # The nameplate and the configured thresholds, all diagnostic. The line is
+    # the binary sensors' one drawn a level lower: everything above is a
+    # reading that moves - what the UPS is doing with the load right now, and
+    # how much battery is left to keep doing it - while everything below says
+    # what the unit *is*, fixed when it was built or configured and identical
+    # from one poll to the next.
+    #
+    # Worth keeping as entities all the same: the serial is what a support
+    # ticket asks for, and the low-charge threshold is what says when
+    # ups_battery_low will fire - neither should need the NUT config opened to
+    # read. They just do not belong on the card that answers "is the server
+    # still going to be up in ten minutes".
+    MOSNutSensorEntityDescription(
+        key="ups_name",
+        translation_key="ups_name",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # The name upsd knows the UPS by, not one the user chose - it is how a
+        # multi-UPS setup would be told apart, and how upsc addresses it.
+        icon="mdi:tag-outline",
+        value_fn=lambda payload: payload.get("name"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_manufacturer",
+        translation_key="ups_manufacturer",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:factory",
+        value_fn=lambda payload: nut_data(payload).get("manufacturer"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_model",
+        translation_key="ups_model",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Not power-plug-battery: that icon is reserved for the ups_reachable
+        # connectivity sensor, and reusing it here would make the two
+        # unrelated entities indistinguishable at a glance.
+        icon="mdi:chip",
+        value_fn=lambda payload: nut_data(payload).get("model"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_serial",
+        translation_key="ups_serial",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:identifier",
+        value_fn=lambda payload: nut_data(payload).get("serial"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_realpower_nominal",
+        translation_key="ups_realpower_nominal",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        # No state class: this is the UPS's nameplate rating, not a reading, so
+        # it has no business in long-term statistics.
+        value_fn=lambda payload: nut_data(payload).get("realpowerNominal"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_battery_charge_low",
+        translation_key="ups_battery_charge_low",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # Not battery-alert: that icon reads as an active alarm, but this is a
+        # static configured threshold, not a reflection of the current charge.
+        # ups_battery_low is the actual alert and earns that iconography.
+        icon="mdi:battery-arrow-down-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        # A configured threshold rather than a measurement - same reasoning as
+        # the nameplate rating above.
+        value_fn=_battery("chargeLow"),
+    ),
+    MOSNutSensorEntityDescription(
+        key="ups_battery_type",
+        translation_key="ups_battery_type",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:battery",
+        value_fn=_battery("type"),
     ),
 )
 

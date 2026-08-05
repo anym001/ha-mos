@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.const import CONF_ENABLE_NUT
 from homeassistant.components.sensor import ATTR_STATE_CLASS
-from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, UnitOfTime
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, STATE_UNAVAILABLE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -55,6 +55,44 @@ async def test_configured_ratings_are_not_measurements(
     assert ATTR_STATE_CLASS not in hass.states.get("sensor.sirius_ups_nominal_power").attributes
     assert ATTR_STATE_CLASS not in hass.states.get("sensor.sirius_ups_battery_low_threshold").attributes
     assert ATTR_STATE_CLASS in hass.states.get("sensor.sirius_ups_battery").attributes
+
+
+async def test_nameplate_sensors_are_diagnostic(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Both sides of the split are pinned, same as for the status flags.
+
+    The line is what the value does over time, not how interesting it is: a
+    reading that moves belongs on the main card, a value fixed when the unit
+    was built or configured belongs under Diagnostic. Naming the primary
+    sensors too is what catches a later edit filing a live reading away.
+    """
+    registry = er.async_get(hass)
+
+    for entity_id in (
+        "sensor.sirius_ups_name",
+        "sensor.sirius_ups_manufacturer",
+        "sensor.sirius_ups_model",
+        "sensor.sirius_ups_serial_number",
+        "sensor.sirius_ups_nominal_power",
+        "sensor.sirius_ups_battery_low_threshold",
+        "sensor.sirius_ups_battery_type",
+    ):
+        assert registry.async_get(entity_id).entity_category is EntityCategory.DIAGNOSTIC, entity_id
+
+    for entity_id in (
+        "sensor.sirius_ups_status",
+        "sensor.sirius_ups_load",
+        "sensor.sirius_ups_battery",
+        "sensor.sirius_ups_battery_runtime",
+        "sensor.sirius_ups_battery_voltage",
+        "sensor.sirius_ups_input_voltage",
+        "sensor.sirius_ups_input_frequency",
+        "sensor.sirius_ups_output_voltage",
+        "sensor.sirius_ups_output_frequency",
+    ):
+        assert registry.async_get(entity_id).entity_category is None, entity_id
 
 
 async def test_sensors_go_unavailable_when_the_ups_stops_answering(
