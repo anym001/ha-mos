@@ -122,17 +122,20 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             # both happen to run a container named "database"). A translated device gets
             # the same prefix from its ``server`` placeholder instead, and is named by
             # the device registry rather than here.
-            device_naming: DeviceInfo = (
-                {"translation_key": device_translation_key, "translation_placeholders": {"server": entry.title}}
-                if device_translation_key
-                else {"name": f"{entry.title} {device_name}" if entry.title else device_name}
-            )
-            self._attr_device_info = DeviceInfo(
+            device_info = DeviceInfo(
                 identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
                 manufacturer="MOS",
                 via_device=(entry.domain, entry.entry_id),
-                **device_naming,
             )
+            # Assigned rather than passed as **kwargs: unpacking a DeviceInfo into
+            # the constructor erases the per-key types, leaving every field an
+            # untyped object.
+            if device_translation_key:
+                device_info["translation_key"] = device_translation_key
+                device_info["translation_placeholders"] = {"server": entry.title}
+            else:
+                device_info["name"] = f"{entry.title} {device_name}" if entry.title else device_name
+            self._attr_device_info = device_info
             return
 
         osinfo: dict = (coordinator.data or {}).get("osinfo", {})
