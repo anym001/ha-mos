@@ -64,7 +64,7 @@ MAX_SCAN_INTERVAL = 3600
 
 # How long authentication may be rejected *continuously* before the coordinator
 # escalates to a reauth flow (ConfigEntryAuthFailed). A server that is rebooting
-# or shutting down often returns a transient 401/403 while its auth service (or a
+# or shutting down often rejects a request while its auth service (or a
 # reverse proxy in front of it) is not ready yet, even though the configured
 # token is still perfectly valid. Escalating on the first such failure wrongly
 # tears the user into a reauth/reconfigure prompt.
@@ -114,7 +114,7 @@ AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 # How long an optional resource may fail *continuously* before its entities stop
 # claiming to be available and go "unavailable" instead.
 #
-# A transient 403/429/communication error on an optional resource keeps its
+# A transient 429/communication error on an optional resource keeps its
 # last-known-good data (see ``_retain_last_known_good``), which is exactly right
 # for a passing hiccup: entities keep their values instead of being torn down
 # over a momentary blip. But the retention has no natural end. Left uncapped, an
