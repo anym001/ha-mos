@@ -30,6 +30,7 @@ codespell \
     --quiet-level=2 \
     custom_components/ \
     AGENTS.md \
+    AI_POLICY.md \
     CLAUDE.md \
     CONTRIBUTING.md \
     README.md \
