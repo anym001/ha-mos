@@ -154,8 +154,15 @@ async def test_a_device_appearing_later_starts_in_the_servers_area(
         await mock_config_entry.runtime_data.coordinator.async_refresh()
         await hass.async_block_till_done()
 
-    new_pool_id = er.async_get(hass).async_get("binary_sensor.sirius_pool_later_problem").device_id
-    assert device_registry.async_get(new_pool_id).area_id == office.id
+    # Found by device identifier rather than by a generated entity_id: since
+    # Home Assistant 2026.8 the area name is part of the generated entity_id, so
+    # the very inheritance under test would rename the entity out from under a
+    # hardcoded id (to binary_sensor.office_sirius_pool_later_problem here).
+    new_pool = device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{mock_config_entry.entry_id}_pool_3"), mock_config_entry.entry_id
+    )
+    assert new_pool is not None
+    assert new_pool.area_id == office.id
 
 
 async def test_other_integrations_devices_are_left_alone(
