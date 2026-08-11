@@ -157,7 +157,9 @@ async def test_ups_entities_get_their_own_device_linked_to_server(
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
 
-    server_device = device_registry.async_get_device(identifiers={("mos", setup_integration.entry_id)})
+    server_device = device_registry.async_get_device_by_identifier(
+        ("mos", setup_integration.entry_id), setup_integration.entry_id
+    )
     assert server_device is not None
 
     entry = entity_registry.async_get("sensor.sirius_ups_status")

@@ -181,7 +181,9 @@ async def test_a_renamed_device_is_reported_as_renamed(
     entity_id.
     """
     device_registry = dr.async_get(hass)
-    server = device_registry.async_get_device(identifiers={("mos", setup_integration.entry_id)})
+    server = device_registry.async_get_device_by_identifier(
+        ("mos", setup_integration.entry_id), setup_integration.entry_id
+    )
     area = ar.async_get(hass).async_create("Control room")
     device_registry.async_update_device(server.id, name_by_user="Control room Sirius", area_id=area.id)
 
