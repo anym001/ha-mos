@@ -25,7 +25,7 @@ async def test_device_info_shows_mos_version_not_cpu(
 ) -> None:
     """The device model/sw_version come from osinfo.mos, not osinfo.cpu."""
     registry = dr.async_get(hass)
-    device = registry.async_get_device(identifiers={(DOMAIN, setup_integration.entry_id)})
+    device = registry.async_get_device_by_identifier((DOMAIN, setup_integration.entry_id), setup_integration.entry_id)
 
     assert device is not None
     assert device.manufacturer == "MOS"
@@ -45,7 +45,9 @@ async def test_disks_and_pools_get_their_own_device(
     # 1 server device + 2 disks + 2 pools + 2 LXC containers + 2 Docker containers
     # + 2 VMs + the UPS.
     assert len(devices) == 12
-    server_device = registry.async_get_device(identifiers={(DOMAIN, setup_integration.entry_id)})
+    server_device = registry.async_get_device_by_identifier(
+        (DOMAIN, setup_integration.entry_id), setup_integration.entry_id
+    )
     assert server_device is not None
     assert server_device.name == "Sirius"
     container_devices = [device for device in devices if device.id != server_device.id]
@@ -90,7 +92,7 @@ async def test_stale_resource_marks_only_its_own_entities_unavailable(
     # Both VMs in the fixture are backed by vm_machines, so both go with it.
     vm_entity_ids: list[str] = []
     for vm_name in ("Test", "Legacy"):
-        vm_device = device_reg.async_get_device(identifiers={(DOMAIN, f"{entry_id}_vm_{vm_name}")})
+        vm_device = device_reg.async_get_device_by_identifier((DOMAIN, f"{entry_id}_vm_{vm_name}"), entry_id)
         assert vm_device is not None
         vm_entity_ids += [entity.entity_id for entity in er.async_entries_for_device(entity_reg, vm_device.id)]
     assert vm_entity_ids
@@ -152,7 +154,9 @@ async def test_docker_switch_follows_the_engine_proxy_but_its_sensors_do_not(
 
     device_reg = dr.async_get(hass)
     entity_reg = er.async_get(hass)
-    docker_device = device_reg.async_get_device(identifiers={(DOMAIN, f"{setup_integration.entry_id}_docker_PushBits")})
+    docker_device = device_reg.async_get_device_by_identifier(
+        (DOMAIN, f"{setup_integration.entry_id}_docker_PushBits"), setup_integration.entry_id
+    )
     assert docker_device is not None
 
     states = {

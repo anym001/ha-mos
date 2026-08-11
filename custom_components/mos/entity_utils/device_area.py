@@ -80,10 +80,10 @@ def _handle_device_registry_updated(
 
     device_registry = dr.async_get(hass)
     device = device_registry.async_get(event.data["device_id"])
-    if device is None or entry.entry_id not in device.config_entries:
+    if device is None or device.config_entry_id != entry.entry_id:
         return
 
-    server = device_registry.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    server = device_registry.async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
     if server is None:
         return
 

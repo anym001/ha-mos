@@ -98,7 +98,7 @@ def async_setup_dynamic_entities(
             LOGGER.debug("Removing %s entities for %s: %s", data_key, len(removed_ids), sorted(removed_ids))
         for item_id in removed_ids:
             device_identifiers = device_identifiers_fn(item_id) if device_identifiers_fn else None
-            hass.async_create_task(_async_remove_entities(hass, known.pop(item_id), device_identifiers))
+            hass.async_create_task(_async_remove_entities(hass, entry.entry_id, known.pop(item_id), device_identifiers))
 
     _sync()
     entry.async_on_unload(coordinator.async_add_listener(_sync))
@@ -106,6 +106,7 @@ def async_setup_dynamic_entities(
 
 async def _async_remove_entities(
     hass: HomeAssistant,
+    entry_id: str,
     entities: Sequence[Entity],
     device_identifiers: tuple[str, str] | None,
 ) -> None:
@@ -120,6 +121,11 @@ async def _async_remove_entities(
     are torn down independently by their own platform, so this check runs
     once per platform and only succeeds once the last one has cleared its
     entities - no extra coordination needed between platforms.
+
+    ``entry_id`` scopes the device lookup: since Home Assistant 2026.8 a device
+    belongs to exactly one config entry, and identifiers are only unique within
+    one, so the lookup must name the entry to stay unambiguous when a second MOS
+    server happens to use the same container name.
     """
     registry = er.async_get(hass)
     for entity in entities:
@@ -129,6 +135,6 @@ async def _async_remove_entities(
 
     if device_identifiers is not None:
         device_registry = dr.async_get(hass)
-        device = device_registry.async_get_device(identifiers={device_identifiers})
+        device = device_registry.async_get_device_by_identifier(device_identifiers, entry_id)
         if device is not None and not er.async_entries_for_device(registry, device.id, include_disabled_entities=True):
             device_registry.async_remove_device(device.id)

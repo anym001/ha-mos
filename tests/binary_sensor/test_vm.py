@@ -40,7 +40,9 @@ async def test_vm_gets_its_own_device_linked_to_server(
     entity_registry = er.async_get(hass)
     device_registry = dr.async_get(hass)
 
-    server_device = device_registry.async_get_device(identifiers={("mos", setup_integration.entry_id)})
+    server_device = device_registry.async_get_device_by_identifier(
+        ("mos", setup_integration.entry_id), setup_integration.entry_id
+    )
     assert server_device is not None
 
     entry = entity_registry.async_get("binary_sensor.sirius_vm_test_autostart")
@@ -58,10 +60,17 @@ async def test_vm_removal_also_removes_its_device(
 ) -> None:
     """When a VM disappears for good, its now-empty device is cleaned up too."""
     device_registry = dr.async_get(hass)
-    assert device_registry.async_get_device(identifiers={("mos", f"{setup_integration.entry_id}_vm_Legacy")})
+    assert device_registry.async_get_device_by_identifier(
+        ("mos", f"{setup_integration.entry_id}_vm_Legacy"), setup_integration.entry_id
+    )
 
     mock_client.async_get_vm_machines.return_value = [mock_vm_machines[0]]
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert device_registry.async_get_device(identifiers={("mos", f"{setup_integration.entry_id}_vm_Legacy")}) is None
+    assert (
+        device_registry.async_get_device_by_identifier(
+            ("mos", f"{setup_integration.entry_id}_vm_Legacy"), setup_integration.entry_id
+        )
+        is None
+    )

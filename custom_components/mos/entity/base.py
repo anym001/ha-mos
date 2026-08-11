@@ -127,6 +127,14 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             # both happen to run a container named "database"). A translated device gets
             # the same prefix from its ``server`` placeholder instead, and is named by
             # the device registry rather than here.
+            # ``via_device`` rather than the newer ``via_device_id``: the latter wants
+            # the server device's *registry id*, which does not exist yet here - the
+            # server device is created from its own entity's DeviceInfo, in the same
+            # setup pass that builds these container entities. Home Assistant resolves
+            # the identifier at registration and prefers a match in the same config
+            # entry, so the link is unambiguous for us and no deprecation warning is
+            # logged. Deprecated since 2026.8, removed in 2027.8 - see
+            # docs/development/DECISIONS.md before "fixing" this.
             device_info = DeviceInfo(
                 identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
                 via_device=(entry.domain, entry.entry_id),

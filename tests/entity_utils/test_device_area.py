@@ -14,7 +14,7 @@ from homeassistant.helpers import area_registry as ar, device_registry as dr, en
 
 def _server_device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:
     """Return the entry's server device - the one every other device hangs off."""
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, entry.entry_id), entry.entry_id)
     assert device is not None
     return device
 
