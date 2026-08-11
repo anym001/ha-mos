@@ -237,6 +237,6 @@ Tests mirror the source structure under `tests/`.
 Core dependencies (see `manifest.json`):
 
 - `aiohttp` - Async HTTP client
-- Home Assistant 2026.4.0+ (see `hacs.json`) - Platform requirements
+- Home Assistant 2026.8.0+ (see `hacs.json`) - Platform requirements
 
 Development dependencies (see `requirements_dev.txt`, `requirements_test.txt`).
