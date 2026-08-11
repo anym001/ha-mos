@@ -110,7 +110,7 @@ Each decision is documented with:
 
 ---
 
-### Defer the Home Assistant 2026.8 Move and Own the Files Coupled to It
+### Move to Home Assistant 2026.8, Keeping `via_device` Until 2027.8
 
 **Date:** 2026-08-11
 
@@ -119,31 +119,39 @@ Each decision is documented with:
 version bump itself, because `hacs.json` is listed in `.templatesyncignore` and can never arrive by sync. Merged as
 proposed, the script would have aborted `script/develop` with a `ModuleNotFoundError` (it imports
 `homeassistant.components.http.config`, which does not exist before 2026.8), and the new guidance would have directed
-agents to `async_get_device_by_identifier()`, absent before 2026.8, against code that deliberately uses `via_device`
-and `async_get_device()`.
+agents to `async_get_device_by_identifier()`, absent before 2026.8. #64 was closed unmerged and the move made here
+instead, in one piece.
 
-**Decision:** Keep `hacs.json` at `2026.4.0` for now, close #64 unmerged, and take ownership of the files coupled to
-the version: `requirements_test.txt` permanently, and the four rewritten `blueprint.*.instructions.md` files
-temporarily. The move itself is planned as one deliberate change in
-[HA_2026_8_MIGRATION.md](HA_2026_8_MIGRATION.md).
+**Decision:** Raise `hacs.json` to `2026.8.0` and `pytest-homeassistant-custom-component` to `0.13.354` together;
+drop the `http:` block from `config/configuration.yaml` in favour of `script/setup/seed-http-config`; adopt the
+entry-scoped registry lookups; and keep `via_device` for now. `requirements_test.txt` stays maintainer-owned in
+`.templatesyncignore`; the four instruction files were adopted and no longer are.
 
 **Rationale:**
 
 - `pytest-homeassistant-custom-component` pins one exact Home Assistant version, so it must track `hacs.json`.
-  `.github/dependabot.yml` already says so and excludes both from automatic updates; a sync bypassed that policy.
-- The 2026.8 device registry changes are deprecations, not breaks — `via_device` has a removal target of HA Core
-  2027.8 — so there is runway to do this properly rather than under sync pressure.
-- Replacing `via_device` with `via_device_id` needs the server device's registry id at a point where only identifiers
-  are known. That is a design question, not a mechanical rename, and does not belong in a template sync.
+  `.github/dependabot.yml` already says so and excludes both from automatic updates.
+- Since 2026.8 a device belongs to exactly one config entry, and identifiers are unique only within one.
+  `async_get_device_by_identifier(identifier, config_entry_id)` cannot be ambiguous, so the lookups moved over
+  unconditionally, as did `DeviceEntry.config_entry_id` in place of the deprecated plural `config_entries`.
+- `via_device` did not. Its replacement `via_device_id` wants the server device's _registry id_, which does not exist
+  yet when container devices declare their `DeviceInfo` — both are built in the same setup pass. Home Assistant
+  resolves the identifier at registration and prefers a match in the same config entry, so the link is unambiguous
+  here and logs no deprecation warning. Converting it means restructuring entity construction, which is a change worth
+  making on its own rather than inside a version bump.
+- Python needed no change: the project already required `>=3.14`, which is what 2026.8 wants.
 
 **Consequences:**
 
-- The four instruction files stay frozen until the move; unrelated blueprint improvements to them are missed
-  meanwhile. The `TEMPORARY` block in `.templatesyncignore` names the removal condition.
+- `via_device` is removed in HA Core 2027.8. Before then, either resolve the server device first and pass
+  `via_device_id`, or accept the link breaking. `AGENTS.md` records this as a deliberate deviation from
+  `blueprint.entities.instructions.md`, which says never to use it.
 - `requirements_test.txt` is bumped by hand from now on, together with `hacs.json`.
-- `script/develop` and `script/setup/setup` stay synced, so a future sync can still propose the `seed-http-config`
-  call sites. Until the move is done, a sync PR carrying them must not be merged — the migration checklist covers the
-  correct order.
+- Fresh environments get their dev network settings from `script/setup/seed-http-config` rather than
+  `configuration.yaml`. On an instance that has already booted, the script leaves an existing
+  `config/.storage/http` alone — change those settings in Settings → System → Network.
+- The device registry migrates itself to storage version 3.2 on first 2026.8 boot, splitting pre-migration composite
+  devices. Existing installations are migrated by Home Assistant, not by this integration.
 
 ---
 
