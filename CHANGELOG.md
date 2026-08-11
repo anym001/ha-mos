@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0](https://github.com/anym001/ha-mos/compare/v0.1.10...v0.2.0) (2026-08-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** Home Assistant 2026.4 through 2026.7 are no longer supported. The device registry APIs this release adopts do not exist before 2026.8, and HACS will stop offering updates on older cores.
+
+### Features
+
+* **deps:** require Home Assistant 2026.8 ([cf78c4a](https://github.com/anym001/ha-mos/commit/cf78c4a5a8e6a8e29c5f6f7b2b567a18940e2c15))
+
+
+### Bug Fixes
+
+* **hassfest:** activate the venv before detecting the HA version ([03ffecd](https://github.com/anym001/ha-mos/commit/03ffecdc953226b6de9d80be5ad9b0c3777bf7ee))
+* **setup:** pick the venv this environment actually maintains ([4d4bcb0](https://github.com/anym001/ha-mos/commit/4d4bcb0bac33163e5366c4256f741f5a3b80a51d))
+* **setup:** rebuild the venv before installing into it ([f274f6d](https://github.com/anym001/ha-mos/commit/f274f6db74d80f2480151da47ac4326cbfbb1d55))
+
 ## [0.1.10](https://github.com/anym001/ha-mos/compare/v0.1.9...v0.1.10) (2026-08-05)
 
 
