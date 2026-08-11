@@ -42,7 +42,15 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigEntry) -> MOSDataUpdateCoordinator:
-    """Build a coordinator wired to a fake config entry, without a full integration setup."""
+    """Build a coordinator wired to a fake config entry, without a full integration setup.
+
+    The entry is never loaded, so the ``async_on_unload(async_shutdown)`` hook
+    Home Assistant registers for a real one never fires. A test that leaves a
+    timer running - by adding a listener, which starts the refresh interval, or
+    by calling ``async_request_refresh()``, which arms the debouncer - has to
+    ``await coordinator.async_shutdown()`` itself, or teardown fails the test
+    with "Lingering timer".
+    """
     entry.runtime_data = SimpleNamespace(client=client)
     return MOSDataUpdateCoordinator(
         hass=hass,
@@ -226,6 +234,7 @@ async def test_async_start_vm_machine_calls_client_and_refreshes(
 
     mock_client.async_start_vm_machine.assert_called_once_with("Test")
     mock_client.async_get_vm_machines.assert_called_once()
+    await coordinator.async_shutdown()
 
 
 async def test_async_stop_vm_machine_calls_client_and_refreshes(
@@ -242,6 +251,7 @@ async def test_async_stop_vm_machine_calls_client_and_refreshes(
 
     mock_client.async_stop_vm_machine.assert_called_once_with("Test")
     mock_client.async_get_vm_machines.assert_called_once()
+    await coordinator.async_shutdown()
 
 
 @pytest.mark.parametrize(
@@ -1200,6 +1210,7 @@ async def test_listeners_are_notified_when_staleness_changes_without_data_changi
     assert coordinator.data == payload_before
     assert coordinator.stale_resources == frozenset({"vm_machines"})
     assert notifications, "entities were never told the resource had gone stale"
+    await coordinator.async_shutdown()
 
 
 async def test_endpoint_the_server_does_not_have_is_reported_once_and_costs_nothing(

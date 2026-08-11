@@ -152,6 +152,11 @@ entry-scoped registry lookups; and keep `via_device` for now. `requirements_test
   `config/.storage/http` alone — change those settings in Settings → System → Network.
 - The device registry migrates itself to storage version 3.2 on first 2026.8 boot, splitting pre-migration composite
   devices. Existing installations are migrated by Home Assistant, not by this integration.
+- Generated entity IDs now start with the area name: 2026.8 defaults `entity_id_parts` to area + device + entity.
+  Only IDs generated from then on are affected — entities already in the registry keep theirs — so it shows up
+  precisely where this integration files a new device into the server's area, e.g. a pool added later becomes
+  `binary_sensor.office_sirius_pool_later_problem`. Tests must therefore find such devices by identifier rather than
+  by a hardcoded entity ID.
 
 ---
 
