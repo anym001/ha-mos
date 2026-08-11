@@ -34,9 +34,17 @@ pyproject.toml
 
 # ── Runtime dependencies ──────────────────────────────────────
 # requirements.txt lists your integration's PyPI dependencies (synced with
-# manifest.json → requirements). This is user-owned content; requirements_test.txt
-# is blueprint-managed tooling and does get synced.
+# manifest.json → requirements). This is user-owned content.
 requirements.txt
+
+# requirements_test.txt pins pytest-homeassistant-custom-component, and that
+# package in turn pins one exact Home Assistant version (0.13.325 → 2026.4.4,
+# 0.13.354 → 2026.8.0). .github/dependabot.yml already excludes the package
+# because it is bumped by hand together with hacs.json "homeassistant", and
+# hacs.json is owned here as well (listed below). A sync bypasses that policy
+# and silently moves the test environment to an HA version this integration does
+# not declare: #64 proposed 0.13.354 while hacs.json still declares 2026.4.0.
+requirements_test.txt
 
 # ── Dependency pins Dependabot keeps ahead of the template ────
 # Dependabot bumps these here on its own schedule, so this repo is structurally
@@ -93,6 +101,25 @@ GEMINI.md
 .github/copilot-instructions.md
 .github/prompts/
 
+# ── DevContainer AI tooling ──────────────────────────────────
+# Which coding agents this DevContainer provisions, and how permissively, is a
+# maintainer decision rather than blueprint tooling. #64 would have added a
+# Copilot CLI wrapper defaulting to --allow-all-tools, a Codex CLI config
+# setting danger-full-access, Claude Code managed settings, persistent agent
+# home volumes and a `copilot` shell alias — the same reasoning that already
+# keeps .github/copilot-instructions.md and .github/prompts/ out, above.
+# Note that devcontainer.json and .vscode/extensions.json stay synced because
+# they carry mostly unrelated settings, so agent-specific entries arriving in
+# those two still need review on each sync.
+# Trade-off: unrelated on-create.sh and shell startup improvements now have to
+# be copied over by hand — `script/compare-blueprint` shows what changed.
+.devcontainer/claude-code/
+.devcontainer/codex/
+.devcontainer/copilot/
+.devcontainer/on-create.sh
+.devcontainer/.bashrc
+.devcontainer/.zshrc
+
 # Instruction files for features this integration does not have — there is no
 # services.yaml, no repairs.py and no service_actions/, and the integration is
 # config-flow only (never configured from configuration.yaml). Restore any of
@@ -101,6 +128,22 @@ GEMINI.md
 .github/instructions/blueprint.service_actions.instructions.md
 .github/instructions/blueprint.repairs.instructions.md
 .github/instructions/blueprint.configuration_yaml.instructions.md
+
+# TEMPORARY — remove these four lines as part of the Home Assistant 2026.8 move,
+# see docs/development/HA_2026_8_MIGRATION.md.
+# The blueprint rewrote these files for 2026.8 device registry ownership: they
+# forbid `via_device` and the unscoped `async_get_device()` and prescribe
+# `async_get_device_by_identifier()`, which does not exist before 2026.8
+# (neither does the `UnitOfDensity` enum the Python guidance now cites). This
+# integration declares 2026.4.0 in hacs.json and deliberately uses `via_device`
+# (entity/base.py) and `async_get_device()` (entity_utils/), so adopting the new
+# guidance now would point every agent run at an API the pinned HA does not
+# ship. Cost of holding them back: unrelated improvements to these four files
+# are frozen until the move.
+.github/instructions/blueprint.config_flow.instructions.md
+.github/instructions/blueprint.entities.instructions.md
+.github/instructions/blueprint.python.instructions.md
+.github/instructions/blueprint.tests.instructions.md
 
 # Schema for the services.yaml this integration does not ship.
 schemas/yaml/services_schema.yaml
