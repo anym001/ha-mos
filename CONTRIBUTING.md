@@ -186,6 +186,13 @@ fetching, and explicit error handling that maps API failures onto entity
 availability. Keep new code at that level — `script/check` and `script/test`
 enforce the mechanical part of it.
 
+## AI-assisted contributions
+
+AI tools may be used for any part of a contribution — see [AI_POLICY.md](AI_POLICY.md). What matters is that the
+pull request says honestly how far the code was reviewed and tested: fill in the **Verification context** block in the
+pull request template. AI usage, human review, automated testing and real-world testing are separate facts, and a green
+`script/check` is not a claim that anyone understood the change.
+
 ## Adding a dependency
 
 Four requirements files, each with one job:
