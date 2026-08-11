@@ -45,6 +45,9 @@ requirements.txt
 # and silently moves the test environment to an HA version this integration does
 # not declare — as #64 did, proposing 0.13.354 against a hacs.json that still
 # said 2026.4.0. Both were raised together afterwards, by hand.
+# Trade-off: a test dependency the blueprint newly adds to this file has to be
+# copied over by hand — `script/compare-blueprint` shows what changed. Losing
+# the PHCC bumps is the point, not a cost.
 requirements_test.txt
 
 # ── Dependency pins Dependabot keeps ahead of the template ────
