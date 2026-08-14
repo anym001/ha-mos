@@ -28,6 +28,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SERVICES,
     CONF_ENABLE_VM,
+    DOCKER_LABELS_KEPT,
     DOMAIN,
     LOGGER,
     MAX_SCAN_INTERVAL,
@@ -93,7 +94,11 @@ async def test_fetches_all_resources_by_default(
                 "state": "running",
                 "container_id": "abc123",
                 "health": "healthy",
-                "labels": mock_docker_engine_containers[0]["Labels"],
+                "labels": {
+                    label: value
+                    for label, value in mock_docker_engine_containers[0]["Labels"].items()
+                    if label in DOCKER_LABELS_KEPT
+                },
                 "ports": mock_docker_engine_containers[0]["Ports"],
                 "network_mode": "bridge",
                 "icon_url": "https://raw.githubusercontent.com/pushbits/logo/main/logo.png",
@@ -104,7 +109,7 @@ async def test_fetches_all_resources_by_default(
                 "state": "exited",
                 "container_id": "def456",
                 "health": "none",
-                "labels": mock_docker_engine_containers[1]["Labels"],
+                "labels": {},
                 "ports": [],
                 "network_mode": "bridge",
                 "icon_url": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/nginx.png",
@@ -961,6 +966,33 @@ async def test_denied_docker_engine_proxy_keeps_the_container_list(
     # against the merge's own field list so a newly merged field cannot quietly
     # skip this.
     assert all(container[field] is None for container in containers for field in DOCKER_ENGINE_MERGED_FIELDS)
+
+
+async def test_only_known_container_labels_are_kept(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    mock_docker_engine_containers: list[dict],
+) -> None:
+    """Docker labels are free-form, and this payload reaches the diagnostics download.
+
+    Whatever an image author or a user puts on a container must not be carried
+    into coordinator data just because it happened to ride along in the poll.
+    """
+    noisy = {
+        **mock_docker_engine_containers[0],
+        "Labels": {**mock_docker_engine_containers[0]["Labels"], "com.example.secret": "hunter2"},
+    }
+    mock_client.async_get_docker_engine_containers.return_value = [noisy, mock_docker_engine_containers[1]]
+    entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    labels = coordinator.data["docker_containers"][0]["labels"]
+    assert "com.example.secret" not in labels
+    assert "mos.backend" not in labels
+    assert labels["mos.webui"] == "http://[ADDRESS]:[PORT:8080]/"
+    assert labels["org.opencontainers.image.title"] == "server"
 
 
 async def test_denied_docker_engine_proxy_retains_last_known_state(

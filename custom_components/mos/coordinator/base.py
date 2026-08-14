@@ -45,6 +45,7 @@ from custom_components.mos.const import (
     DEFAULT_ENABLE_SENSORS,
     DEFAULT_ENABLE_SERVICES,
     DEFAULT_ENABLE_VM,
+    DOCKER_LABELS_KEPT,
     LOGGER,
     PERMISSION_RESOURCE_BY_KEY,
     READ_PERMISSION_RESOURCES,
@@ -176,6 +177,10 @@ def _merge_docker_engine_state(
     ``mos.webui`` label, the live port mapping, health, and the container id -
     so it is harvested here rather than fetched a second time.
 
+    Only the labels in ``DOCKER_LABELS_KEPT`` are carried over. The rest is
+    free-form text from the image author or the user, and this payload reaches
+    the diagnostics download.
+
     ``container_id`` matters beyond identification: MOS recreates a container
     when its template is edited, so a changed id is the signal that any cached
     template for that container is out of date.
@@ -201,7 +206,11 @@ def _merge_docker_engine_state(
                 "state": engine_container.get("State"),
                 "container_id": engine_container.get("Id"),
                 "health": (engine_container.get("Health") or {}).get("Status"),
-                "labels": engine_container.get("Labels") or {},
+                "labels": {
+                    label: value
+                    for label, value in (engine_container.get("Labels") or {}).items()
+                    if label in DOCKER_LABELS_KEPT
+                },
                 "ports": engine_container.get("Ports") or [],
                 "network_mode": (engine_container.get("HostConfig") or {}).get("NetworkMode"),
             }

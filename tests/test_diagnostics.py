@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mos.const import CONF_API_TOKEN
@@ -35,6 +37,29 @@ async def test_host_is_redacted_everywhere(
     assert diagnostics["api"]["base_url"] == REDACTED
     assert diagnostics["api"]["root_base_url"] == REDACTED
     assert "10.0.1.30" not in str(diagnostics)
+
+
+async def test_container_bind_address_is_redacted(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_engine_containers: list[dict],
+) -> None:
+    """A container published on one interface carries that address in its port list.
+
+    Docker spells the key ``IP``, which does not match the lower-case ``ip``
+    the rest of the payloads use - and the redaction compares key names exactly.
+    """
+    bound = {
+        **mock_docker_engine_containers[0],
+        "Ports": [{"IP": "192.168.178.42", "PrivatePort": 8080, "PublicPort": 8081, "Type": "tcp"}],
+    }
+    mock_client.async_get_docker_engine_containers.return_value = [bound, mock_docker_engine_containers[1]]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
+
+    assert "192.168.178.42" not in str(diagnostics)
 
 
 async def test_connection_details_stay_visible(

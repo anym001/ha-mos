@@ -54,6 +54,10 @@ TO_REDACT = {
     # nothing but addresses)
     "network",
     "ip",
+    # Docker spells it uppercase in a container's published-port list, and the
+    # redaction matches key names exactly. A container bound to one interface
+    # rather than 0.0.0.0 carries that interface's address here.
+    "IP",
     "ipv4",
     "ipv6",
     "ip_address",

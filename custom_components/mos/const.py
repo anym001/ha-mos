@@ -228,6 +228,23 @@ READ_PERMISSION_RESOURCES = {
     key: resource for key, resource in PERMISSION_RESOURCE_BY_KEY.items() if key not in ALWAYS_FETCHED_RESOURCES
 }
 
+# The Docker container label MOS stores a configured web interface under, and the
+# OCI image labels worth surfacing, mapped to the attribute name each gets.
+#
+# Named here rather than at their point of use because the coordinator keeps only
+# these labels and drops the rest (see ``_merge_docker_engine_state``). Docker
+# labels are free-form - anything the image author or the user put there rides
+# along, and coordinator data ends up in the diagnostics download that people
+# attach to public issues. Keeping the allow-list in one place means a new label
+# cannot be read by an entity while the merge silently withholds it.
+DOCKER_WEB_UI_LABEL = "mos.webui"
+DOCKER_IMAGE_LABEL_ATTRIBUTES = {
+    "org.opencontainers.image.title": "image_title",
+    "org.opencontainers.image.description": "image_description",
+    "org.opencontainers.image.source": "image_source",
+}
+DOCKER_LABELS_KEPT = frozenset({DOCKER_WEB_UI_LABEL, *DOCKER_IMAGE_LABEL_ATTRIBUTES})
+
 # Optional resource categories - can be disabled via the options flow
 CONF_ENABLE_DISKS = "enable_disks"
 CONF_ENABLE_POOLS = "enable_pools"
