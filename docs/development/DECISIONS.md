@@ -160,6 +160,51 @@ entry-scoped registry lookups; and keep `via_device` for now. `requirements_test
 
 ---
 
+### Docker Template Metadata Rides on the Container State Sensor
+
+**Date:** 2026-08-14
+
+**Context:** A Docker container's MOS template carries things no other endpoint answers: an icon URL, a web interface
+link that survives the container being stopped, and — via the container's labels — the standard OCI image title,
+description and source. None of it is a measurement, all of it describes the container, and the point of collecting it
+was that a dashboard row (icon, name, state, link) should come from a single entity instead of a template.
+
+**Decision:** Hang it off the per-container **state sensor**: the icon as `entity_picture`, the rest as
+`extra_state_attributes` (`web_ui_url`, `repo`, `network_mode`, `image_title`, `image_description`, `image_source`).
+The container device additionally gets the web link as its `configuration_url`. The icon URL is handed to the frontend
+as-is, so the browser rendering the dashboard fetches it, not Home Assistant.
+
+**Rationale:**
+
+- The device registry has no icon or picture field — only `manufacturer`, `model`, `sw_version`,
+  `configuration_url` and friends. Device level is therefore not an option for the icon at all, while `entity_picture`
+  is a documented common property of every entity, not an improvisation.
+- The state sensor is the recorder-cheap host. Attributes are written alongside state changes, and this sensor moves
+  only when the container starts or stops. The same attributes on `cpu_usage` would ride along on every poll.
+- One entity per descriptive field (title, description, source, repo, network mode) would add five to six entities per
+  container — a few hundred on a well-stocked server — none of which has history worth keeping. The pattern to avoid is
+  putting _measurements_ in attributes; static descriptive strings are the case attributes exist for.
+- An `image` entity per container would make Home Assistant itself fetch every icon from a public CDN on the server
+  side. Letting the browser do it keeps that cost and that third-party contact where the user can see it.
+- Mapping `repo` to the device's `model` and the tag to `sw_version` was considered and dropped: device info is read
+  when the entity is added, and the installed version already has its own sensor that stays current.
+- Putting the picture on the power switch instead was dropped for the reason the state sensor exists at all — the
+  switch collapses the state to on/off.
+
+**Consequences:**
+
+- `entity_picture` points at a third-party CDN (GitHub raw, jsDelivr). Every dashboard viewer's browser contacts it,
+  and the picture stays blank for a browser without internet access. `resolve_icon` therefore accepts nothing but
+  plain `http(s)` URLs.
+- The attributes are not individually historized or graphable; anyone wanting that has to template them out.
+- Which labels may reach an entity is an allow-list in `const.py` (`DOCKER_LABELS_KEPT`), because coordinator data ends
+  up in the diagnostics download. A new label has to be added there deliberately.
+- The device's `configuration_url` is read once, when the entity is first added: a container whose web interface moves
+  to a different port updates the `web_ui_url` attribute immediately, but the device page's link follows on the next
+  reload.
+
+---
+
 ## Future Considerations
 
 ### State Restoration
