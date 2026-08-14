@@ -294,6 +294,7 @@ split-on-trailing-comma = false
     "S101",    # assert is fine in tests
     "S105",    # Test fixtures use literal dummy tokens
     "S106",    # Test fixtures pass literal dummy tokens as arguments
+    "S104",    # 0.0.0.0 appears in recorded Docker port payloads, not as a bind address
     "PLR2004", # Magic values are fine in tests
     "D",       # Docstrings not required in tests
     "PTH",     # Use pathlib - temporary exemption for tests
