@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it
+- **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it; Docker containers additionally get a state sensor carrying the container's icon, web interface link and image metadata, and a health sensor for containers that define a healthcheck
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -28,8 +28,8 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, hardware sensors, UPS readings
-- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, UPS power/battery flags
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, Docker container state, hardware sensors, UPS readings
+- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
 
 **Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, which counts as an answer rather than a failure: those entities are left out, the log names them once, and nothing else is affected. The request goes out on every poll anyway, so after a MOS update the matching entities appear on their own within a poll or two — no version numbers to look up, nothing to reload. Switch the category off in the options if you would rather it stopped asking.
@@ -94,7 +94,7 @@ Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, 
 
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version, entity IDs, your own device names and the area each device is assigned to remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Skim the file before attaching it to a public issue.
+**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses — including the interface a Docker container is published on — the resolved container web links, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version, entity IDs, your own device names and the area each device is assigned to remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Docker container port numbers and image metadata are in there too; of a container's labels, only the web interface link and the standard image title, description and source are kept, so anything else you or the image author put in a label never reaches the file. Skim it before attaching it to a public issue.
 
 ## Troubleshooting
 

@@ -25,7 +25,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientError, MOSApiClientNotFoundError
-from custom_components.mos.const import LOGGER
+from custom_components.mos.const import DOCKER_WEB_UI_LABEL, LOGGER
 
 if TYPE_CHECKING:
     from custom_components.mos.api import MOSApiClient
@@ -34,9 +34,6 @@ if TYPE_CHECKING:
 # ``[IP]`` in the template; the two mean the same thing.
 _HOST_PLACEHOLDER = re.compile(r"\[(?:ADDRESS|IP)\]")
 _PORT_PLACEHOLDER = re.compile(r"\[PORT:(\d+)\]")
-
-# The label MOS stores a container's configured web interface under.
-_WEB_UI_LABEL = "mos.webui"
 
 
 def _resolve_port(port: int, container: dict[str, Any], template: dict[str, Any] | None) -> int | None:
@@ -85,7 +82,7 @@ def resolve_web_ui_url(container: dict[str, Any], template: dict[str, Any] | Non
         The resolved URL, or ``None`` when it cannot be determined.
 
     """
-    raw = (container.get("labels") or {}).get(_WEB_UI_LABEL) or (template or {}).get("web_ui_url")
+    raw = (container.get("labels") or {}).get(DOCKER_WEB_UI_LABEL) or (template or {}).get("web_ui_url")
     # Type-checked rather than merely truth-checked: both halves come straight
     # from the server, and a link is not worth taking a poll down over.
     if not isinstance(raw, str) or not raw or not isinstance(host, str) or not host:

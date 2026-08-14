@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import DOCKER_IMAGE_LABEL_ATTRIBUTES
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
 from homeassistant.helpers.typing import StateType
@@ -38,13 +39,6 @@ if TYPE_CHECKING:
 # sensor's options is an error at runtime, and "removing" or "dead" showing up is
 # exactly when someone is looking at the dashboard.
 DOCKER_STATES = ["created", "restarting", "running", "removing", "paused", "exited", "dead"]
-
-# OCI image labels worth surfacing, mapped to the attribute name they get.
-_IMAGE_LABEL_ATTRIBUTES = {
-    "org.opencontainers.image.title": "image_title",
-    "org.opencontainers.image.description": "image_description",
-    "org.opencontainers.image.source": "image_source",
-}
 
 
 def _find_container(coordinator: MOSDataUpdateCoordinator, name: str) -> dict[str, Any] | None:
@@ -74,7 +68,7 @@ def _state_attributes(container: dict[str, Any]) -> dict[str, Any]:
         # so it survives an engine proxy outage without relying on carry-forward.
         "repo": container.get("repo"),
         "network_mode": container.get("network_mode"),
-        **{attribute: labels.get(label) for label, attribute in _IMAGE_LABEL_ATTRIBUTES.items()},
+        **{attribute: labels.get(label) for label, attribute in DOCKER_IMAGE_LABEL_ATTRIBUTES.items()},
     }
     return {key: value for key, value in attributes.items() if value}
 

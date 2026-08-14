@@ -11,7 +11,8 @@ custom_components/mos/
 ├── const.py                 # Constants and configuration keys
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
-│   └── base.py              # Main coordinator class
+│   ├── base.py              # Main coordinator class
+│   └── docker_templates.py  # Per-container template cache and web link resolution
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── manifest.json            # Integration metadata
@@ -62,6 +63,11 @@ updates to all entities. It is organized as a package with separate modules for 
 **Package structure:**
 
 - `base.py` - Main coordinator class (`MOSDataUpdateCoordinator`)
+- `docker_templates.py` - Caches each Docker container's MOS template, the only
+  source for its icon and for the port mapping a stopped container's web link
+  needs. Keyed by container id: MOS recreates a container when its template is
+  edited, so the id already in the poll's payload invalidates the cache and the
+  steady state issues no requests
 
 **Core functionality:**
 
