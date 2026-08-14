@@ -42,3 +42,32 @@ async def test_vm_removed_from_api_removes_its_sensors(
 
     registry = er.async_get(hass)
     assert registry.async_get("sensor.sirius_vm_legacy_cpu_usage") is None
+
+
+async def test_vm_state_sensor_carries_the_running_state(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The state sensor exposes the VM state as a value, which the power switch cannot."""
+    running = hass.states.get("sensor.sirius_vm_test_state")
+    assert running is not None
+    assert running.state == "running"
+
+    stopped = hass.states.get("sensor.sirius_vm_legacy_state")
+    assert stopped is not None
+    assert stopped.state == "stopped"
+
+
+async def test_vm_state_sensor_offers_only_the_states_mos_reports(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """MOS declares the VM state as a closed enum of two, unlike LXC's open-ended one.
+
+    libvirt underneath knows many more (paused, crashed, pmsuspended, ...), but
+    MOS collapses them before answering, so following libvirt here would offer
+    states that can never arrive.
+    """
+    state = hass.states.get("sensor.sirius_vm_test_state")
+    assert state is not None
+    assert set(state.attributes["options"]) == {"running", "stopped"}

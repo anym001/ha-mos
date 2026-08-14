@@ -257,6 +257,19 @@
       "swap_free": {
         "name": "Swap free"
       },
+      "lxc_state": {
+        "name": "State",
+        "state": {
+          "aborting": "Aborting",
+          "freezing": "Freezing",
+          "frozen": "Frozen",
+          "running": "Running",
+          "starting": "Starting",
+          "stopped": "Stopped",
+          "stopping": "Stopping",
+          "thawed": "Thawed"
+        }
+      },
       "lxc_cpu_usage": {
         "name": "CPU usage"
       },
@@ -289,6 +302,13 @@
       },
       "docker_memory_percent": {
         "name": "Memory percent"
+      },
+      "vm_state": {
+        "name": "State",
+        "state": {
+          "running": "Running",
+          "stopped": "Stopped"
+        }
       },
       "vm_cpu_usage": {
         "name": "CPU usage"
