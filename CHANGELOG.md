@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.1](https://github.com/anym001/ha-mos/compare/v0.2.0...v0.2.1) (2026-08-14)
+
+
+### Features
+
+* **api:** add the Docker container stats endpoint ([23d97d5](https://github.com/anym001/ha-mos/commit/23d97d5227a615957e2dbe70ee888f9c2b772998))
+* **api:** add the per-container Docker template endpoint ([f5780ac](https://github.com/anym001/ha-mos/commit/f5780ac824392077e0dfa9d22fa3c5acb504e0a5))
+* **coordinator:** collect per-container Docker stats ([a67ee63](https://github.com/anym001/ha-mos/commit/a67ee63b15195e07a3a2c98b98d3f0622118571e))
+* **coordinator:** harvest engine fields and cache Docker templates ([9264b04](https://github.com/anym001/ha-mos/commit/9264b04987ff5af2ce980873ef57aea9a20353fc))
+* **entity:** expose Docker container state, health and web link ([c0bba46](https://github.com/anym001/ha-mos/commit/c0bba463189ae9cf7cdaf3d074d0e9f72531b1da))
+* **entity:** expose Docker CPU and memory sensors ([1bf3a31](https://github.com/anym001/ha-mos/commit/1bf3a316c1daac39fca65de8d56c758110cb99e9))
+* **entity:** expose LXC container and VM state as a sensor ([94d8d70](https://github.com/anym001/ha-mos/commit/94d8d70a23d9d1c4eddb69a83cdaf714a2701c9a))
+
+
+### Bug Fixes
+
+* **diagnostics:** keep bind addresses and labels out of the dump ([6f021a1](https://github.com/anym001/ha-mos/commit/6f021a1374ef01ef268fdc1d3063c714a96c8d16))
+
 ## [0.2.0](https://github.com/anym001/ha-mos/compare/v0.1.10...v0.2.0) (2026-08-11)
 
 
