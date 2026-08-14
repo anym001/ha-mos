@@ -332,6 +332,38 @@ def mock_docker_templates() -> dict[str, dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_docker_stats() -> dict[str, Any]:
+    """
+    Return a realistic raw Docker Engine ``/containers/{name}/stats`` payload.
+
+    Trimmed to the fields the integration reads, but with their real shapes and
+    magnitudes: cumulative nanosecond CPU counters in both samples, and a cgroup
+    v2 memory block where ``usage`` includes reclaimable page cache that
+    ``inactive_file`` accounts for.
+
+    The numbers work out to 25% of two CPUs and 64 MiB of a 512 MiB limit, so a
+    test asserting on them reads as a statement about the container rather than
+    about arithmetic.
+    """
+    return {
+        "cpu_stats": {
+            "cpu_usage": {"total_usage": 1_500_000_000},
+            "system_cpu_usage": 40_000_000_000,
+            "online_cpus": 2,
+        },
+        "precpu_stats": {
+            "cpu_usage": {"total_usage": 1_000_000_000},
+            "system_cpu_usage": 36_000_000_000,
+        },
+        "memory_stats": {
+            "usage": 100_663_296,
+            "limit": 536_870_912,
+            "stats": {"inactive_file": 33_554_432},
+        },
+    }
+
+
+@pytest.fixture
 def mock_vm_machines() -> list[dict[str, Any]]:
     """Return a realistic ``/vm/machines/usage`` payload."""
     return [
@@ -592,6 +624,7 @@ def mock_client(
     mock_docker_containers: list[dict[str, Any]],
     mock_docker_engine_containers: list[dict[str, Any]],
     mock_docker_templates: dict[str, dict[str, Any]],
+    mock_docker_stats: dict[str, Any],
     mock_vm_machines: list[dict[str, Any]],
     mock_sensors: dict[str, list[dict[str, Any]]],
     mock_nut: dict[str, Any],
@@ -615,6 +648,7 @@ def mock_client(
         return mock_docker_templates[name]
 
     client.async_get_docker_template.side_effect = _template
+    client.async_get_docker_container_stats.return_value = mock_docker_stats
     client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_sensors.return_value = mock_sensors
     client.async_get_nut_status.return_value = mock_nut
