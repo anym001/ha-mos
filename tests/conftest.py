@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.mos.api import MOSApiClient
+from custom_components.mos.api import MOSApiClient, MOSApiClientNotFoundError
 from custom_components.mos.const import CONF_API_TOKEN, DOMAIN
 import custom_components.mos.coordinator.base as coordinator_base
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
@@ -218,36 +218,117 @@ def mock_lxc_containers() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def mock_docker_containers() -> list[dict[str, Any]]:
-    """Return a realistic ``/docker/mos/containers`` payload."""
+    """
+    Return a realistic ``/docker/mos/containers`` payload.
+
+    ``local``/``remote`` are image tags for one container and full digests for
+    the other, which is how MOS actually answers: a container pinned to a tag
+    reports the tag, one without reports ``sha256:...``. Both are valid states
+    for the version sensors, so both are represented here.
+    """
     return [
         {
             "index": 1,
             "name": "PushBits",
             "autostart": True,
+            "wait": "0",
             "repo": "ghcr.io/pushbits/server",
             "local": "1.20.2",
             "remote": "1.21.0",
             "update_available": True,
+            "default_shell": "/bin/sh",
+            "no_autoupdate": False,
         },
         {
             "index": 2,
             "name": "nginx",
             "autostart": False,
+            "wait": "0",
             "repo": "library/nginx",
-            "local": "1.25.3",
-            "remote": "1.25.3",
+            "local": "sha256:1c2eac2224f82d2d8b6a7e8af30f1650ed9f06ddf81fe40bbf841fa794295c15",
+            "remote": "sha256:1c2eac2224f82d2d8b6a7e8af30f1650ed9f06ddf81fe40bbf841fa794295c15",
             "update_available": False,
+            "default_shell": "/bin/sh",
+            "no_autoupdate": False,
         },
     ]
 
 
 @pytest.fixture
 def mock_docker_engine_containers() -> list[dict[str, Any]]:
-    """Return a realistic raw Docker Engine ``/containers/json`` payload."""
+    """
+    Return a realistic raw Docker Engine ``/containers/json`` payload.
+
+    The two containers deliberately differ in the ways the entities care about.
+    PushBits runs, has a healthcheck and a web interface, and is published on a
+    host port that differs from its container port - the case where taking the
+    ``mos.webui`` placeholder literally would produce a dead link. nginx is
+    stopped, defines no healthcheck (MOS says so with ``"none"`` rather than by
+    omitting the field) and has no web interface label, so its link has to come
+    from its template or not at all.
+    """
     return [
-        {"Id": "abc123", "Names": ["/PushBits"], "State": "running"},
-        {"Id": "def456", "Names": ["/nginx"], "State": "exited"},
+        {
+            "Id": "abc123",
+            "Names": ["/PushBits"],
+            "Image": "ghcr.io/pushbits/server",
+            "Created": 1785148413,
+            "Ports": [{"IP": "0.0.0.0", "PrivatePort": 8080, "PublicPort": 8081, "Type": "tcp"}],
+            "Labels": {
+                "mos.backend": "docker",
+                "mos.no_autoupdate": "false",
+                "mos.webui": "http://[ADDRESS]:[PORT:8080]/",
+                "org.opencontainers.image.title": "server",
+                "org.opencontainers.image.description": "A simple server for push notifications",
+                "org.opencontainers.image.source": "https://github.com/pushbits/server",
+            },
+            "State": "running",
+            "Status": "Up 3 minutes (healthy)",
+            "Health": {"Status": "healthy", "FailingStreak": 0},
+            "HostConfig": {"NetworkMode": "bridge"},
+        },
+        {
+            "Id": "def456",
+            "Names": ["/nginx"],
+            "Image": "library/nginx",
+            "Created": 1785148583,
+            "Ports": [],
+            "Labels": {"mos.backend": "docker", "mos.no_autoupdate": "false"},
+            "State": "exited",
+            "Status": "Exited (0) 2 weeks ago",
+            "Health": {"Status": "none", "FailingStreak": 0},
+            "HostConfig": {"NetworkMode": "bridge"},
+        },
     ]
+
+
+@pytest.fixture
+def mock_docker_templates() -> dict[str, dict[str, Any]]:
+    """
+    Return realistic ``/docker/mos/templates/{name}`` payloads, keyed by container.
+
+    nginx's template is what makes its web link resolvable at all: it is
+    stopped, so Docker reports no port mapping, and the configured
+    ``container``/``host`` pair is the only remaining source.
+    """
+    return {
+        "PushBits": {
+            "name": "PushBits_new",
+            "repo": "ghcr.io/pushbits/server",
+            "icon": "https://raw.githubusercontent.com/pushbits/logo/main/logo.png",
+            "web_ui_url": "",
+            "network": "bridge",
+            "ports": [{"name": "TCP - Listen port", "protocol": "tcp", "host": "8081", "container": "8080"}],
+        },
+        "nginx": {
+            "name": "nginx_new",
+            "repo": "library/nginx",
+            "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/nginx.png",
+            "web_ui_url": "http://[IP]:[PORT:80]/",
+            "network": "bridge",
+            "ports": [{"name": "WebUI", "protocol": "tcp", "host": "8080", "container": "80"}],
+        },
+    }
 
 
 @pytest.fixture
@@ -510,6 +591,7 @@ def mock_client(
     mock_lxc_containers: list[dict[str, Any]],
     mock_docker_containers: list[dict[str, Any]],
     mock_docker_engine_containers: list[dict[str, Any]],
+    mock_docker_templates: dict[str, dict[str, Any]],
     mock_vm_machines: list[dict[str, Any]],
     mock_sensors: dict[str, list[dict[str, Any]]],
     mock_nut: dict[str, Any],
@@ -525,6 +607,14 @@ def mock_client(
     client.async_get_lxc_containers.return_value = mock_lxc_containers
     client.async_get_docker_containers.return_value = mock_docker_containers
     client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
+
+    async def _template(name: str) -> dict[str, Any]:
+        """Answer like MOS does: the template, or 404 for a container it did not create."""
+        if name not in mock_docker_templates:
+            raise MOSApiClientNotFoundError(f"No template for {name}")
+        return mock_docker_templates[name]
+
+    client.async_get_docker_template.side_effect = _template
     client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_sensors.return_value = mock_sensors
     client.async_get_nut_status.return_value = mock_nut

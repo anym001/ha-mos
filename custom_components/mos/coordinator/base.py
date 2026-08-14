@@ -51,7 +51,9 @@ from custom_components.mos.const import (
     RESOURCE_STALE_GRACE_PERIOD,
     RESOURCE_STALE_MIN_FAILURES,
 )
+from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
 from custom_components.mos.entity_utils import has_read_access, has_write_access
+from homeassistant.const import CONF_HOST
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -147,6 +149,19 @@ class _UpdateOutcome:
         return {**self.communication_errors, **self.not_found_errors}
 
 
+# The fields ``_merge_docker_engine_state`` lifts out of the raw Docker Engine
+# payload, named once so ``_carry_forward_docker_engine_state`` cannot fall behind
+# and silently blank one of them out on a poll where the proxy is unavailable.
+DOCKER_ENGINE_MERGED_FIELDS = (
+    "state",
+    "container_id",
+    "health",
+    "labels",
+    "ports",
+    "network_mode",
+)
+
+
 def _merge_docker_engine_state(
     containers: list[dict[str, Any]],
     engine_containers: list[dict[str, Any]],
@@ -156,7 +171,20 @@ def _merge_docker_engine_state(
 
     ``/docker/mos/containers`` has no running-state field; the raw Docker
     Engine proxy's ``/containers/json`` does, keyed by name (with a leading
-    slash, per Docker's own ``Names`` convention).
+    slash, per Docker's own ``Names`` convention). The same payload also carries
+    everything else the engine knows and MOS's own container list does not - the
+    ``mos.webui`` label, the live port mapping, health, and the container id -
+    so it is harvested here rather than fetched a second time.
+
+    ``container_id`` matters beyond identification: MOS recreates a container
+    when its template is edited, so a changed id is the signal that any cached
+    template for that container is out of date.
+
+    ``health`` is flattened to Docker's status string. Note that MOS answers with
+    ``"none"`` rather than omitting the field when a container defines no
+    healthcheck, and that the status of a stopped container is whatever it was
+    left at - neither is a health verdict, and both are handled where the value
+    is consumed.
     """
     engine_by_name: dict[str, dict[str, Any]] = {}
     for engine_container in engine_containers:
@@ -167,7 +195,17 @@ def _merge_docker_engine_state(
     for container in containers:
         name: str = container.get("name") or ""
         engine_container = engine_by_name.get(name) or {}
-        merged.append({**container, "state": engine_container.get("State")})
+        merged.append(
+            {
+                **container,
+                "state": engine_container.get("State"),
+                "container_id": engine_container.get("Id"),
+                "health": (engine_container.get("Health") or {}).get("Status"),
+                "labels": engine_container.get("Labels") or {},
+                "ports": engine_container.get("Ports") or [],
+                "network_mode": (engine_container.get("HostConfig") or {}).get("NetworkMode"),
+            }
+        )
     return merged
 
 
@@ -187,21 +225,31 @@ def _carry_forward_docker_engine_state(
     previous_containers: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Preserve the last-known Docker ``state`` when the engine proxy is absent.
+    Preserve the last-known engine-derived fields when the proxy is absent.
 
     ``docker_engine_containers`` is merged into ``docker_containers`` and then
     dropped every poll, so it never lands in ``self.data`` where
     ``_retain_last_known_good`` could carry it forward. When the raw Docker
     Engine proxy is transiently unavailable (403/429) while the MOS container
-    list itself still answers, re-attach each container's ``state`` from the
-    previously merged data (keyed by name) instead of letting every container's
-    running-state blank out to ``None`` for a cycle. Containers unknown last
-    poll (or on the first poll) get ``None``, so no stale value is invented.
+    list itself still answers, re-attach everything ``_merge_docker_engine_state``
+    contributes from the previously merged data (keyed by name) instead of
+    letting every container's running state and web link blank out for a cycle.
+    Containers unknown last poll (or on the first poll) get ``None``, so no stale
+    value is invented.
     """
-    state_by_name: dict[str, Any] = {
-        name: container.get("state") for container in previous_containers if (name := container.get("name"))
+    previous_by_name: dict[str, dict[str, Any]] = {
+        name: container for container in previous_containers if (name := container.get("name"))
     }
-    return [{**container, "state": state_by_name.get(container.get("name") or "")} for container in containers]
+    return [
+        {
+            **container,
+            **{
+                field: previous_by_name.get(container.get("name") or "", {}).get(field)
+                for field in DOCKER_ENGINE_MERGED_FIELDS
+            },
+        }
+        for container in containers
+    ]
 
 
 class MOSDataUpdateCoordinator(DataUpdateCoordinator):
@@ -231,6 +279,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: MOSConfigEntry
     token_permissions: dict[str, Any] | None = None
+
+    # Per-container MOS templates, backing the Docker icons and web links. Bound
+    # lazily on first use rather than in ``_async_setup``, so a coordinator that
+    # only ever polls still gets one; the class default is None and is never
+    # mutated, so instances cannot share a cache (same reasoning as
+    # ``forbidden_resources`` below).
+    _docker_templates: DockerTemplateCache | None = None
 
     # Optional resources the token's scope denies reading. Filled from two
     # sources, because the token's own permission block is not complete: seeded
@@ -1153,8 +1208,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             "pools": [...],        # Storage pools from /pools
             "lxc_containers": [...],   # LXC containers from /lxc/containers/usage
             "docker_containers": [...],  # Docker containers from /docker/mos/containers,
-                                          # with "state" merged in from the raw Docker
-                                          # Engine proxy (/docker/containers/json)
+                                          # with the engine-derived fields merged in from
+                                          # the raw Docker Engine proxy
+                                          # (/docker/containers/json), plus "icon_url" and
+                                          # "web_ui_url" from the cached MOS template
             "vm_machines": [...],      # VMs from /vm/machines/usage
             "sensors": [...],       # Hardware readings from /sensors, flattened
                                      # from their per-category grouping into one
@@ -1245,4 +1302,40 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 data["docker_containers"],
                 (self.data or {}).get("docker_containers") or [],
             )
+        data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
         return data
+
+    async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Stamp each Docker container with its icon URL and resolved web link.
+
+        Both come from the container's MOS template, which is cached and only
+        re-fetched when a container is new or has been recreated - so this
+        normally issues no requests at all. Runs after the engine merge because
+        the cache keys on the container id that merge provides, and because the
+        live port mapping decides the web link for a running container.
+
+        Returns:
+            The containers, each with ``icon_url`` and ``web_ui_url`` added
+            (either may be ``None``).
+
+        """
+        if not containers:
+            return containers
+
+        if self._docker_templates is None:
+            self._docker_templates = DockerTemplateCache(self.config_entry.runtime_data.client)
+        await self._docker_templates.async_refresh(containers)
+
+        host = self.config_entry.data.get(CONF_HOST)
+        decorated: list[dict[str, Any]] = []
+        for container in containers:
+            template = self._docker_templates.get(container.get("name") or "")
+            decorated.append(
+                {
+                    **container,
+                    "icon_url": resolve_icon(template),
+                    "web_ui_url": resolve_web_ui_url(container, template, host),
+                }
+            )
+        return decorated

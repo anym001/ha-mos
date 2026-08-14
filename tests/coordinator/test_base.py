@@ -35,6 +35,7 @@ from custom_components.mos.const import (
     RESOURCE_STALE_MIN_FAILURES,
 )
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
+from custom_components.mos.coordinator.base import DOCKER_ENGINE_MERGED_FIELDS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
@@ -66,9 +67,14 @@ async def test_fetches_all_resources_by_default(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     mock_docker_containers: list[dict],
+    mock_docker_engine_containers: list[dict],
     mock_sensors: dict[str, list[dict]],
 ) -> None:
-    """With no options set, all resources are fetched; docker_containers gets a merged "state"."""
+    """With no options set, all resources are fetched; docker_containers gets the engine and template data merged in.
+
+    ``web_ui_url`` is None for both containers because this config entry carries
+    no host to point a link at - the link is left out rather than guessed at.
+    """
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
 
@@ -82,8 +88,28 @@ async def test_fetches_all_resources_by_default(
         "pools": mock_client.async_get_pools.return_value,
         "lxc_containers": mock_client.async_get_lxc_containers.return_value,
         "docker_containers": [
-            {**mock_docker_containers[0], "state": "running"},
-            {**mock_docker_containers[1], "state": "exited"},
+            {
+                **mock_docker_containers[0],
+                "state": "running",
+                "container_id": "abc123",
+                "health": "healthy",
+                "labels": mock_docker_engine_containers[0]["Labels"],
+                "ports": mock_docker_engine_containers[0]["Ports"],
+                "network_mode": "bridge",
+                "icon_url": "https://raw.githubusercontent.com/pushbits/logo/main/logo.png",
+                "web_ui_url": None,
+            },
+            {
+                **mock_docker_containers[1],
+                "state": "exited",
+                "container_id": "def456",
+                "health": "none",
+                "labels": mock_docker_engine_containers[1]["Labels"],
+                "ports": [],
+                "network_mode": "bridge",
+                "icon_url": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/nginx.png",
+                "web_ui_url": None,
+            },
         ],
         "vm_machines": mock_client.async_get_vm_machines.return_value,
         "sensors": [{**item, "category": category} for category, items in mock_sensors.items() for item in items],
@@ -926,10 +952,15 @@ async def test_denied_docker_engine_proxy_keeps_the_container_list(
     await coordinator.async_config_entry_first_refresh()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["docker_containers"] == [
-        {**mock_docker_containers[0], "state": None},
-        {**mock_docker_containers[1], "state": None},
+    containers = coordinator.data["docker_containers"]
+    assert [container["name"] for container in containers] == [
+        mock_docker_containers[0]["name"],
+        mock_docker_containers[1]["name"],
     ]
+    # Everything the proxy would have supplied is unknown, not invented - checked
+    # against the merge's own field list so a newly merged field cannot quietly
+    # skip this.
+    assert all(container[field] is None for container in containers for field in DOCKER_ENGINE_MERGED_FIELDS)
 
 
 async def test_denied_docker_engine_proxy_retains_last_known_state(
@@ -950,19 +981,16 @@ async def test_denied_docker_engine_proxy_retains_last_known_state(
 
     # A good first poll establishes the live running/exited state.
     await coordinator.async_config_entry_first_refresh()
-    assert coordinator.data["docker_containers"] == [
-        {**mock_docker_containers[0], "state": "running"},
-        {**mock_docker_containers[1], "state": "exited"},
-    ]
+    established = coordinator.data["docker_containers"]
+    assert [container["state"] for container in established] == ["running", "exited"]
 
     # The next poll loses only the engine proxy; the container list still answers.
     mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientPermissionError("transient 403")
     data = await coordinator._async_update_data()
 
-    assert data["docker_containers"] == [
-        {**mock_docker_containers[0], "state": "running"},
-        {**mock_docker_containers[1], "state": "exited"},
-    ]
+    # Every engine-derived field is carried over, not just the running state:
+    # blanking the health or the port mapping would flap those entities too.
+    assert data["docker_containers"] == established
 
 
 async def test_communication_error_wins_over_a_concurrent_auth_error(

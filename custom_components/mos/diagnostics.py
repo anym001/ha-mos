@@ -46,6 +46,10 @@ TO_REDACT = {
     "hostname",
     "base_url",
     "root_base_url",
+    # A Docker container's resolved web interface link. Unlike the raw
+    # ``mos.webui`` label it is built from, the placeholders are gone by the time
+    # it reaches the dump and the configured host is spelled out in it.
+    "web_ui_url",
     # Network addresses (e.g. an LXC container's `network` block, which is
     # nothing but addresses)
     "network",
