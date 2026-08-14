@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it; Docker containers additionally get a state sensor carrying the container's icon, web interface link and image metadata, and a health sensor for containers that define a healthcheck
+- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it; Docker containers also get icon, web link and image metadata, plus a health sensor
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -28,7 +28,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, Docker container state, hardware sensors, UPS readings
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, hardware sensors, UPS readings
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
 
@@ -66,15 +66,9 @@ Connection details can be changed later via **⋮** → **Reconfigure**, without
 
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
-- **Update interval** — how often to poll the MOS API, between 30 and 3600 seconds; 30 seconds by default
-- **Enable disks / pools / services / LXC / Docker / VMs / hardware sensors / UPS** — create entities for that category; each can be toggled on its own and all are on by default
-- **Enable Docker container stats** — add CPU and memory sensors to each Docker container; **off by default**, because Docker reports usage one container at a time, so every running container you watch costs one extra request per poll
-
-System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
-
-Container stats are only fetched for containers that are running **and** whose stats sensors you've left enabled, so disabling them on a device page stops the requests for it. If you run many containers, consider excluding the stats sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/) — CPU and memory change on every poll, so they add up in the database faster than anything else this integration creates.
-
-The default of 30 seconds suits container and VM states you want to react to; 5–30 minutes is plenty if you only watch slow-moving values like disk temperature or pool usage. Start/stop switches don't wait for the next poll — the new state shows immediately.
+- **Update interval** — 30–3600 seconds between polls, 30 by default. Use the low end to track container/VM state closely; 5–30 minutes is plenty for slow-moving values like disk temperature or pool usage. Switches apply immediately, without waiting for the next poll.
+- **Categories** — disks, pools, services, LXC, Docker, VMs, hardware sensors, UPS. Each toggles independently and is on by default; a disabled category isn't fetched at all. System info and health (CPU, memory, swap) are always on.
+- **Docker container stats** — off by default. Adds a CPU and memory sensor to each Docker container, at the cost of one extra request per poll for every running container with stats enabled — disable a container's stats sensors on its device page to stop those requests. With many containers, consider excluding these sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/), since they change on every poll.
 
 ## Security
 
@@ -97,7 +91,9 @@ Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, 
 
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses — including the interface a Docker container is published on — the resolved container web links, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version, entity IDs, your own device names and the area each device is assigned to remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Docker container port numbers and image metadata are in there too; of a container's labels, only the web interface link and the standard image title, description and source are kept, so anything else you or the image author put in a label never reaches the file. Skim it before attaching it to a public issue.
+**Diagnostics are redacted, but not anonymous.** Removed: the API token, hostname, API URLs, disk serials/UUIDs, IP/MAC addresses (including a Docker container's published interface), resolved container web links, and the token's own ID/name.
+
+Kept, because connection problems can't be diagnosed without them: container/VM/pool names, disk/CPU models, MOS version, entity IDs, your device names and areas, port/TLS settings, Docker port numbers, and — from a container's labels — only the web link and the standard image title/description/source. Skim it before attaching it to a public issue.
 
 ## Troubleshooting
 
