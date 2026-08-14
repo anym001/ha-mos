@@ -6,9 +6,21 @@ from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.const import EntityCategory
+from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+
+async def _refresh_with_engine(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    engine_containers: list[dict],
+) -> None:
+    """Re-poll with a replacement Docker Engine payload."""
+    mock_client.async_get_docker_engine_containers.return_value = engine_containers
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
 
 
 async def test_docker_update_available_reflects_payload(
@@ -24,10 +36,62 @@ async def test_docker_update_available_is_diagnostic(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """update_available is the one Docker container entity that IS diagnostic."""
+    """update_available is diagnostic, like the health sensor and unlike the rest of a container's entities."""
     registry = er.async_get(hass)
     entry = registry.async_get("binary_sensor.sirius_docker_pushbits_update_available")
     assert entry.entity_category is EntityCategory.DIAGNOSTIC
+
+
+async def test_docker_health_reflects_a_passing_healthcheck(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A running container whose healthcheck passes reports no problem."""
+    assert hass.states.get("binary_sensor.sirius_docker_pushbits_health").state == "off"
+
+
+async def test_docker_health_reports_a_failing_healthcheck(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_engine_containers: list[dict],
+) -> None:
+    """A running container whose healthcheck fails reports a problem."""
+    unhealthy = {**mock_docker_engine_containers[0], "Health": {"Status": "unhealthy", "FailingStreak": 3}}
+    await _refresh_with_engine(hass, setup_integration, mock_client, [unhealthy, mock_docker_engine_containers[1]])
+
+    assert hass.states.get("binary_sensor.sirius_docker_pushbits_health").state == "on"
+
+
+async def test_stopped_container_reports_no_health_at_all(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_engine_containers: list[dict],
+) -> None:
+    """Docker leaves the health status at whatever it was, so a stopped container's is not a verdict.
+
+    This is the exact payload a long-stopped container produces: ``unhealthy``
+    with a zero failing streak, from a healthcheck that never ran. Reporting it
+    would put a problem badge on every stopped container.
+    """
+    stopped = {
+        **mock_docker_engine_containers[0],
+        "State": "exited",
+        "Health": {"Status": "unhealthy", "FailingStreak": 0},
+    }
+    await _refresh_with_engine(hass, setup_integration, mock_client, [stopped, mock_docker_engine_containers[1]])
+
+    assert hass.states.get("binary_sensor.sirius_docker_pushbits_health").state == STATE_UNKNOWN
+
+
+async def test_container_without_a_healthcheck_gets_no_health_sensor(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """MOS reports "none" rather than omitting health, so a container with no healthcheck is recognisable."""
+    assert hass.states.get("binary_sensor.sirius_docker_nginx_health") is None
+    assert hass.states.get("binary_sensor.sirius_docker_nginx_autostart") is not None
 
 
 async def test_docker_autostart_reflects_config(

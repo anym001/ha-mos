@@ -81,6 +81,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         container_device: tuple[str, str] | None = None,
         device_translation_key: str | None = None,
         device_hardware: MOSDeviceHardware | None = None,
+        device_configuration_url: str | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -112,6 +113,16 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             device_hardware: Optional maker/model/serial for a container
                 device that is not MOS's own hardware. Only the UPS passes
                 this; see ``MOSDeviceHardware``.
+            device_configuration_url: Optional link to the thing the container
+                device represents - a Docker container's own web interface,
+                which is not the MOS server's. Only meaningful together with
+                ``container_device``; the server device builds its own URL
+                from the config entry below.
+
+                Read once, when the entity is first added: a container whose
+                web interface later moves to a different port updates the
+                ``web_ui_url`` attribute immediately, but the device page's
+                link follows on the next reload.
 
         """
         super().__init__(coordinator)
@@ -151,6 +162,8 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                     device_info["model"] = device_hardware.model
                 if device_hardware.serial_number:
                     device_info["serial_number"] = device_hardware.serial_number
+            if device_configuration_url:
+                device_info["configuration_url"] = device_configuration_url
             if device_translation_key:
                 device_info["translation_key"] = device_translation_key
                 device_info["translation_placeholders"] = {"server": entry.title}
