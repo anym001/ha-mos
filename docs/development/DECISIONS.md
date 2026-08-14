@@ -183,7 +183,7 @@ as-is, so the browser rendering the dashboard fetches it, not Home Assistant.
   only when the container starts or stops. The same attributes on `cpu_usage` would ride along on every poll.
 - One entity per descriptive field (title, description, source, repo, network mode) would add five to six entities per
   container — a few hundred on a well-stocked server — none of which has history worth keeping. The pattern to avoid is
-  putting *measurements* in attributes; static descriptive strings are the case attributes exist for.
+  putting _measurements_ in attributes; static descriptive strings are the case attributes exist for.
 - An `image` entity per container would make Home Assistant itself fetch every icon from a public CDN on the server
   side. Letting the browser do it keeps that cost and that third-party contact where the user can see it.
 - Mapping `repo` to the device's `model` and the tag to `sw_version` was considered and dropped: device info is read
