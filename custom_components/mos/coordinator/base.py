@@ -52,6 +52,7 @@ from custom_components.mos.const import (
     RESOURCE_STALE_GRACE_PERIOD,
     RESOURCE_STALE_MIN_FAILURES,
 )
+from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS, DockerStatsCollector, DockerStatsContext
 from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
 from custom_components.mos.entity_utils import has_read_access, has_write_access
 from homeassistant.const import CONF_HOST
@@ -295,6 +296,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     # mutated, so instances cannot share a cache (same reasoning as
     # ``forbidden_resources`` below).
     _docker_templates: DockerTemplateCache | None = None
+
+    # Fetches per-container CPU and memory. Bound lazily on first use for the
+    # same reason as ``_docker_templates`` above, and left unbound entirely on a
+    # setup where no stats sensor is enabled - which is the default.
+    _docker_stats: DockerStatsCollector | None = None
 
     # Optional resources the token's scope denies reading. Filled from two
     # sources, because the token's own permission block is not complete: seeded
@@ -1312,7 +1318,50 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 (self.data or {}).get("docker_containers") or [],
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
+        data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
         return data
+
+    async def _async_add_docker_stats(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Stamp each Docker container with its live CPU and memory figures.
+
+        Which containers are measured is decided by the sensors themselves rather
+        than by an option: every Docker stats sensor registers a
+        ``DockerStatsContext`` when it is added, so this asks the engine only
+        about containers something is currently displaying. A user who disabled
+        the sensors for a container - or who never switched the category on, in
+        which case the sensors do not exist - costs no requests at all. This is
+        the "only fetch data for active entities" this coordinator has always
+        claimed to do, finally with a caller that needs it.
+
+        Runs last, after the engine merge and the template pass, because it needs
+        the merged ``state`` to skip stopped containers.
+
+        Note that the very first poll of a config entry measures nothing: it runs
+        inside ``async_config_entry_first_refresh()``, before any entity has been
+        added, so no context exists yet. The sensors therefore read unknown for
+        one cycle after a start or reload, and fill in on the next.
+
+        Returns:
+            The containers, each with the ``DOCKER_STATS_FIELDS`` added (all
+            ``None`` for a container that was not measured).
+
+        """
+        if not containers:
+            return containers
+
+        wanted = {context.name for context in self.async_contexts() if isinstance(context, DockerStatsContext)}
+        if not wanted:
+            return [{**container, **NO_DOCKER_STATS} for container in containers]
+
+        if self._docker_stats is None:
+            self._docker_stats = DockerStatsCollector(self.config_entry.runtime_data.client)
+        collected = await self._docker_stats.async_collect(containers, wanted)
+        # Unmeasured containers are blanked rather than left at their previous
+        # values: a frozen CPU reading is indistinguishable from a live one.
+        return [
+            {**container, **collected.get(container.get("name") or "", NO_DOCKER_STATS)} for container in containers
+        ]
 
     async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
