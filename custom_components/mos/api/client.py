@@ -675,6 +675,57 @@ class MOSApiClient:
         """
         return await self._get("docker/containers/json?all=true", base_url=self._root_base_url)
 
+    async def async_get_docker_container_stats(self, name: str) -> dict[str, Any]:
+        """
+        Get one container's live resource usage via the raw Docker Engine proxy.
+
+        Calls ``GET /docker/containers/{name}/stats?stream=false``, proxied
+        straight through to Docker's own stats endpoint. There is no collection
+        form of it - Docker reports usage one container at a time - so a caller
+        that wants figures for N containers pays N requests. That is why the
+        feature this backs is opt-in; see ``DEFAULT_ENABLE_DOCKER_STATS``.
+
+        ``one-shot=true`` is deliberately **not** passed, even though it would
+        make the call return faster. It suppresses ``precpu_stats``, and CPU
+        usage is a delta between two samples: with only one sample there is
+        nothing to subtract from and no percentage can be derived at all.
+        ``stream=false`` on its own is what makes Docker take the second sample
+        and answer with both - which is also why this request takes about a
+        second rather than being instant. ``DEFAULT_TIMEOUT`` is left in place:
+        ten seconds is far above that, and a stats call that needs longer is
+        reporting a server in trouble rather than a figure worth waiting for.
+
+        A stopped container answers with zeroes rather than an error, so callers
+        are expected to skip those instead of relying on this to tell them
+        apart.
+
+        Args:
+            name: The container name, as it appears in ``/docker/mos/containers``.
+
+        Returns:
+            The raw Docker Engine stats payload (``cpu_stats``, ``precpu_stats``,
+            ``memory_stats``, ...).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientNotFoundError: If no such container exists.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get(
+            f"docker/containers/{_quote_segment(name)}/stats?stream=false",
+            base_url=self._root_base_url,
+            # This endpoint answers 200 with a JSON body and *no* ``Content-Type``
+            # header at all - verified against MOS 0.5.x, where the neighbouring
+            # /docker/containers/json sends a correct one. aiohttp refuses to
+            # parse a body whose mimetype is not application/json, so with the
+            # default check every stats request fails as a communication error
+            # and no container is ever measured. Relaxed here alone, so a
+            # genuinely wrong content type anywhere else still surfaces.
+            content_type=None,
+        )
+
     async def async_start_docker_container(self, name: str) -> None:
         """
         Start a single Docker container via the raw Docker Engine proxy.
@@ -789,7 +840,13 @@ class MOSApiClient:
         """
         return await self._get("auth/admin-tokens/me", base_url=self._root_base_url)
 
-    async def _get(self, resource: str, *, base_url: str | None = None) -> Any:
+    async def _get(
+        self,
+        resource: str,
+        *,
+        base_url: str | None = None,
+        content_type: str | None = "application/json",
+    ) -> Any:
         """
         Perform an authenticated GET on a MOS API resource.
 
@@ -799,12 +856,21 @@ class MOSApiClient:
                 base used by ``osinfo``/``services``; pass ``self._root_base_url``
                 for resources living directly under ``/api/v1`` (e.g. ``disks``,
                 ``pools``).
+            content_type: The mimetype the response body must carry. Pass ``None``
+                to accept the body whatever it claims to be, for the one endpoint
+                that sends no ``Content-Type`` at all (see
+                ``async_get_docker_container_stats``).
 
         Returns:
             The parsed JSON response.
 
         """
-        return await self._api_wrapper(method="get", resource=resource, base_url=base_url)
+        return await self._api_wrapper(
+            method="get",
+            resource=resource,
+            base_url=base_url,
+            content_type=content_type,
+        )
 
     async def _post(
         self,
@@ -838,6 +904,7 @@ class MOSApiClient:
         headers: dict | None = None,
         base_url: str | None = None,
         timeout: int = DEFAULT_TIMEOUT,
+        content_type: str | None = "application/json",
     ) -> Any:
         """
         Wrapper for API requests with pacing and error handling.
@@ -853,6 +920,8 @@ class MOSApiClient:
             headers: Optional additional headers to include in the request.
             base_url: Optional base URL override (see ``_get``).
             timeout: Request timeout in seconds.
+            content_type: Mimetype the response body must carry, or ``None`` to
+                accept any (see ``_get``).
 
         Returns:
             The JSON response from the API.
@@ -885,7 +954,7 @@ class MOSApiClient:
                     # successful start/stop, unlike every JSON-bodied MOS
                     # endpoint.
                     return None
-                return await response.json()
+                return await response.json(content_type=content_type)
 
         except (
             MOSApiClientAuthenticationError,

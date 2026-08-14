@@ -600,3 +600,47 @@ async def test_client_paces_its_requests(
     assert aioclient_mock.call_count == 4
     # Four requests, three enforced gaps of 50 ms between their starts.
     assert elapsed >= 0.13
+
+
+async def test_docker_container_stats_waives_the_mimetype_check(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """The stats proxy answers 200 with a JSON body and no Content-Type header at all.
+
+    Verified against MOS 0.5.x, where the neighbouring /docker/containers/json
+    sends a correct one. aiohttp refuses such a body by default, which made every
+    stats request fail as a communication error and left every container
+    unmeasured.
+
+    Asserted on the request the client makes rather than on a mocked response:
+    the aiohttp mocker accepts ``content_type`` and then ignores it, so a test
+    driven through it would pass just as happily without the waiver.
+    """
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    with patch.object(MOSApiClient, "_api_wrapper", new=AsyncMock(return_value={})) as wrapper:
+        await client.async_get_docker_container_stats("PushBits")
+
+    assert wrapper.await_args.kwargs["content_type"] is None
+
+
+async def test_other_endpoints_keep_the_mimetype_check(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Waiving the check for stats must not waive it everywhere.
+
+    A captive portal or a misconfigured reverse proxy answering 200 with an HTML
+    page should still be refused rather than parsed.
+    """
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    with patch.object(MOSApiClient, "_api_wrapper", new=AsyncMock(return_value={})) as wrapper:
+        await client.async_get_osinfo()
+        await client.async_get_docker_engine_containers()
+
+    assert [call.kwargs["content_type"] for call in wrapper.await_args_list] == [
+        "application/json",
+        "application/json",
+    ]
