@@ -620,6 +620,38 @@ class MOSApiClient:
         """
         return await self._get("docker/mos/containers", base_url=self._root_base_url)
 
+    async def async_get_docker_template(self, name: str) -> dict[str, Any]:
+        """
+        Get one container's MOS template from ``/docker/mos/templates/{name}``.
+
+        The template is the only place MOS exposes a container's ``icon`` URL,
+        and it carries the configured ``container``/``host`` port pairs - which,
+        unlike the Docker Engine's live port mapping, are also known while the
+        container is stopped.
+
+        Called once per container rather than for the whole list: the collection
+        endpoint (``/docker/mos/templates``) returns only installed and removed
+        template *names*, with none of the contents.
+
+        A container created outside MOS has no template and answers 404, which
+        surfaces as ``MOSApiClientNotFoundError`` like any other missing
+        endpoint.
+
+        Args:
+            name: The container name, as it appears in ``/docker/mos/containers``.
+
+        Returns:
+            The parsed template payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientNotFoundError: If no template exists for that container.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get(f"docker/mos/templates/{_quote_segment(name)}", base_url=self._root_base_url)
+
     async def async_get_docker_engine_containers(self) -> list[dict[str, Any]]:
         """
         Get the live container list, including running state, via the raw Docker Engine proxy.
