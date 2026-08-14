@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, versions, update-available, autostart, plus a switch to start/stop it; Docker containers additionally get a state sensor carrying the container's icon, web interface link and image metadata, and a health sensor for containers that define a healthcheck
+- **LXC, Docker and VMs** — per-item CPU/memory, a state sensor, versions, update-available, autostart, plus a switch to start/stop it; Docker containers additionally carry the container's icon, web interface link and image metadata on their state sensor, and get a health sensor for containers that define a healthcheck
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -28,7 +28,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources, Docker container state, hardware sensors, UPS readings
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, hardware sensors, UPS readings
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, UPS power/battery flags
 - **`switch`** — LXC container, Docker container and VM power
 
