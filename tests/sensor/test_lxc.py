@@ -42,3 +42,45 @@ async def test_lxc_container_removed_from_api_removes_its_sensors(
 
     registry = er.async_get(hass)
     assert registry.async_get("sensor.sirius_lxc_webserver_cpu_usage") is None
+
+
+async def test_lxc_state_sensor_carries_the_running_state(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The state sensor exposes the container state as a value, which the power switch cannot.
+
+    The switch reduces the state to on/off, so a container that is freezing or
+    aborting is indistinguishable from a stopped one without this.
+    """
+    running = hass.states.get("sensor.sirius_lxc_database_state")
+    assert running is not None
+    assert running.state == "running"
+
+    stopped = hass.states.get("sensor.sirius_lxc_webserver_state")
+    assert stopped is not None
+    assert stopped.state == "stopped"
+
+
+async def test_lxc_state_sensor_accepts_every_lxc_state(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Every state LXC can report is an allowed option.
+
+    MOS documents the field as "running, stopped, etc." rather than as a closed
+    set, and a state missing from an enum sensor's options is a runtime error -
+    on a MOS server the freeze states are reachable straight from the web UI.
+    """
+    state = hass.states.get("sensor.sirius_lxc_database_state")
+    assert state is not None
+    assert set(state.attributes["options"]) == {
+        "aborting",
+        "freezing",
+        "frozen",
+        "running",
+        "starting",
+        "stopped",
+        "stopping",
+        "thawed",
+    }

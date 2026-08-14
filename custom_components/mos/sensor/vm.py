@@ -35,7 +35,24 @@ class MOSVmMachineSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], StateType]
 
 
+# MOS's own vocabulary for a VM, which its API schema declares as a closed enum
+# of exactly these two - unlike LXC, where the same field is documented as open
+# ended. libvirt underneath has a much longer list (paused, crashed,
+# pmsuspended, ...); MOS collapses it before answering, and this follows what
+# MOS reports rather than what libvirt knows.
+VM_STATES = ["running", "stopped"]
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSVmMachineSensorEntityDescription, ...] = (
+    # First for the same reason as the LXC and Docker state sensors: the power
+    # switch reduces the state to on/off, and nothing else carried it.
+    MOSVmMachineSensorEntityDescription(
+        key="state",
+        translation_key="vm_state",
+        device_class=SensorDeviceClass.ENUM,
+        options=VM_STATES,
+        value_fn=lambda machine: machine.get("state"),
+    ),
     MOSVmMachineSensorEntityDescription(
         key="cpu_usage",
         translation_key="vm_cpu_usage",

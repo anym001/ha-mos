@@ -38,7 +38,29 @@ class MOSLxcContainerSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], StateType]
 
 
+# LXC's own container states, all of which MOS can pass through. Listed in full
+# rather than just the two common ones: a state missing from an enum sensor's
+# options is an error at runtime, and MOS itself documents the field as
+# "running, stopped, etc.", so the tail of that "etc." has to be covered here.
+#
+# The freeze states are not hypothetical on a MOS server - it exposes
+# /lxc/containers/{name}/freeze and /unfreeze, so a user can reach them from the
+# web UI. "thawed" is LXC's transitional state on the way back out of frozen and
+# has never been observed in a MOS payload, but costs nothing to accept.
+LXC_STATES = ["aborting", "freezing", "frozen", "running", "starting", "stopped", "stopping", "thawed"]
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSLxcContainerSensorEntityDescription, ...] = (
+    # First because it is the one a dashboard card is built around: the power
+    # switch collapses the state to on/off, so until now nothing exposed which
+    # of LXC's states a container was actually in.
+    MOSLxcContainerSensorEntityDescription(
+        key="state",
+        translation_key="lxc_state",
+        device_class=SensorDeviceClass.ENUM,
+        options=LXC_STATES,
+        value_fn=lambda container: container.get("state"),
+    ),
     MOSLxcContainerSensorEntityDescription(
         key="cpu_usage",
         translation_key="lxc_cpu_usage",
