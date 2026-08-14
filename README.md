@@ -91,7 +91,9 @@ Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, 
 
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Diagnostics are redacted, but not anonymous.** The download strips the API token, the hostname, API URLs, disk serials and UUIDs, IP and MAC addresses — including the interface a Docker container is published on — the resolved container web links, and the token's own ID and name. Container, VM and pool names, disk and CPU models, MOS version, entity IDs, your own device names and the area each device is assigned to remain, as do the port and TLS settings — connection problems can't be diagnosed without them. Docker container port numbers and image metadata are in there too; of a container's labels, only the web interface link and the standard image title, description and source are kept, so anything else you or the image author put in a label never reaches the file. Skim it before attaching it to a public issue.
+**Diagnostics are redacted, but not anonymous.** Removed: the API token, hostname, API URLs, disk serials/UUIDs, IP/MAC addresses (including a Docker container's published interface), resolved container web links, and the token's own ID/name.
+
+Kept, because connection problems can't be diagnosed without them: container/VM/pool names, disk/CPU models, MOS version, entity IDs, your device names and areas, port/TLS settings, Docker port numbers, and — from a container's labels — only the web link and the standard image title/description/source. Skim it before attaching it to a public issue.
 
 ## Troubleshooting
 
