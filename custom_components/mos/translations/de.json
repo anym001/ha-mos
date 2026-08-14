@@ -281,6 +281,15 @@
       "docker_latest_version": {
         "name": "Neueste Version"
       },
+      "docker_cpu_usage": {
+        "name": "CPU-Auslastung"
+      },
+      "docker_memory_usage": {
+        "name": "Speicherauslastung"
+      },
+      "docker_memory_percent": {
+        "name": "Speicher in Prozent"
+      },
       "vm_cpu_usage": {
         "name": "CPU-Auslastung"
       },

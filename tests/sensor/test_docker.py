@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.mos.const import DOMAIN
+from custom_components.mos.const import CONF_ENABLE_DOCKER_STATS, DOMAIN
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -99,3 +100,83 @@ async def test_docker_container_removed_from_api_removes_its_sensors(
 
     registry = er.async_get(hass)
     assert registry.async_get("sensor.sirius_docker_nginx_installed_version") is None
+
+
+async def test_stats_sensors_are_absent_unless_the_option_is_on(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """The stats option is off by default, so no stats sensor exists and nothing is measured."""
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage") is None
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage") is None
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent") is None
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_stats_sensors_report_the_containers_usage(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """With the option on, a running container reports CPU and memory after the first poll.
+
+    The refresh is explicit because the very first poll runs before any entity
+    exists: with no context registered yet, nothing was measured. That one blank
+    cycle is expected behaviour, not a bug - see ``_async_add_docker_stats``.
+    """
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == STATE_UNKNOWN
+
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "25.0"
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent").state == "12.5"
+    # Reported in bytes, displayed in mebibytes: 67108864 B is 64 MiB.
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == "64.0"
+
+
+async def test_stopped_container_reports_no_usage(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """A stopped container is never measured, so its sensors stay blank rather than reading zero."""
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_nginx_cpu_usage").state == STATE_UNKNOWN
+    mock_client.async_get_docker_container_stats.assert_awaited_once_with("PushBits")
+
+
+async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """Disabling every stats sensor of a container drops it from the poll.
+
+    This is the whole point of the coordinator context: a request per container
+    is only worth paying while something is displaying the result.
+    """
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    for key in ("cpu_usage", "memory_usage", "memory_percent"):
+        registry.async_update_entity(
+            f"sensor.sirius_docker_pushbits_{key}",
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    await hass.async_block_till_done()
+
+    mock_client.async_get_docker_container_stats.reset_mock()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
