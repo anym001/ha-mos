@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, a state sensor, versions, update-available, autostart, plus a switch to start/stop it; Docker containers additionally carry the container's icon, web interface link and image metadata on their state sensor, and get a health sensor for containers that define a healthcheck
+- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it; Docker containers also get icon, web link and image metadata, plus a health sensor
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
