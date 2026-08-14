@@ -2,7 +2,8 @@
 
 Only entities that genuinely serve diagnosing a problem or a pending action
 should be EntityCategory.DIAGNOSTIC: a disk's SMART warning, a pool's health
-problem, a Docker container's update-available flag, the UPS flags reporting
+problem, a Docker container's update-available flag and failing healthcheck,
+the UPS flags reporting
 the UPS's own health, mode or internals rather than the live power situation,
 and the UPS's nameplate and configured thresholds. Everything else (system
 info, pool usage/free space, disk power status/model/type, service status,
@@ -18,7 +19,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-DIAGNOSTIC_ENTITY_SUFFIXES = ("_smart_warning", "_problem", "_update_available")
+DIAGNOSTIC_ENTITY_SUFFIXES = ("_smart_warning", "_problem", "_update_available", "_health")
 
 # NUT reports the UPS condition as a set of status flags, one binary sensor
 # each, and its identity as a handful of static sensors. Neither diagnostic

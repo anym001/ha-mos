@@ -138,11 +138,13 @@ async def test_docker_switch_follows_the_engine_proxy_but_its_sensors_do_not(
     setup_integration: MockConfigEntry,
     advance_clock: Callable[[float], None],
 ) -> None:
-    """The power switch depends on two resources; the Docker binary sensors depend on only one.
+    """Only the entities fed by the engine proxy go unavailable when it goes stale.
 
-    ``docker_engine_containers`` supplies the running state the switch renders,
-    so a stale proxy makes that switch's position unverifiable. Update-available
-    and autostart come from ``/docker/mos/containers`` alone and stay valid.
+    ``docker_engine_containers`` supplies the running state, the health status
+    and the port mapping behind the web link, so the power switch, the state
+    sensor and the health sensor all become unverifiable when it goes stale. The
+    version, update-available and autostart entities come from
+    ``/docker/mos/containers`` alone and stay valid.
     """
     coordinator = setup_integration.runtime_data.coordinator
     mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientCommunicationError("timeout")
@@ -163,14 +165,20 @@ async def test_docker_switch_follows_the_engine_proxy_but_its_sensors_do_not(
         entity.entity_id: hass.states.get(entity.entity_id)
         for entity in er.async_entries_for_device(entity_reg, docker_device.id)
     }
-    switches = [entity_id for entity_id in states if entity_id.startswith("switch.")]
-    sensors = [entity_id for entity_id in states if not entity_id.startswith("switch.")]
-    assert switches
-    assert sensors
+    # Split by which resource actually feeds the entity, not by platform: the
+    # state and health sensors read the proxy just like the switch does.
+    engine_backed = {
+        "switch.sirius_docker_pushbits_power",
+        "sensor.sirius_docker_pushbits_state",
+        "binary_sensor.sirius_docker_pushbits_health",
+    }
+    assert engine_backed <= states.keys()
+    list_backed = states.keys() - engine_backed
+    assert list_backed
 
-    for entity_id in switches:
+    for entity_id in engine_backed:
         assert states[entity_id] is not None
         assert states[entity_id].state == STATE_UNAVAILABLE
-    for entity_id in sensors:
+    for entity_id in list_backed:
         assert states[entity_id] is not None
         assert states[entity_id].state != STATE_UNAVAILABLE

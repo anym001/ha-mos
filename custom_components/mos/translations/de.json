@@ -261,6 +261,18 @@
       "lxc_memory_usage": {
         "name": "Speicherauslastung"
       },
+      "docker_state": {
+        "name": "Status",
+        "state": {
+          "created": "Erstellt",
+          "restarting": "Startet neu",
+          "running": "Läuft",
+          "removing": "Wird entfernt",
+          "paused": "Pausiert",
+          "exited": "Gestoppt",
+          "dead": "Tot"
+        }
+      },
       "docker_installed_version": {
         "name": "Installierte Version"
       },
@@ -364,6 +376,9 @@
       },
       "lxc_autostart": {
         "name": "Autostart"
+      },
+      "docker_healthy": {
+        "name": "Zustand"
       },
       "docker_update_available": {
         "name": "Update verfügbar"
