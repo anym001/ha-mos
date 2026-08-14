@@ -37,6 +37,7 @@ from custom_components.mos.const import (
 )
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
 from custom_components.mos.coordinator.base import DOCKER_ENGINE_MERGED_FIELDS
+from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
@@ -75,6 +76,10 @@ async def test_fetches_all_resources_by_default(
 
     ``web_ui_url`` is None for both containers because this config entry carries
     no host to point a link at - the link is left out rather than guessed at.
+
+    The ``stats_*`` fields are all None: no stats sensor exists to ask for them,
+    so nothing was measured. They are present rather than absent so the sensors
+    read a blank rather than a missing key.
     """
     entry = MockConfigEntry(domain=DOMAIN, state=ConfigEntryState.SETUP_IN_PROGRESS)
     coordinator = _make_coordinator(hass, mock_client, entry)
@@ -103,6 +108,7 @@ async def test_fetches_all_resources_by_default(
                 "network_mode": "bridge",
                 "icon_url": "https://raw.githubusercontent.com/pushbits/logo/main/logo.png",
                 "web_ui_url": None,
+                **NO_DOCKER_STATS,
             },
             {
                 **mock_docker_containers[1],
@@ -114,6 +120,7 @@ async def test_fetches_all_resources_by_default(
                 "network_mode": "bridge",
                 "icon_url": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/nginx.png",
                 "web_ui_url": None,
+                **NO_DOCKER_STATS,
             },
         ],
         "vm_machines": mock_client.async_get_vm_machines.return_value,

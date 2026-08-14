@@ -82,6 +82,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         device_translation_key: str | None = None,
         device_hardware: MOSDeviceHardware | None = None,
         device_configuration_url: str | None = None,
+        coordinator_context: object | None = None,
     ) -> None:
         """
         Initialize the base entity.
@@ -123,9 +124,23 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 web interface later moves to a different port updates the
                 ``web_ui_url`` attribute immediately, but the device page's
                 link follows on the next reload.
+            coordinator_context: Optional value handed to the coordinator, which
+                reads it back from ``async_contexts()`` to decide what to fetch.
+                Only entities whose data costs a request of its own need this -
+                today just the Docker stats sensors, which are one request per
+                container (see ``DockerStatsContext``); everything else rides
+                along on a resource the poll fetches anyway and leaves it
+                ``None``.
+
+                Home Assistant registers the context when the entity is added and
+                drops it when it is removed, so an entity the user disabled stops
+                contributing on its own. Named ``coordinator_context`` rather
+                than ``context`` because ``Entity.context`` already exists and
+                means something else entirely (the service call that caused a
+                state change).
 
         """
-        super().__init__(coordinator)
+        super().__init__(coordinator, coordinator_context)
         self.entity_description = entity_description
         entry = coordinator.config_entry
         # Include entity description key in unique_id to support multiple entities
