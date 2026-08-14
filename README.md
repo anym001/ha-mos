@@ -66,15 +66,9 @@ Connection details can be changed later via **⋮** → **Reconfigure**, without
 
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
-- **Update interval** — how often to poll the MOS API, between 30 and 3600 seconds; 30 seconds by default
-- **Enable disks / pools / services / LXC / Docker / VMs / hardware sensors / UPS** — create entities for that category; each can be toggled on its own and all are on by default
-- **Enable Docker container stats** — add CPU and memory sensors to each Docker container; **off by default**, because Docker reports usage one container at a time, so every running container you watch costs one extra request per poll
-
-System info and system health (CPU, memory, swap) are always enabled. A disabled category isn't fetched at all — useful if you don't run LXC or VMs, or just want a shorter entity list.
-
-Container stats are only fetched for containers that are running **and** whose stats sensors you've left enabled, so disabling them on a device page stops the requests for it. If you run many containers, consider excluding the stats sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/) — CPU and memory change on every poll, so they add up in the database faster than anything else this integration creates.
-
-The default of 30 seconds suits container and VM states you want to react to; 5–30 minutes is plenty if you only watch slow-moving values like disk temperature or pool usage. Start/stop switches don't wait for the next poll — the new state shows immediately.
+- **Update interval** — 30–3600 seconds between polls, 30 by default. Use the low end to track container/VM state closely; 5–30 minutes is plenty for slow-moving values like disk temperature or pool usage. Switches apply immediately, without waiting for the next poll.
+- **Categories** — disks, pools, services, LXC, Docker, VMs, hardware sensors, UPS. Each toggles independently and is on by default; a disabled category isn't fetched at all. System info and health (CPU, memory, swap) are always on.
+- **Docker container stats** — off by default. Adds a CPU and memory sensor to each Docker container, at the cost of one extra request per poll for every running container with stats enabled — disable a container's stats sensors on its device page to stop those requests. With many containers, consider excluding these sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/), since they change on every poll.
 
 ## Security
 
