@@ -54,6 +54,7 @@ from custom_components.mos.const import (
 )
 from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS, DockerStatsCollector, DockerStatsContext
 from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
+from custom_components.mos.coordinator.guest_icons import GuestIconCache
 from custom_components.mos.entity_utils import has_read_access, has_write_access
 from homeassistant.const import CONF_HOST
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
@@ -301,6 +302,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     # same reason as ``_docker_templates`` above, and left unbound entirely on a
     # setup where no stats sensor is enabled - which is the default.
     _docker_stats: DockerStatsCollector | None = None
+
+    # Resolves the icons MOS serves off its own web root for Docker containers,
+    # LXC containers and VMs. Bound lazily for the same reason as the two caches
+    # above.
+    _guest_icons: GuestIconCache | None = None
 
     # Optional resources the token's scope denies reading. Filled from two
     # sources, because the token's own permission block is not complete: seeded
@@ -1319,7 +1325,22 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
         data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
+        data["lxc_containers"] = await self._guest_icon_cache.async_add_lxc_icons(data["lxc_containers"])
+        data["vm_machines"] = await self._guest_icon_cache.async_add_vm_icons(data["vm_machines"])
         return data
+
+    @property
+    def _guest_icon_cache(self) -> GuestIconCache:
+        """
+        Return the shared guest icon cache, creating it on first use.
+
+        Returns:
+            The cache bound to this entry's API client.
+
+        """
+        if self._guest_icons is None:
+            self._guest_icons = GuestIconCache(self.config_entry.runtime_data.client)
+        return self._guest_icons
 
     async def _async_add_docker_stats(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
@@ -1373,6 +1394,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         the cache keys on the container id that merge provides, and because the
         live port mapping decides the web link for a running container.
 
+        The icon prefers the copy MOS serves itself (``/docker_icons/<name>.png``)
+        and falls back to the template's URL, which normally points at a public
+        CDN. Same picture either way, but the local one also loads on a dashboard
+        whose browser has no internet access.
+
         Returns:
             The containers, each with ``icon_url`` and ``web_ui_url`` added
             (either may be ``None``).
@@ -1388,11 +1414,12 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         host = self.config_entry.data.get(CONF_HOST)
         decorated: list[dict[str, Any]] = []
         for container in containers:
-            template = self._docker_templates.get(container.get("name") or "")
+            name = container.get("name") or ""
+            template = self._docker_templates.get(name)
             decorated.append(
                 {
                     **container,
-                    "icon_url": resolve_icon(template),
+                    "icon_url": await self._guest_icon_cache.async_docker_icon_url(name) or resolve_icon(template),
                     "web_ui_url": resolve_web_ui_url(container, template, host),
                 }
             )
