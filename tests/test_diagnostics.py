@@ -62,6 +62,25 @@ async def test_container_bind_address_is_redacted(
     assert "192.168.178.42" not in str(diagnostics)
 
 
+async def test_guest_icon_url_is_redacted(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A resolved icon URL is built from the host, exactly like ``web_ui_url``, and must not survive either."""
+    mock_client.async_static_asset_exists.return_value = True
+    await hass.config_entries.async_reload(setup_integration.entry_id)
+    await hass.async_block_till_done()
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, setup_integration)
+
+    data_sample = diagnostics["data_sample"]
+    assert all(container["icon_url"] == REDACTED for container in data_sample["lxc_containers"])
+    assert all(machine["icon_url"] == REDACTED for machine in data_sample["vm_machines"])
+    assert all(container["icon_url"] == REDACTED for container in data_sample["docker_containers"])
+    assert "10.0.1.30" not in str(diagnostics)
+
+
 async def test_connection_details_stay_visible(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,

@@ -50,6 +50,12 @@ TO_REDACT = {
     # ``mos.webui`` label it is built from, the placeholders are gone by the time
     # it reaches the dump and the configured host is spelled out in it.
     "web_ui_url",
+    # A guest's resolved icon URL. Once server-hosted (docker_icons/os_icons/
+    # lxc_custom), it is built from ``root_url`` and spells out the host exactly
+    # like ``web_ui_url`` above - the fallback CDN URL for a Docker container's
+    # template icon is the only case that doesn't, and redacting it too costs
+    # nothing since it carries no host to protect.
+    "icon_url",
     # Network addresses (e.g. an LXC container's `network` block, which is
     # nothing but addresses)
     "network",
