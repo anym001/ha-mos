@@ -132,7 +132,9 @@ async def test_data_sample_includes_all_resources(
     assert data_sample["services"] == mock_services
     assert data_sample["pools"] == mock_pools
     assert data_sample["system_load"] == mock_system_load
-    assert data_sample["vm_machines"] == mock_vm_machines
+    # ``icon_url`` is added by the coordinator, and is None here because
+    # ``mock_client`` answers "no such file" for every icon probe.
+    assert data_sample["vm_machines"] == [{**machine, "icon_url": None} for machine in mock_vm_machines]
     # Complete but for the UPS serial (see test_hardware_and_network_identifiers_are_redacted).
     assert data_sample["nut"] == {**mock_nut, "data": {**mock_nut["data"], "serial": REDACTED}}
     # sensors arrives flattened across its categories, one entry per reading.

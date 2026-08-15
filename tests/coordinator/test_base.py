@@ -44,6 +44,20 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady,
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
+def _with_icon_url(guests: list[dict], url: str | None = None) -> list[dict]:
+    """
+    Mirror the ``icon_url`` the coordinator stamps onto every LXC container and VM.
+
+    The default is ``None`` because ``mock_client`` answers "no such file" for
+    every icon probe, so a test that says nothing about icons gets none.
+
+    Returns:
+        The guests, each with ``icon_url`` added.
+
+    """
+    return [{**guest, "icon_url": url} for guest in guests]
+
+
 def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigEntry) -> MOSDataUpdateCoordinator:
     """Build a coordinator wired to a fake config entry, without a full integration setup.
 
@@ -92,7 +106,7 @@ async def test_fetches_all_resources_by_default(
         "services": mock_client.async_get_services.return_value,
         "disks": mock_client.async_get_disks.return_value,
         "pools": mock_client.async_get_pools.return_value,
-        "lxc_containers": mock_client.async_get_lxc_containers.return_value,
+        "lxc_containers": _with_icon_url(mock_client.async_get_lxc_containers.return_value),
         "docker_containers": [
             {
                 **mock_docker_containers[0],
@@ -123,7 +137,7 @@ async def test_fetches_all_resources_by_default(
                 **NO_DOCKER_STATS,
             },
         ],
-        "vm_machines": mock_client.async_get_vm_machines.return_value,
+        "vm_machines": _with_icon_url(mock_client.async_get_vm_machines.return_value),
         "sensors": [{**item, "category": category} for category, items in mock_sensors.items() for item in items],
         "nut": mock_client.async_get_nut_status.return_value,
     }
@@ -630,13 +644,13 @@ async def test_communication_error_retains_last_known_good_data(
     coordinator = _make_coordinator(hass, mock_client, entry)
 
     await coordinator.async_config_entry_first_refresh()
-    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["vm_machines"] == _with_icon_url(mock_vm_machines)
 
     mock_client.async_get_vm_machines.side_effect = MOSApiClientCommunicationError("timeout")
     await coordinator._async_update_data()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["vm_machines"] == _with_icon_url(mock_vm_machines)
     assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
 
 
@@ -772,13 +786,13 @@ async def test_scope_denial_keeps_its_data_but_reports_it_unavailable(
 
     # A good first poll establishes the last-known-good VM list.
     await coordinator.async_config_entry_first_refresh()
-    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["vm_machines"] == _with_icon_url(mock_vm_machines)
 
     mock_client.async_get_vm_machines.side_effect = MOSApiClientPermissionError("no permission for vm")
     await coordinator._async_update_data()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["vm_machines"] == _with_icon_url(mock_vm_machines)
     assert "vm_machines" in coordinator.stale_resources
     # Other resources keep updating normally.
     assert coordinator.data["osinfo"] == mock_client.async_get_osinfo.return_value
@@ -794,13 +808,13 @@ async def test_rate_limited_resource_is_transient_and_retained(
     coordinator = _make_coordinator(hass, mock_client, entry)
 
     await coordinator.async_config_entry_first_refresh()
-    assert coordinator.data["lxc_containers"] == mock_lxc_containers
+    assert coordinator.data["lxc_containers"] == _with_icon_url(mock_lxc_containers)
 
     mock_client.async_get_lxc_containers.side_effect = MOSApiClientRateLimitError("429")
     await coordinator._async_update_data()
 
     assert coordinator.last_update_success is True
-    assert coordinator.data["lxc_containers"] == mock_lxc_containers
+    assert coordinator.data["lxc_containers"] == _with_icon_url(mock_lxc_containers)
     assert "lxc_containers" not in coordinator.forbidden_resources
 
 
@@ -1239,7 +1253,7 @@ async def test_stale_resource_keeps_serving_its_last_known_data(
         await coordinator.async_refresh()
 
     assert coordinator.stale_resources == frozenset({"vm_machines"})
-    assert coordinator.data["vm_machines"] == mock_vm_machines
+    assert coordinator.data["vm_machines"] == _with_icon_url(mock_vm_machines)
 
 
 async def test_listeners_are_notified_when_staleness_changes_without_data_changing(

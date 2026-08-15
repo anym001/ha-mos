@@ -217,6 +217,29 @@ def mock_lxc_containers() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def mock_lxc_container_details() -> list[dict[str, Any]]:
+    """Return a realistic ``/lxc/containers`` payload (the icon-bearing endpoint)."""
+    return [
+        # Stock distribution artwork.
+        {
+            "name": "database",
+            "state": "running",
+            "distribution": "debian",
+            "custom_icon": False,
+            "architecture": "amd64",
+        },
+        # An icon uploaded for this container specifically.
+        {
+            "name": "webserver",
+            "state": "stopped",
+            "distribution": "alpine",
+            "custom_icon": True,
+            "architecture": "amd64",
+        },
+    ]
+
+
+@pytest.fixture
 def mock_docker_containers() -> list[dict[str, Any]]:
     """
     Return a realistic ``/docker/mos/containers`` payload.
@@ -382,6 +405,28 @@ def mock_vm_machines() -> list[dict[str, Any]]:
             "cpu": {"usage": 0, "unit": "%"},
             "memory": {"bytes": 0, "formatted": "0 GiB"},
             "vncPort": None,
+        },
+    ]
+
+
+@pytest.fixture
+def mock_vm_machine_details() -> list[dict[str, Any]]:
+    """Return a realistic ``/vm/machines`` payload (the icon-bearing endpoint)."""
+    return [
+        {
+            "name": "Test",
+            "state": "running",
+            "icon": "debian",
+            "customIcon": False,
+            "index": 1,
+        },
+        # MOS leaves ``icon`` null for a VM that was never given stock artwork.
+        {
+            "name": "Legacy",
+            "state": "stopped",
+            "icon": None,
+            "customIcon": True,
+            "index": 2,
         },
     ]
 
@@ -621,6 +666,8 @@ def mock_client(
     mock_pools: list[dict[str, Any]],
     mock_system_load: dict[str, Any],
     mock_lxc_containers: list[dict[str, Any]],
+    mock_lxc_container_details: list[dict[str, Any]],
+    mock_vm_machine_details: list[dict[str, Any]],
     mock_docker_containers: list[dict[str, Any]],
     mock_docker_engine_containers: list[dict[str, Any]],
     mock_docker_templates: dict[str, dict[str, Any]],
@@ -653,6 +700,13 @@ def mock_client(
     client.async_get_sensors.return_value = mock_sensors
     client.async_get_nut_status.return_value = mock_nut
     client.async_get_token_permissions.return_value = mock_token_permissions
+    client.async_get_lxc_container_details.return_value = mock_lxc_container_details
+    client.async_get_vm_machine_details.return_value = mock_vm_machine_details
+    # Default to a server that hosts no icons, so the pictures a test cares about
+    # are the ones that test opts into. ``root_url`` is a property on the real
+    # client, which ``spec`` turns into a plain attribute here.
+    client.async_static_asset_exists.return_value = False
+    client.root_url = "http://10.0.1.30:80"
     # diagnostics.py reads these private attributes directly off the real client.
     client._base_url = "http://10.0.1.30:80/api/v1/mos"
     client._root_base_url = "http://10.0.1.30:80/api/v1"
