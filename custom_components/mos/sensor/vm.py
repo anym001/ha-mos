@@ -33,6 +33,9 @@ class MOSVmMachineSensorEntityDescription(SensorEntityDescription):
     """Describe a MOS VM sensor, including how to derive its value from a machine payload."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
+    # Where to find this sensor's entity picture in the machine payload, for the
+    # one sensor that carries the VM's icon (see the LXC and Docker equivalents).
+    picture_fn: Callable[[dict[str, Any]], str | None] | None = None
 
 
 # MOS's own vocabulary for a VM, which its API schema declares as a closed enum
@@ -52,6 +55,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSVmMachineSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=VM_STATES,
         value_fn=lambda machine: machine.get("state"),
+        picture_fn=lambda machine: machine.get("icon_url"),
     ),
     MOSVmMachineSensorEntityDescription(
         key="cpu_usage",
@@ -103,6 +107,26 @@ class MOSVmMachineSensor(SensorEntity, MOSEntity):
         if machine is None:
             return None
         return self.entity_description.value_fn(machine)
+
+    @property
+    def entity_picture(self) -> str | None:
+        """
+        Return the VM's icon URL, so cards show it without templating.
+
+        Same source and same guarantee as the LXC counterpart: a URL on the MOS
+        server's own web root, set only once the server confirmed the file is
+        there (see ``coordinator/guest_icons.py``).
+
+        Returns:
+            The icon URL, or ``None`` when the VM has no usable one.
+
+        """
+        if self.entity_description.picture_fn is None:
+            return None
+        machine = _find_machine(self.coordinator, self._machine_name)
+        if machine is None:
+            return None
+        return self.entity_description.picture_fn(machine)
 
 
 def build_vm_machine_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSVmMachineSensor]:

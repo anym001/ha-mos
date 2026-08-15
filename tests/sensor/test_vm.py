@@ -71,3 +71,22 @@ async def test_vm_state_sensor_offers_only_the_states_mos_reports(
     state = hass.states.get("sensor.sirius_vm_test_state")
     assert state is not None
     assert set(state.attributes["options"]) == {"running", "stopped"}
+
+
+async def test_vm_state_sensor_carries_the_server_hosted_icon(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The VM half of the LXC behaviour, read off ``customIcon``/``icon`` instead."""
+    mock_client.async_static_asset_exists.return_value = True
+    await hass.config_entries.async_reload(setup_integration.entry_id)
+    await hass.async_block_till_done()
+
+    stock = hass.states.get("sensor.sirius_vm_test_state")
+    assert stock is not None
+    assert stock.attributes["entity_picture"] == "http://10.0.1.30:80/os_icons/debian.png"
+
+    custom = hass.states.get("sensor.sirius_vm_legacy_state")
+    assert custom is not None
+    assert custom.attributes["entity_picture"] == "http://10.0.1.30:80/lxc_custom/Legacy.png"

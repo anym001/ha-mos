@@ -180,3 +180,18 @@ async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
     await hass.async_block_till_done()
 
     mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_the_server_hosted_docker_icon_wins_over_the_template_cdn(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Same picture either way, but the local copy also loads on a browser with no internet access."""
+    mock_client.async_static_asset_exists.return_value = True
+    await hass.config_entries.async_reload(setup_integration.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.sirius_docker_pushbits_state")
+    assert state is not None
+    assert state.attributes["entity_picture"] == "http://10.0.1.30:80/docker_icons/PushBits.png"

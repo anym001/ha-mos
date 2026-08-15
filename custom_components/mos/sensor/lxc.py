@@ -36,6 +36,10 @@ class MOSLxcContainerSensorEntityDescription(SensorEntityDescription):
     """Describe a MOS LXC container sensor, including how to derive its value from a container payload."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
+    # Where to find this sensor's entity picture in the container payload, for
+    # the one sensor that carries the container's icon. See the Docker
+    # counterpart in ``sensor/docker.py`` for the same field.
+    picture_fn: Callable[[dict[str, Any]], str | None] | None = None
 
 
 # LXC's own container states, all of which MOS can pass through. Listed in full
@@ -60,6 +64,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSLxcContainerSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=LXC_STATES,
         value_fn=lambda container: container.get("state"),
+        picture_fn=lambda container: container.get("icon_url"),
     ),
     MOSLxcContainerSensorEntityDescription(
         key="cpu_usage",
@@ -111,6 +116,27 @@ class MOSLxcContainerSensor(SensorEntity, MOSEntity):
         if container is None:
             return None
         return self.entity_description.value_fn(container)
+
+    @property
+    def entity_picture(self) -> str | None:
+        """
+        Return the container's icon URL, so cards show it without templating.
+
+        The URL points at the MOS server's own web root and is loaded by the
+        browser rendering the dashboard, not by Home Assistant. It is only ever
+        set once the server has confirmed the file exists (see
+        ``coordinator/guest_icons.py``).
+
+        Returns:
+            The icon URL, or ``None`` when the container has no usable one.
+
+        """
+        if self.entity_description.picture_fn is None:
+            return None
+        container = _find_container(self.coordinator, self._container_name)
+        if container is None:
+            return None
+        return self.entity_description.picture_fn(container)
 
 
 def build_lxc_container_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSLxcContainerSensor]:
