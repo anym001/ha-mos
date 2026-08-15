@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it; Docker containers also get icon, web link and image metadata, plus a health sensor
+- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture; Docker containers also get a web link and image metadata, plus a health sensor
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -91,7 +91,7 @@ Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, 
 
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
-**Diagnostics are redacted, but not anonymous.** Removed: the API token, hostname, API URLs, disk serials/UUIDs, IP/MAC addresses (including a Docker container's published interface), resolved container web links, and the token's own ID/name.
+**Diagnostics are redacted, but not anonymous.** Removed: the API token, hostname, API URLs, disk serials/UUIDs, IP/MAC addresses (including a Docker container's published interface), resolved container web links and icon URLs, and the token's own ID/name.
 
 Kept, because connection problems can't be diagnosed without them: container/VM/pool names, disk/CPU models, MOS version, entity IDs, your device names and areas, port/TLS settings, Docker port numbers, and — from a container's labels — only the web link and the standard image title/description/source. Skim it before attaching it to a public issue.
 

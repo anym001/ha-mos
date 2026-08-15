@@ -12,7 +12,8 @@ custom_components/mos/
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
 │   ├── base.py              # Main coordinator class
-│   └── docker_templates.py  # Per-container template cache and web link resolution
+│   ├── docker_templates.py  # Per-container template cache and web link resolution
+│   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker and VM guests
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── manifest.json            # Integration metadata
@@ -68,6 +69,11 @@ updates to all entities. It is organized as a package with separate modules for 
   needs. Keyed by container id: MOS recreates a container when its template is
   edited, so the id already in the poll's payload invalidates the cache and the
   steady state issues no requests
+- `guest_icons.py` - Resolves the icon URL MOS serves off its own web root
+  (`/docker_icons`, `/os_icons`, `/lxc_custom`) for Docker containers, LXC
+  containers and VMs, confirming each candidate with a HEAD before it reaches
+  the frontend. Caches both which file a guest points at and whether that file
+  exists, so the steady state issues no requests
 
 **Core functionality:**
 
