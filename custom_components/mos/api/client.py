@@ -406,8 +406,24 @@ class MOSApiClient:
         scheme = "https" if use_ssl else "http"
         port = int(port) if port is not None else (DEFAULT_PORT_HTTPS if use_ssl else DEFAULT_PORT_HTTP)
         root_url = f"{scheme}://{host}:{port}"
+        self._root_url = root_url
         self._base_url = f"{root_url}{API_BASE_PATH}"
         self._root_base_url = f"{root_url}{API_ROOT_PATH}"
+
+    @property
+    def root_url(self) -> str:
+        """
+        Return the server's origin (``scheme://host:port``), without any API path.
+
+        Needed by anything that addresses MOS outside ``/api/v1``: the icon
+        directories (``/docker_icons``, ``/os_icons``, ``/lxc_custom``) are
+        served as plain static files off the web root.
+
+        Returns:
+            The origin URL, with no trailing slash.
+
+        """
+        return self._root_url
 
     async def async_get_osinfo(self) -> dict[str, Any]:
         """
@@ -559,6 +575,28 @@ class MOSApiClient:
 
         """
         return await self._get("lxc/containers/usage", base_url=self._root_base_url)
+
+    async def async_get_lxc_container_details(self) -> list[dict[str, Any]]:
+        """
+        Get LXC container configuration from ``/lxc/containers``.
+
+        The usage endpoint above is a superset for everything that changes per
+        poll, but not for everything: ``distribution`` and ``custom_icon`` -
+        the two fields that decide which icon a container has - appear only
+        here. Fetched separately and rarely, rather than replacing the usage
+        call, because these fields change when someone edits a container, not
+        every 30 seconds.
+
+        Returns:
+            The parsed ``lxc/containers`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("lxc/containers", base_url=self._root_base_url)
 
     async def async_start_lxc_container(self, name: str) -> dict[str, Any]:
         """
@@ -786,6 +824,25 @@ class MOSApiClient:
         """
         return await self._get("vm/machines/usage", base_url=self._root_base_url)
 
+    async def async_get_vm_machine_details(self) -> list[dict[str, Any]]:
+        """
+        Get VM configuration from ``/vm/machines``.
+
+        The LXC counterpart's reasoning applies unchanged (see
+        ``async_get_lxc_container_details``): ``icon`` and ``customIcon`` live
+        only on this endpoint, and change only when a VM is edited.
+
+        Returns:
+            The parsed ``vm/machines`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("vm/machines", base_url=self._root_base_url)
+
     async def async_start_vm_machine(self, name: str) -> dict[str, Any]:
         """
         Start a single VM via ``POST /vm/machines/{name}/start``.
@@ -839,6 +896,35 @@ class MOSApiClient:
 
         """
         return await self._get("auth/admin-tokens/me", base_url=self._root_base_url)
+
+    async def async_static_asset_exists(self, path: str) -> bool:
+        """
+        Check whether a static file exists under the server's web root.
+
+        Used to decide whether a guest's icon URL is worth handing to the
+        frontend. It has to be asked here rather than left to the browser: an
+        ``entity_picture`` that 404s renders as a broken image on every card
+        showing that entity, which is worse than no picture at all.
+
+        Deliberately not routed through ``_api_wrapper``. A 404 is the expected
+        negative answer, not a failure, and these paths are outside ``/api/v1``
+        - they are served as plain static files and need no token. Any
+        transport error is likewise reported as "no icon" rather than raised:
+        the poll that calls this must not fail over a picture.
+
+        Args:
+            path: The path below the web root, e.g. ``docker_icons/Plex.png``.
+
+        Returns:
+            ``True`` only if the server answered 200 for it.
+
+        """
+        try:
+            async with self._rate_limiter, asyncio.timeout(DEFAULT_TIMEOUT):
+                response = await self._session.head(f"{self._root_url}/{path}", allow_redirects=False)
+                return response.status == HTTPStatus.OK
+        except TimeoutError, aiohttp.ClientError:
+            return False
 
     async def _get(
         self,
