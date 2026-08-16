@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from custom_components.mos.api import MOSApiClient
 
-from custom_components.mos.api import MOSApiClientError
+from custom_components.mos.api import MOSApiClientError, MOSApiClientNotFoundError, MOSApiClientPermissionError
 from custom_components.mos.const import LOGGER
 
 _DOCKER_ICON_DIR = "docker_icons"
@@ -152,6 +152,33 @@ class GuestIconCache:
         self._probes: dict[str, tuple[bool, float]] = {}
         # endpoint label -> (name -> configuration, when it was fetched)
         self._details: dict[str, tuple[dict[str, dict[str, Any]], float]] = {}
+        # Endpoint labels the token's scope refuses. Never asked for again.
+        self._denied: set[str] = set()
+        # Endpoint labels this MOS version has no endpoint for. Still asked for,
+        # but at the slow rate only.
+        self._unsupported: set[str] = set()
+
+    @property
+    def denied_sources(self) -> frozenset[str]:
+        """
+        Configuration endpoints the token's scope refuses, given up on for good.
+
+        Named after the coordinator's own ``forbidden_resources``, which records
+        the same fact about the resources it polls. Surfaced in diagnostics so a
+        "why do my guests have no icons" report does not have to be guessed at.
+        """
+        return frozenset(self._denied)
+
+    @property
+    def unsupported_sources(self) -> frozenset[str]:
+        """
+        Configuration endpoints this MOS version does not have.
+
+        The counterpart to the coordinator's ``unsupported_resources``, and like
+        it, still re-probed: a MOS update that adds the endpoint is picked up
+        without a reload.
+        """
+        return frozenset(self._unsupported)
 
     async def async_icon_url(self, path: str | None) -> str | None:
         """
@@ -192,6 +219,23 @@ class GuestIconCache:
         last fetch" from "this endpoint does not list that guest at all". Without
         the floor the latter would refetch on every single poll, forever.
 
+        How a failure is treated follows the same split the rest of the
+        integration applies to the resources it polls (see the exception
+        hierarchy in ``api/__init__.py``), because the reasoning is identical -
+        only the consequence is smaller, being a picture rather than an entity:
+
+        - A **scope denial** is a fact about the token, not a server hiccup. The
+          server named the resource it refused, so asking again can only repeat
+          the refusal; the endpoint is dropped for the life of the entry, and a
+          widened scope is picked up by reloading, exactly as it is for the
+          coordinator's ``forbidden_resources``.
+        - A **404** means this MOS version predates the endpoint. It stays in the
+          rotation so a MOS update is picked up without a reload, but the
+          early-refetch trigger is dropped for it: every guest is permanently
+          "unknown" on an endpoint that lists none, which is precisely the case
+          the floor alone cannot bound below one request a minute, forever.
+        - Anything else is transient and retried at the bounded rate.
+
         The timestamp is written on every attempt, not only on success, so a
         failing endpoint is retried at the same bounded rate. A failed fetch
         keeps the previous entry - an icon is not worth taking a poll down over,
@@ -202,20 +246,40 @@ class GuestIconCache:
 
         """
         cached = self._details.get(label)
+        previous = cached[0] if cached else {}
+
+        if label in self._denied:
+            return previous
+
         if cached is not None:
             age = time.monotonic() - cached[1]
-            unknown = names - cached[0].keys()
+            unknown = set() if label in self._unsupported else names - cached[0].keys()
             if age < (_DETAIL_RETRY_SECONDS if unknown else _DETAIL_TTL_SECONDS):
                 return cached[0]
 
-        previous = cached[0] if cached else {}
         try:
             payload = await fetch()
+        except MOSApiClientPermissionError as exception:
+            LOGGER.debug(
+                "API token has no read access to the %s configuration - guest icons fall back to the "
+                "per-guest name, and it will not be requested again: %s",
+                label,
+                exception,
+            )
+            self._denied.add(label)
+            self._details[label] = (previous, time.monotonic())
+            return previous
+        except MOSApiClientNotFoundError as exception:
+            LOGGER.debug("This MOS version has no %s configuration endpoint for icons: %s", label, exception)
+            self._unsupported.add(label)
+            self._details[label] = (previous, time.monotonic())
+            return previous
         except MOSApiClientError as exception:
             LOGGER.debug("Could not fetch %s configuration for icons: %s", label, exception)
             self._details[label] = (previous, time.monotonic())
             return previous
 
+        self._unsupported.discard(label)
         details = {name: entry for entry in payload or [] if isinstance(entry, dict) and (name := entry.get("name"))}
         self._details[label] = (details, time.monotonic())
         return details

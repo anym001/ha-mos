@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from custom_components.mos.api import MOSApiClient, MOSApiClientCommunicationError
+from custom_components.mos.api import (
+    MOSApiClient,
+    MOSApiClientAuthenticationError,
+    MOSApiClientCommunicationError,
+    MOSApiClientNotFoundError,
+    MOSApiClientPermissionError,
+)
 from custom_components.mos.coordinator import guest_icons
 from custom_components.mos.coordinator.guest_icons import GuestIconCache, docker_icon_path, lxc_icon_path, vm_icon_path
 
@@ -238,3 +244,91 @@ async def test_a_guest_missing_from_the_configuration_falls_back_to_its_poll_pay
     stamped = await cache.async_add_lxc_icons([{"name": "database"}])
 
     assert stamped[0]["icon_url"] == f"{ROOT_URL}/lxc_custom/database.png"
+
+
+# --- giving up on an endpoint that cannot answer ------------------------------
+
+
+async def test_a_scope_denial_stops_the_endpoint_being_asked_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The server named the resource it refused, so retrying can only repeat the refusal."""
+    client = _client()
+    client.async_get_lxc_container_details.side_effect = MOSApiClientPermissionError("no read permission for lxc")
+    cache = GuestIconCache(client)
+    clock = 0.0
+    monkeypatch.setattr(guest_icons.time, "monotonic", lambda: clock)
+
+    for _ in range(3):
+        clock += guest_icons._DETAIL_TTL_SECONDS + 1
+        await cache.async_add_lxc_icons([{"name": "database"}])
+
+    client.async_get_lxc_container_details.assert_awaited_once()
+    assert cache.denied_sources == frozenset({"lxc"})
+
+
+async def test_a_denied_endpoint_still_yields_the_per_guest_icon() -> None:
+    """Losing the configuration costs the distribution artwork, not the picture altogether."""
+    client = _client()
+    client.async_get_vm_machine_details.side_effect = MOSApiClientPermissionError("no read permission for vm")
+    cache = GuestIconCache(client)
+
+    stamped = await cache.async_add_vm_icons([{"name": "Test"}])
+
+    assert stamped[0]["icon_url"] == f"{ROOT_URL}/lxc_custom/Test.png"
+
+
+async def test_a_denial_keeps_the_configuration_it_already_had(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A scope narrowed at runtime must not blank the pictures that were already working."""
+    client = _client()
+    client.async_get_lxc_container_details.return_value = _lxc_details()
+    cache = GuestIconCache(client)
+    clock = 0.0
+    monkeypatch.setattr(guest_icons.time, "monotonic", lambda: clock)
+    await cache.async_add_lxc_icons([{"name": "database"}])
+
+    clock += guest_icons._DETAIL_TTL_SECONDS + 1
+    client.async_get_lxc_container_details.side_effect = MOSApiClientPermissionError("no read permission for lxc")
+    stamped = await cache.async_add_lxc_icons([{"name": "database"}])
+
+    assert stamped[0]["icon_url"] == f"{ROOT_URL}/os_icons/debian.png"
+
+
+async def test_a_missing_endpoint_is_re_probed_but_not_once_a_minute(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every guest is permanently "unknown" on an endpoint that lists none, so the early trigger cannot apply."""
+    client = _client()
+    client.async_get_lxc_container_details.side_effect = MOSApiClientNotFoundError("no such endpoint")
+    cache = GuestIconCache(client)
+    clock = 0.0
+    monkeypatch.setattr(guest_icons.time, "monotonic", lambda: clock)
+    await cache.async_add_lxc_icons([{"name": "database"}])
+
+    # The rate the early-refetch trigger would have used, had it applied.
+    clock += guest_icons._DETAIL_RETRY_SECONDS + 1
+    await cache.async_add_lxc_icons([{"name": "database"}])
+    client.async_get_lxc_container_details.assert_awaited_once()
+    assert cache.unsupported_sources == frozenset({"lxc"})
+
+    # ... but it is still asked for, so a MOS update needs no reload.
+    clock += guest_icons._DETAIL_TTL_SECONDS + 1
+    client.async_get_lxc_container_details.side_effect = None
+    client.async_get_lxc_container_details.return_value = _lxc_details()
+    stamped = await cache.async_add_lxc_icons([{"name": "database"}])
+
+    assert client.async_get_lxc_container_details.await_count == 2
+    assert stamped[0]["icon_url"] == f"{ROOT_URL}/os_icons/debian.png"
+    assert cache.unsupported_sources == frozenset()
+
+
+async def test_a_rejected_token_is_not_given_up_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An invalid token is the coordinator's to resolve via reauth; the icons recover with it."""
+    client = _client()
+    client.async_get_lxc_container_details.side_effect = MOSApiClientAuthenticationError("invalid token")
+    cache = GuestIconCache(client)
+    clock = 0.0
+    monkeypatch.setattr(guest_icons.time, "monotonic", lambda: clock)
+    await cache.async_add_lxc_icons([{"name": "database"}])
+
+    clock += guest_icons._DETAIL_RETRY_SECONDS + 1
+    await cache.async_add_lxc_icons([{"name": "database"}])
+
+    assert client.async_get_lxc_container_details.await_count == 2
+    assert cache.denied_sources == frozenset()

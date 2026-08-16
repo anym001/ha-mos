@@ -189,6 +189,10 @@ async def async_get_config_entry_diagnostics(
         # half of "why do I not have these entities" - too old a server, rather
         # than too narrow a token (which is `forbidden_resources` below).
         "unsupported_resources": sorted(coordinator.unsupported_resources),
+        # The same two questions for the guest icon lookup, which polls its own
+        # endpoints outside the resource bookkeeping above. Costs a picture
+        # rather than an entity, so it is reported separately.
+        "guest_icon_sources": coordinator.guest_icon_sources,
     }
 
     # API client information. The token is reduced to "is one configured at
