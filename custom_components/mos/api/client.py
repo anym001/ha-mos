@@ -912,6 +912,15 @@ class MOSApiClient:
         transport error is likewise reported as "no icon" rather than raised:
         the poll that calls this must not fail over a picture.
 
+        Redirects are not followed. A static file either is where it is expected
+        or it is not; a server that answers one with a redirect is a reverse
+        proxy sending an authentication page, and rendering *that* as a guest's
+        icon is exactly the outcome this check exists to prevent.
+
+        The response is used as a context manager, unlike everywhere else in
+        this client - every other request releases its connection by reading the
+        body, and a HEAD has none to read.
+
         Args:
             path: The path below the web root, e.g. ``docker_icons/Plex.png``.
 
@@ -920,8 +929,11 @@ class MOSApiClient:
 
         """
         try:
-            async with self._rate_limiter, asyncio.timeout(DEFAULT_TIMEOUT):
-                response = await self._session.head(f"{self._root_url}/{path}", allow_redirects=False)
+            async with (
+                self._rate_limiter,
+                asyncio.timeout(DEFAULT_TIMEOUT),
+                self._session.head(f"{self._root_url}/{path}", allow_redirects=False) as response,
+            ):
                 return response.status == HTTPStatus.OK
         except TimeoutError, aiohttp.ClientError:
             return False
