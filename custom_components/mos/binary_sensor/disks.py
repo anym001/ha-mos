@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -74,6 +75,7 @@ class MOSDiskBinarySensor(BinarySensorEntity, MOSEntity):
             entity_description,
             unique_id=f"{entry_id}_disk_{serial}_{entity_description.key}",
             container_device=(f"disk_{serial}", f"Disk {disk.get('name') or serial}"),
+            device_kind=MOSDeviceKind.DISK,
         )
 
     @property

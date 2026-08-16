@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import ATTRIBUTION, DEFAULT_SSL
+from custom_components.mos.const import ATTRIBUTION, DEFAULT_SSL, DEVICE_KIND_MODEL_NAMES, MOSDeviceKind
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -79,6 +79,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         *,
         unique_id: str | None = None,
         container_device: tuple[str, str] | None = None,
+        device_kind: MOSDeviceKind | None = None,
         device_translation_key: str | None = None,
         device_hardware: MOSDeviceHardware | None = None,
         device_configuration_url: str | None = None,
@@ -102,6 +103,14 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 the server device via ``via_device``, and its name is
                 prefixed with the server name so it stays unique/identifiable
                 across multiple configured MOS servers.
+            device_kind: What the container device represents, written to its
+                ``model_id`` so a dashboard card or template can select every
+                device of one kind without parsing identifiers or display
+                names. Every entity sharing a device must pass the same kind -
+                they all describe the same device, and the last one registered
+                would otherwise win. Only meaningful together with
+                ``container_device``; the server device is the MOS server
+                itself and needs no kind to tell it apart.
             device_translation_key: Optional key under ``device`` in the
                 translation files, naming the container device through a
                 translated string instead of ``display_name``. Only for
@@ -168,6 +177,17 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             # Assigned rather than passed as **kwargs: unpacking a DeviceInfo into
             # the constructor erases the per-key types, leaving every field an
             # untyped object.
+            if device_kind is not None:
+                # ``.value`` rather than the member: the device registry stores
+                # this and hands it to the frontend, and a plain string is what
+                # survives that round trip unambiguously.
+                device_info["model_id"] = device_kind.value
+                # Set before the hardware block below, so a device that reports
+                # a real model of its own keeps it (see DEVICE_KIND_MODEL_NAMES,
+                # which lists no kind that has one).
+                model_name = DEVICE_KIND_MODEL_NAMES.get(device_kind)
+                if model_name:
+                    device_info["model"] = model_name
             if device_hardware is None:
                 device_info["manufacturer"] = "MOS"
             else:

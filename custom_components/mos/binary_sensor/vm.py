@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
 
@@ -63,6 +64,7 @@ class MOSVmMachineBinarySensor(BinarySensorEntity, MOSEntity):
             entity_description,
             unique_id=f"{entry_id}_vm_{name}_{entity_description.key}",
             container_device=(f"vm_{name}", f"VM {name}"),
+            device_kind=MOSDeviceKind.VM,
         )
 
     @property

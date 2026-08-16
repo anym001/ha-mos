@@ -37,6 +37,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_DOCKER_STATS,
     DEFAULT_ENABLE_DOCKER_STATS,
     DOCKER_IMAGE_LABEL_ATTRIBUTES,
+    MOSDeviceKind,
 )
 from custom_components.mos.coordinator.docker_stats import DockerStatsContext
 from custom_components.mos.entity import MOSEntity
@@ -198,6 +199,7 @@ class MOSDockerContainerSensor(SensorEntity, MOSEntity):
             entity_description,
             unique_id=f"{entry_id}_docker_{name}_{entity_description.key}",
             container_device=(f"docker_{name}", f"Docker {name}"),
+            device_kind=MOSDeviceKind.DOCKER,
             device_configuration_url=device_configuration_url,
             # Only a stats sensor announces itself to the coordinator: it is the
             # one whose value is not already in the poll. Home Assistant drops
