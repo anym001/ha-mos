@@ -256,6 +256,59 @@ existing icon already lived (see "Docker Template Metadata Rides on the Containe
 
 ---
 
+### Container Devices Carry Their Kind in `model_id`
+
+**Date:** 2026-08-16
+
+**Context:** A dashboard card — in its own repository, not this one — wants to render "every Docker container on this
+server" and to follow the list as containers come and go. The lifecycle half already works:
+`async_setup_dynamic_entities` adds and removes entities and their devices as MOS's own lists change. The selection
+half did not. Nothing on a container device said what kind of thing it was: `manufacturer` is `"MOS"` for all of them,
+`model` was unset, and the only discriminator was the shape of the device `identifiers`
+(`{entry_id}_docker_{name}` versus `_lxc_`, `_vm_`, `_disk_`, `_pool_`) or the English prefix in the display name.
+Both are internal — one is a format we reserve the right to change, the other is the user's to rename.
+
+**Decision:** Add a `MOSDeviceKind` enum in `const.py` and write its value to each container device's `model_id`:
+`docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`. Every platform that builds
+entities for a device (sensor, binary_sensor, switch) passes the same kind through the new `device_kind` argument on
+`MOSEntity`. The kinds MOS provides itself additionally get a human-readable `model` from `DEVICE_KIND_MODEL_NAMES`
+("Docker Container", "LXC Container", "Virtual Machine", "Storage Pool"). The server device is untouched — it is the
+MOS server and needs nothing to tell it apart.
+
+**Rationale:**
+
+- `model_id` is the one field on a device that is machine-readable by contract. `model` is a display string, the name
+  is the user's, and `identifiers` carry a format that is ours alone. Home Assistant serializes `model_id` into the
+  device registry's `dict_repr`, so it reaches the frontend in the `config/device_registry/list` call a card makes
+  anyway, and `device_attr(id, 'model_id')` reaches it from a template.
+- Splitting display name from identifier is the reason both fields exist. A card matching `model_id` is immune to
+  `model` being reworded or localized later.
+- Labels were the alternative and were rejected. They are not part of `DeviceInfo`, so an integration setting them
+  means imperative label-registry writes in the dynamic-add path — the one place that currently performs no registry
+  writes at all. Worse, labels are the _user's_ namespace: re-applying one the user deleted fights them on every
+  reload, while applying it only once silently skips every container created afterwards, which is exactly the
+  auto-sync property this was for. `label_id` also derives from a user-renamable name, making it a weaker anchor
+  than `model_id`. Users remain free to label these devices themselves, on top.
+- This does not reopen the rejected mapping from _Docker Template Metadata Rides on the Container State Sensor_.
+  What was dropped there was putting a container's `repo` and image tag in `model`/`sw_version` — mutable per-container
+  data in fields read once at entity construction. A kind is fixed for the life of the device.
+
+**Consequences:**
+
+- The `model_id` values are a public contract from here on. A card or template matching on them breaks if a value
+  changes, so they are fixed once released; the `MOSDeviceKind` docstring says so.
+- `DEVICE_KIND_MODEL_NAMES` deliberately omits `DISK` and `UPS`. Both are real hardware and `model` belongs to their
+  actual model: the UPS fills it from its NUT driver (`MOSDeviceHardware`) and leaves it blank when the driver reports
+  nothing, which `test_ups_device_omits_hardware_the_driver_does_not_report` pins down — a blanket `"UPS"` would
+  destroy that "not reported" signal. A disk's real model is a sensor today and its device `model` stays empty; moving
+  it onto the device would also drop `manufacturer: MOS`, which is wrong for third-party hardware anyway.
+- `model` is not translatable — `DeviceInfo` can translate a device's name but not its model, matching how Home
+  Assistant treats models everywhere else. The English strings are shown as-is.
+- Every entity sharing a device must pass the same kind. They all describe one device, so a disagreement would be
+  resolved by whichever entity registered last.
+
+---
+
 ## Future Considerations
 
 ### State Restoration
