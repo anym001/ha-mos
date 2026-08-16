@@ -236,6 +236,11 @@ existing icon already lived (see "Docker Template Metadata Rides on the Containe
   single poll, so a server that never lists a guest cannot turn into a request storm.
 - A failed configuration fetch or a transport error on a probe never raises - it is reported as "no icon" and the
   previous cached configuration is kept. An icon is not worth taking a poll down over.
+- _Which_ failure it was still decides what happens next, following the same split the coordinator applies to the
+  resources it polls (see the exception hierarchy in `api/__init__.py`): a scope denial is permanent and the endpoint
+  is dropped for the life of the entry, a 404 stays in the rotation so a MOS update needs no reload but loses the
+  early-refetch trigger, and everything else is transient. Collapsing the three would leave a doomed request
+  repeating at the 60-second floor forever - the exact outcome `forbidden_resources` exists to prevent.
 
 **Consequences:**
 
@@ -245,6 +250,9 @@ existing icon already lived (see "Docker Template Metadata Rides on the Containe
   Docker template fallback, which stays a public CDN URL. Diagnostics redacts it the same way as `web_ui_url`.
 - LXC and VM sensors gained a `picture_fn` on their `EntityDescription`, mirroring the pattern `value_fn` already
   established, so only the state sensor (the one `picture_fn` is set on) carries a picture.
+- These two endpoints sit outside the coordinator's `forbidden_resources`/`unsupported_resources` bookkeeping, which
+  drives what gets polled and which entities go unavailable - no entity is backed by them, so joining it would be
+  wrong. `guest_icon_sources` reports the same two facts for them in diagnostics instead.
 
 ---
 

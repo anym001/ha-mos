@@ -397,6 +397,27 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         return self._stale_resources
 
     @property
+    def guest_icon_sources(self) -> dict[str, list[str]]:
+        """
+        Which guest configuration endpoints the icon lookup has given up on, and why.
+
+        Kept out of ``forbidden_resources`` and ``unsupported_resources`` on
+        purpose: those drive which resources are polled and whether entities go
+        unavailable, and no entity is backed by these endpoints - losing one
+        costs a picture, nothing more. This exists so a dump still says so,
+        rather than leaving "my guests have no icons" to be guessed at.
+
+        Empty on a server that answers both, and before the first poll.
+        """
+        cache = self._guest_icons
+        if cache is None:
+            return {"denied": [], "unsupported": []}
+        return {
+            "denied": sorted(cache.denied_sources),
+            "unsupported": sorted(cache.unsupported_sources),
+        }
+
+    @property
     def _auth_failure_streak(self) -> _AuthFailureStreak | None:
         """
         The current unbroken run of 401-rejected polls, if any.
