@@ -1,6 +1,7 @@
 """Constants for mos."""
 
 from datetime import timedelta
+from enum import StrEnum
 from logging import Logger, getLogger
 
 LOGGER: Logger = getLogger(__package__)
@@ -8,6 +9,51 @@ LOGGER: Logger = getLogger(__package__)
 # Integration metadata
 DOMAIN = "mos"
 ATTRIBUTION = "Data provided by the local MOS API"
+
+
+class MOSDeviceKind(StrEnum):
+    """
+    What kind of thing a container device represents.
+
+    Written to the device's ``model_id``, which is the one field on a device
+    that is machine-readable by contract: ``model`` is a display string, the
+    name is the user's, and ``identifiers`` carry an internal format nothing
+    outside this integration should be parsing. A dashboard card that wants
+    "every Docker container on this server" filters the device registry on
+    ``model_id`` and stays correct through renames, translations and any later
+    change to how identifiers are built.
+
+    The values are part of that contract - changing one breaks every card and
+    template already matching on it, so treat them as fixed once released.
+    """
+
+    DOCKER = "docker_container"
+    LXC = "lxc_container"
+    VM = "virtual_machine"
+    DISK = "disk"
+    POOL = "storage_pool"
+    UPS = "ups"
+
+
+# The human-readable ``model`` shown on the device page, for the kinds that have
+# no hardware model of their own.
+#
+# Deliberately incomplete: a disk and a UPS are real hardware, and ``model`` is
+# where their actual model belongs ("Samsung SSD 970", "ACMT1000E") rather than
+# a restatement of what kind of thing they are. The UPS fills it from its NUT
+# driver already (``MOSDeviceHardware``), and leaves it blank when the driver
+# reports nothing - a blank field reads as "not reported", which a generic
+# "UPS" would quietly destroy. Everything listed here is something MOS itself
+# provides, where there is no other model to state.
+#
+# Not translatable: ``DeviceInfo`` can translate a device's name but not its
+# model, which matches how Home Assistant treats models everywhere else.
+DEVICE_KIND_MODEL_NAMES: dict[MOSDeviceKind, str] = {
+    MOSDeviceKind.DOCKER: "Docker Container",
+    MOSDeviceKind.LXC: "LXC Container",
+    MOSDeviceKind.VM: "Virtual Machine",
+    MOSDeviceKind.POOL: "Storage Pool",
+}
 
 # API
 API_BASE_PATH = "/api/v1/mos"

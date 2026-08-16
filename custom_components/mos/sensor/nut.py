@@ -21,6 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from custom_components.mos.entity_utils import is_ups_reachable, nut_data, nut_device_hardware, nut_payload
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
@@ -232,6 +233,7 @@ class MOSNutSensor(SensorEntity, MOSEntity):
             coordinator,
             entity_description,
             container_device=("nut", "UPS"),
+            device_kind=MOSDeviceKind.UPS,
             device_translation_key="nut",
             device_hardware=nut_device_hardware(coordinator),
         )

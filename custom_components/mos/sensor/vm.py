@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, UnitOfInformation
@@ -96,6 +97,7 @@ class MOSVmMachineSensor(SensorEntity, MOSEntity):
             entity_description,
             unique_id=f"{entry_id}_vm_{name}_{entity_description.key}",
             container_device=(f"vm_{name}", f"VM {name}"),
+            device_kind=MOSDeviceKind.VM,
         )
 
     @property

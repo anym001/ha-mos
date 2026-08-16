@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientError
-from custom_components.mos.const import LOGGER
+from custom_components.mos.const import LOGGER, MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.exceptions import HomeAssistantError
@@ -66,6 +66,7 @@ class MOSDockerContainerSwitch(SwitchEntity, MOSEntity):
             ENTITY_DESCRIPTION,
             unique_id=f"{entry_id}_docker_{name}_{ENTITY_DESCRIPTION.key}",
             container_device=(f"docker_{name}", f"Docker {name}"),
+            device_kind=MOSDeviceKind.DOCKER,
         )
 
     @property

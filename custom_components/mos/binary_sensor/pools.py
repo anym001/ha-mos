@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -99,6 +100,7 @@ class MOSPoolBinarySensor(BinarySensorEntity, MOSEntity):
             entity_description,
             unique_id=f"{entry_id}_pool_{pool_id}_{entity_description.key}",
             container_device=(f"pool_{pool_id}", f"Pool {pool.get('name') or pool_id}"),
+            device_kind=MOSDeviceKind.POOL,
         )
 
     @property
