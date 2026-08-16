@@ -168,6 +168,21 @@ Provides common functionality for all entities in the integration:
 
 **Key class:** `MOSEntity` (in `entity/base.py`)
 
+**Device layout:** one device for the MOS server, plus a device per item that can appear and disappear at runtime —
+disks, storage pools, LXC/Docker containers, VMs and the UPS. Each of those is linked back to the server device and
+created/removed by `async_setup_dynamic_entities` (see `entity_utils/dynamic_entities.py`), so an item that vanishes
+from MOS takes its entities and its now-empty device with it. That is distinct from a _failing_ resource, which keeps
+its data and only reports its entities unavailable — see the coordinator's staleness handling above.
+
+**Device kinds:** every container device declares what it is in its `model_id`, from `MOSDeviceKind` in `const.py`
+(`docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`). Each platform building
+entities for a device passes it through `MOSEntity(device_kind=...)`, and all entities on one device must agree. This
+is the supported way to select devices of one kind from a dashboard card or a template
+(`device_attr(id, 'model_id')`) — device `identifiers` and display names are internal and must not be parsed. The
+values are a released contract; see the decision log entry _Container Devices Carry Their Kind in `model_id`_ before
+changing one. Kinds that are not real hardware also get a readable `model` from `DEVICE_KIND_MODEL_NAMES`; disks and
+the UPS keep that field for their actual hardware model.
+
 ## Platform Organization
 
 Each platform (sensor, binary_sensor, switch, etc.) follows this pattern:
