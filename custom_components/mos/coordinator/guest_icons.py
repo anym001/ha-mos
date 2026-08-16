@@ -298,6 +298,16 @@ class GuestIconCache:
         """
         Stamp each LXC container with its ``icon_url``.
 
+        A container the configuration endpoint does not cover falls back to its
+        own poll payload, which carries neither ``custom_icon`` nor
+        ``distribution`` - so ``lxc_icon_path`` lands on the per-guest name.
+        That is the only guess left rather than a second-best one: the stock
+        artwork is addressed *by distribution*, and without that field there is
+        no filename to try. Reached whenever the guest is new, absent from the
+        endpoint, or the endpoint itself is denied or missing (see
+        ``_async_details``), which makes it the steady state for a token that
+        may not read it - hence one cached probe per guest, not a wrong picture.
+
         Returns:
             The containers, each with ``icon_url`` added (possibly ``None``).
 
@@ -319,6 +329,10 @@ class GuestIconCache:
     async def async_add_vm_icons(self, machines: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Stamp each VM with its ``icon_url``.
+
+        Falls back to the poll payload on the same terms as the LXC counterpart
+        above, and for the same reason: ``icon`` is what names the stock
+        artwork, and it lives only on the configuration endpoint.
 
         Returns:
             The machines, each with ``icon_url`` added (possibly ``None``).
