@@ -78,13 +78,13 @@ script/spell-check
 script/hassfest
 
 # script/lint and script/lint-check drop the architecture-check step the
-# blueprint wires in; script/yaml-check runs its zizmor audit non-fatally.
-# Both gates fail on this repository today (#80, #81) and would take CI red on
-# every push. Owned here so a sync cannot silently re-arm them — drop the entry
-# again once the underlying findings are fixed.
+# blueprint wires in, because it fails on this repository today (#80) and would
+# take CI red on every push. Owned here so a sync cannot silently re-arm it —
+# drop both entries once #80 is fixed.
+# script/yaml-check was owned here for the same reason and has been handed back:
+# #81 fixed the workflow findings, so the blueprint's own version passes.
 script/lint
 script/lint-check
-script/yaml-check
 
 # ── VS Code workspace settings ───────────────────────────────
 # launch.json and tasks.json reference your integration domain
