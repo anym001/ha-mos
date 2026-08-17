@@ -69,6 +69,23 @@ package-lock.json
 script/spell
 script/spell-check
 
+# ── Scripts this repository has fixed ahead of the blueprint ──
+# script/hassfest calls activate_venv *before* detecting the Home Assistant
+# version, because the detection imports homeassistant and only resolves inside
+# the venv (03ffecd). The blueprint still activates it afterwards and #77
+# proposed that revert wholesale, comment and all. Owned here until the fix
+# lands upstream.
+script/hassfest
+
+# script/lint and script/lint-check drop the architecture-check step the
+# blueprint wires in; script/yaml-check runs its zizmor audit non-fatally.
+# Both gates fail on this repository today (#80, #81) and would take CI red on
+# every push. Owned here so a sync cannot silently re-arm them — drop the entry
+# again once the underlying findings are fixed.
+script/lint
+script/lint-check
+script/yaml-check
+
 # ── VS Code workspace settings ───────────────────────────────
 # launch.json and tasks.json reference your integration domain
 # in debugger arguments and task commands.
@@ -92,7 +109,7 @@ DEPENDENCIES.md
 # ── AI agent instruction files ───────────────────────────────
 # Project-identity files are customized during initialization and must not be
 # overwritten by template sync (they contain your domain, class prefix, repo
-# URL, etc.). The path-specific *.instructions.md files under .github/instructions/
+# URL, etc.). The path-specific *.instructions.md files under .agents/instructions/
 # use generic placeholders and ARE safely synced from the template.
 AGENTS.md
 CODEX.md
@@ -105,6 +122,21 @@ GEMINI.md
 .github/copilot-instructions.md
 .github/prompts/
 
+# The blueprint ships .github/instructions as a symlink to .agents/instructions
+# so Copilot and VS Code discover the files at their conventional path. This
+# project reads .agents/instructions/ directly, so the symlink is deleted here
+# and ignored to keep sync from re-adding it. It also cannot be synced cleanly:
+# sync cannot replace a directory with a symlink and drops it next to the old
+# one under a mangled `instructions~<sha>` name instead (#77).
+.github/instructions
+.github/instructions~*
+
+# Claude Code is the only agent used here. Its own configuration is owned
+# below; every other agent's is ignored so a sync cannot reintroduce it.
+.codex/
+.gemini/
+.cursor/
+
 # ── DevContainer AI tooling ──────────────────────────────────
 # Which coding agents this DevContainer provisions, and how permissively, is a
 # maintainer decision rather than blueprint tooling. #64 would have added a
@@ -114,7 +146,10 @@ GEMINI.md
 # keeps .github/copilot-instructions.md and .github/prompts/ out, above.
 # Note that devcontainer.json and .vscode/extensions.json stay synced because
 # they carry mostly unrelated settings, so agent-specific entries arriving in
-# those two still need review on each sync.
+# those two still need review on each sync. #77 arrived with a Codex
+# devcontainer feature, a persistent /home/vscode/.codex volume and an
+# openai.chatgpt extension recommendation; all three were dropped, and the
+# Claude Code equivalents were kept. Expect the same three back on every sync.
 # Trade-off: unrelated on-create.sh and shell startup improvements now have to
 # be copied over by hand — `script/compare-blueprint` shows what changed.
 .devcontainer/claude-code/
@@ -124,14 +159,13 @@ GEMINI.md
 .devcontainer/.bashrc
 .devcontainer/.zshrc
 
-# Instruction files for features this integration does not have — there is no
-# services.yaml, no repairs.py and no service_actions/, and the integration is
-# config-flow only (never configured from configuration.yaml). Restore any of
-# them with `git checkout blueprint/main -- <path>` if that ever changes.
-.github/instructions/blueprint.services_yaml.instructions.md
-.github/instructions/blueprint.service_actions.instructions.md
-.github/instructions/blueprint.repairs.instructions.md
-.github/instructions/blueprint.configuration_yaml.instructions.md
+# The four instruction files for features this integration does not have —
+# services.yaml, repairs.py, service_actions/, configuration.yaml — used to be
+# excluded here. They are synced again since #77: the blueprint's skill graph
+# links them (ha-service-action/SKILL.md, blueprint.config_flow), so excluding
+# them turns script/skills-check red on dangling pointers. An instruction file
+# only loads when a matching file is edited, and no file here matches any of
+# the four, so shipping them unused costs nothing.
 
 # Schema for the services.yaml this integration does not ship.
 schemas/yaml/services_schema.yaml
