@@ -5,24 +5,20 @@
 #   - ruff (linting and formatting) via requirements_test_pre_commit.txt
 #   - mypy-dev (type checking - we use pyright instead)
 #   - codespell (spell checking) via requirements_test_pre_commit.txt
+#   - zizmor (workflow auditing) via requirements_test_pre_commit.txt
+#   - prek (the git hook framework script/setup/bootstrap installs)
 #   - pylint (linting)
 #
 # Install with: uv pip install -r requirements_dev.txt
 
-# Git hook framework
-# Declared explicitly on purpose: HA Core ships whichever framework it happens
-# to pin, and relying on that silently left script/setup/bootstrap installing
-# no hooks at all when the pin moved from pre-commit to `prek` in HA 2026.4.
-# #77 switched bootstrap over to prek, so that is what is pinned here now; prek
-# reads the same .pre-commit-config.yaml. The pin stays explicit rather than
-# transitive through pytest-homeassistant-custom-component, for the same reason
-# it always was.
-prek==0.4.14
-
-# GitHub Actions workflow auditing (script/yaml-check)
-# Not shipped by HA. Gates script/yaml-check at --pedantic; run it with
-# --offline locally if you have no GH_TOKEN and the online audits stall.
-zizmor==1.29.0
+# Git hook framework and workflow auditing
+# Both come from Home Assistant and must NOT be pinned here: `prek` is in HA's
+# requirements_test.txt and `zizmor` in its requirements_test_pre_commit.txt,
+# and script/setup/bootstrap installs requirements_dev.txt *before*
+# requirements_test.txt — so HA's pin always wins and a pin here is silently
+# downgraded rather than honoured. #83 added prek==0.4.14 and zizmor==1.29.0
+# and got 0.2.28 and 1.25.2 in the venv, with nothing reporting the conflict.
+# Add either back only together with a change to the bootstrap install order.
 
 # Type Checking
 # HA Core uses mypy; this blueprint uses the Node.js pyright package via package.json
