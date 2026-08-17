@@ -40,7 +40,7 @@ readonly BLUEPRINT_BRANCH="main"
 SCAFFOLDING_PATHS=(
     "script"
     ".github/workflows"
-    ".github/instructions"
+    ".agents/instructions"
     ".pre-commit-config.yaml"
     ".yamllint.yml"
     ".devcontainer"
