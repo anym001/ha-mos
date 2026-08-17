@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.2](https://github.com/anym001/ha-mos/compare/v0.2.1...v0.2.2) (2026-08-17)
+
+
+### Features
+
+* **api:** reach the endpoints and files behind guest icons ([429d93e](https://github.com/anym001/ha-mos/commit/429d93eabaa8a991cd19430bf362c602f4effc10))
+* **coordinator:** resolve the icons MOS serves for its own guests ([51329c1](https://github.com/anym001/ha-mos/commit/51329c130eaf489f64eed526fab85da1381e3b97))
+* **entity:** mark container devices with a machine-readable model_id ([26cad36](https://github.com/anym001/ha-mos/commit/26cad36c56df509db64b4fccc1b147f0e652a109))
+* **entity:** show the server-hosted icon on LXC and VM sensors ([bf99e68](https://github.com/anym001/ha-mos/commit/bf99e68557586e102343eb276dad621b692ceb21))
+* **sensor:** translate the disk power status ([bd92912](https://github.com/anym001/ha-mos/commit/bd92912758b618f14ecc29170e52aa908e8dead9))
+
+
+### Bug Fixes
+
+* **coordinator:** give up on guest icon endpoints that cannot answer ([d6b58ae](https://github.com/anym001/ha-mos/commit/d6b58aeeb075ad179d244df3ee0fcdb7567ef998))
+* **diagnostics:** redact guest icon URLs alongside web links ([6243008](https://github.com/anym001/ha-mos/commit/6243008a04b5898d2f122d28055054b3993ccc54))
+
 ## [0.2.1](https://github.com/anym001/ha-mos/compare/v0.2.0...v0.2.1) (2026-08-14)
 
 
