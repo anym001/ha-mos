@@ -22,15 +22,23 @@ on:
 
 permissions: {}
 
+# Supersede an in-flight run on the same PR; never cancel a run on main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check-ha-version-sync:
     name: Ensure HA version sources are in sync
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read # checkout only; the job writes nothing
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Read-only job — no git operation after checkout needs the token.
+          persist-credentials: false
 
       - name: Validate HA version sync
         run: ./script/ha-version-sync

@@ -10,6 +10,11 @@ on:
 
 permissions: {}
 
+# Supersede an in-flight run on the same PR; never cancel a run on main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # IMPORTANT: Keep HA_VERSION synchronized across all workflow files:
 # - lint.yml
 # - test.yml
@@ -22,6 +27,9 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Read-only job — no git operation after checkout needs the token.
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

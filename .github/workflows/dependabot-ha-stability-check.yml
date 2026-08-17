@@ -12,20 +12,33 @@ on:
 
 permissions: {}
 
+# Supersede an in-flight check when Dependabot force-pushes the same PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   check-ha-stability:
     name: Skip if HA dependency is pre-release
-    # Only run for Dependabot PRs — human PRs are never auto-closed
-    if: github.actor == 'dependabot[bot]'
+    # Only run for Dependabot PRs — human PRs are never auto-closed.
+    # Keyed on the PR author's numeric account id rather than github.actor:
+    # actor names the account that triggered this run, which a later push by
+    # someone else changes, and the [bot] suffix is not reserved. 49699333 is
+    # dependabot[bot] and cannot be reassigned.
+    if: github.event.pull_request.user.id == 49699333
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: read
+      pull-requests: write # gh pr comment / gh pr close in the final step
+      contents: read # checkout of the PR head below
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          # Nothing here talks to git after checkout; the gh calls carry their
+          # own GH_TOKEN. Leaving the token in .git/config would only widen
+          # what a compromised dependency in this job could reach.
+          persist-credentials: false
 
       - name: Check if HA dependency is a pre-release
         id: check

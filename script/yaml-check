@@ -38,11 +38,7 @@ yamllint -c .yamllint.yml \
 log_header "Auditing GitHub Actions workflows with zizmor"
 # zizmor picks up GH_TOKEN when one is set and degrades to offline auditing
 # otherwise, so no token is required locally.
-#
-# Reported, not enforced: --pedantic finds 24 issues in this repository's
-# workflows today (3 of them high), so a hard failure here would take CI red on
-# every push. #81 tracks fixing them; drop the `|| log_warning` once it closes.
-zizmor --pedantic .github/workflows/ || log_warning "zizmor reported findings — see #81 (not failing the check yet)"
+zizmor --pedantic .github/workflows/
 
 run_hook "yaml-check" "post"
 log_success "YAML check completed"

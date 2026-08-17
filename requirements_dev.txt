@@ -20,7 +20,8 @@
 prek==0.4.14
 
 # GitHub Actions workflow auditing (script/yaml-check)
-# Not shipped by HA. Reporting only for now — see #81.
+# Not shipped by HA. Gates script/yaml-check at --pedantic; run it with
+# --offline locally if you have no GH_TOKEN and the online audits stall.
 zizmor==1.29.0
 
 # Type Checking

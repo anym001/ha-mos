@@ -5,14 +5,16 @@ on:
     branches:
       - main
 
-# Required permissions for GITHUB_TOKEN to create releases and pull requests.
-#
-# Additionally, "Allow GitHub Actions to create and approve pull requests" must
-# be enabled in your repository under Settings > Actions > General.
-# See: https://github.com/googleapis/release-please-action?tab=readme-ov-file#workflow-permissions
-permissions:
-  contents: write
-  pull-requests: write
+# Scoped on the job rather than here: a workflow-level grant would also apply
+# to any job added later, which is how a release token quietly becomes the
+# default for unrelated work.
+permissions: {}
+
+# Never cancel a release in flight — a half-run release-please can leave the
+# manifest and the tag disagreeing. Queue instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   release-please:
@@ -20,6 +22,14 @@ jobs:
     # Skip when running inside the template repository itself
     if: github.repository != 'jpawlowski/hacs.integration_blueprint'
     runs-on: ubuntu-latest
+    # Required for GITHUB_TOKEN to create releases and pull requests.
+    #
+    # Additionally, "Allow GitHub Actions to create and approve pull requests"
+    # must be enabled under Settings > Actions > General. See:
+    # https://github.com/googleapis/release-please-action?tab=readme-ov-file#workflow-permissions
+    permissions:
+      contents: write # tags the release and commits the version bumps
+      pull-requests: write # opens and updates the release PR
     steps:
       - name: Run release-please
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0

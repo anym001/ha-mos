@@ -6,12 +6,22 @@ on:
     types:
       - opened
 
+# The job below requests exactly what it needs; nothing is inherited.
+permissions: {}
+
+# One assignment run per issue. Not cancel-in-progress: a second run for the
+# same issue only ever happens if the first was re-triggered, and cancelling it
+# could leave the issue unassigned.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   auto-assign:
     name: Assign to owner
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      issues: write # addAssignees below; the workflow does nothing else
     steps:
       - name: Assign issue to owner
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

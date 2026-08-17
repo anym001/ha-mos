@@ -20,16 +20,26 @@ on:
     - cron: "0 7 * * 1"
   workflow_dispatch:
 
+# The job below requests exactly what it needs; nothing is inherited.
+permissions: {}
+
+# Never cancel a sync in flight — it pushes a branch and opens a pull request,
+# and an interrupted run can leave the branch without the PR. Queue instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   template-sync:
+    name: Sync from template
     # Skip when running inside the template repository itself
     if: github.repository != 'jpawlowski/hacs.integration_blueprint'
     runs-on: ubuntu-latest
     env:
       TEMPLATE_SYNC_TARGET_PAT: ${{ secrets.TEMPLATE_SYNC_TARGET_PAT }}
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # pushes the chore/template_sync_* branch
+      pull-requests: write # opens the sync pull request
       repository-projects: read # required by is_force_push_pr (gh pr edit)
 
     steps:
