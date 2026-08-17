@@ -183,7 +183,13 @@
         "name": "Typ"
       },
       "disk_power_status": {
-        "name": "Energiestatus"
+        "name": "Energiestatus",
+        "state": {
+          "active": "Aktiv",
+          "idle": "Leerlauf",
+          "standby": "Bereitschaft",
+          "sleeping": "Schlafmodus"
+        }
       },
       "disk_temperature": {
         "name": "Temperatur"
