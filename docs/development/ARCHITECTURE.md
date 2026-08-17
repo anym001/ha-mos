@@ -226,7 +226,7 @@ Platform entities inherit from both:
 ## AI Agent Instructions
 
 Coding agents read `AGENTS.md` for project-wide rules and the path-specific
-`.github/instructions/*.instructions.md` files for per-file-type patterns; each
+`.agents/instructions/*.instructions.md` files for per-file-type patterns; each
 of those declares its own scope in an `applyTo` frontmatter glob. Keep
 `AGENTS.md` high-level and put detailed patterns in the instruction files.
 

@@ -4,7 +4,14 @@ This document provides guidance for AI coding agents working on this Home Assist
 
 ## Project Overview
 
-This is a Home Assistant custom integration that was generated from a blueprint template. The integration follows Home Assistant Core development patterns and quality standards.
+<!-- repo-role:start -->
+
+This repository is an **initialised Home Assistant custom integration**, not the blueprint template it was generated
+from. Guidance that talks about maintaining the template — `initialize.sh`, `docs/blueprint/`, placeholder
+substitution — describes the upstream repository and does not apply here. The integration follows Home Assistant Core
+development patterns and quality standards.
+
+<!-- repo-role:end -->
 
 **Integration details:**
 
@@ -57,7 +64,7 @@ pkill -f "hass --config" || true && pkill -f "debugpy.*5678" || true && ./script
 
 **Context-specific instructions:**
 
-Path-specific instructions in `.github/instructions/*.instructions.md` add
+Path-specific instructions in `.agents/instructions/*.instructions.md` add
 guidance per file type (Python, YAML, JSON, tests, translations); each declares
 its scope in an `applyTo` frontmatter glob. This document is the primary
 reference for all agents, with [`CLAUDE.md`](CLAUDE.md) pointing here.
@@ -92,11 +99,11 @@ If a developer requests something that contradicts these instructions:
 
 **Three types of content with clear separation:**
 
-1. **Agent Instructions** - How AI should write code (`.github/instructions/`, `AGENTS.md`)
+1. **Agent Instructions** - How AI should write code (`.agents/instructions/`, `AGENTS.md`)
 2. **Developer Documentation** - Architecture and design decisions (`docs/development/`)
 3. **User Documentation** - Everything end users need lives in `README.md` (there is no `docs/user/`; the blueprint's placeholder guides were removed)
 
-**AI Planning:** Use `.ai-scratch/` for temporary notes (never committed)
+**AI Planning:** Use `.agents/scratch/` for temporary notes (never committed)
 
 **Rules:**
 
@@ -117,7 +124,7 @@ When a task completes and the developer moves to a new topic, suggest committing
 - A previous commit request is NOT a standing permission; each commit requires a fresh explicit instruction
 - **Never ask about pushing** — the developer always handles `git push` themselves; do not offer or suggest it
 
-**Commit message format:** Follow [Conventional Commits](https://www.conventionalcommits.org/) — see `.github/instructions/blueprint.commit-message.instructions.md` for full conventions, types, scopes, and examples.
+**Commit message format:** Follow [Conventional Commits](https://www.conventionalcommits.org/) — see `.agents/instructions/blueprint.commit-message.instructions.md` for full conventions, types, scopes, and examples.
 
 ## Custom Integration Flexibility
 
@@ -168,10 +175,10 @@ As an AI agent, **aim for Silver or Gold Quality Scale** when generating code:
 
 **For comprehensive standards, see:**
 
-- `.github/instructions/blueprint.python.instructions.md` - Python patterns, imports, type hints
-- `.github/instructions/blueprint.yaml.instructions.md` - YAML structure and HA-specific patterns
-- `.github/instructions/blueprint.json.instructions.md` - JSON formatting and schema validation
-- `.github/instructions/blueprint.shell.instructions.md` - Shell script style, shfmt, shellcheck
+- `.agents/instructions/blueprint.python.instructions.md` - Python patterns, imports, type hints
+- `.agents/instructions/blueprint.yaml.instructions.md` - YAML structure and HA-specific patterns
+- `.agents/instructions/blueprint.json.instructions.md` - JSON formatting and schema validation
+- `.agents/instructions/blueprint.shell.instructions.md` - Shell script style, shfmt, shellcheck
 
 **GitHub Copilot users:** These instruction files are automatically provided based on file type.
 
@@ -228,9 +235,8 @@ This integration uses the following identifiers consistently:
 
 **For detailed patterns, see:**
 
-- `.github/instructions/blueprint.entities.instructions.md` - Entity platform patterns
-- `.github/instructions/blueprint.coordinator.instructions.md` - Coordinator implementation
-- `.github/instructions/blueprint.api.instructions.md` - API client patterns
+- `.agents/instructions/blueprint.entities.instructions.md` - Entity platform patterns
+- `.agents/instructions/blueprint.coordinator.instructions.md` - Coordinator implementation and API client patterns
 
 ### Device Info
 
@@ -275,7 +281,7 @@ All entities should provide consistent device info via the base entity class (ma
 
 **single_config_entry:** Set `true` to allow only one config entry per integration
 
-See `.github/instructions/blueprint.manifest.instructions.md` for comprehensive manifest documentation.
+See `.agents/instructions/blueprint.manifest.instructions.md` for comprehensive manifest documentation.
 
 ### Config Flow Best Practices
 
@@ -316,7 +322,7 @@ python3 -m script.scaffold config_flow_oauth2     # OAuth2 flow
 - Support user setup, discovery, reauth, reconfigure
 - Always set unique_id for discovered entries
 
-See `.github/instructions/blueprint.config_flow.instructions.md` for comprehensive patterns.
+See `.agents/instructions/blueprint.config_flow.instructions.md` for comprehensive patterns.
 
 **Coordinator:**
 
@@ -324,7 +330,7 @@ See `.github/instructions/blueprint.config_flow.instructions.md` for comprehensi
 - Raise `ConfigEntryAuthFailed` (triggers reauth) or `UpdateFailed` (retry)
 - Use `async_config_entry_first_refresh()` for first update
 
-See `.github/instructions/blueprint.coordinator.instructions.md` and `.github/instructions/blueprint.api.instructions.md` for details.
+See `.agents/instructions/blueprint.coordinator.instructions.md` for details.
 
 **Entities:**
 
@@ -332,7 +338,7 @@ See `.github/instructions/blueprint.coordinator.instructions.md` and `.github/in
 - Read from `coordinator.data`, never call API directly
 - Use `EntityDescription` for static metadata
 
-See `.github/instructions/blueprint.entities.instructions.md` for entity patterns.
+See `.agents/instructions/blueprint.entities.instructions.md` for entity patterns.
 
 **Documented deviation — `via_device`:** that file says never to use `via_device`. This integration still does, in
 `entity/base.py`, and that is deliberate. The prescribed `via_device_id` needs the server device's registry id, which
@@ -455,7 +461,7 @@ References: [Ruff rules](https://docs.astral.sh/ruff/rules/) · [Pyright docs](h
 
 Aim for zero validation errors in generated code. The developer expects production-ready output.
 
-See `.github/instructions/blueprint.python.instructions.md` for linter overrides and error recovery strategies.
+See `.agents/instructions/blueprint.python.instructions.md` for linter overrides and error recovery strategies.
 
 - You may use `# noqa: CODE` or `# type: ignore` when genuinely necessary
 - Use sparingly and only with good reason (e.g., false positives, external library issues)
@@ -519,7 +525,7 @@ script/test --cov-html                # With coverage report
 script/test --snapshot-update         # Update Syrupy snapshots
 ```
 
-See `.github/instructions/blueprint.tests.instructions.md` for comprehensive testing patterns.
+See `.agents/instructions/blueprint.tests.instructions.md` for comprehensive testing patterns.
 
 ## Breaking Changes
 

@@ -18,7 +18,10 @@ node_modules/
 .zshrc
 
 # AI agent temporary scratch files and planning notes
+# .ai-scratch/ is the legacy location; script/release-notes and the agent
+# instructions moved to .agents/scratch/ in #77.
 .ai-scratch/
+.agents/scratch/
 
 # Runtime artifact created by the template-sync workflow (never commit)
 .templatesyncignore.runtime

@@ -51,11 +51,11 @@ commit if the message does not conform. If it trips, fix the message — do not
 bypass it with `--no-verify`.
 
 Full types/scopes table, rules, and examples:
-`.github/instructions/blueprint.commit-message.instructions.md`
+`.agents/instructions/blueprint.commit-message.instructions.md`
 
 ## Path-Specific Instructions
 
-Additional domain-specific guidance is available in `.github/instructions/*.instructions.md`.
+Additional domain-specific guidance is available in `.agents/instructions/*.instructions.md`.
 These files use `applyTo` globs to indicate which files they cover.
 Consult the relevant instruction file when working on specific file types:
 
@@ -63,7 +63,7 @@ Consult the relevant instruction file when working on specific file types:
 - `blueprint.entities.instructions.md` — Entity platform patterns, inheritance
 - `blueprint.config_flow.instructions.md` — Config flow, reauth, discovery
 - `blueprint.coordinator.instructions.md` — DataUpdateCoordinator patterns
-- `blueprint.api.instructions.md` — API client, exception hierarchy
+- `blueprint.coordinator.instructions.md` — also covers API client and exception hierarchy
 - `blueprint.tests.instructions.md` — Test patterns, fixtures, mocking
 - `blueprint.translations.instructions.md` — Translation file structure
 - `blueprint.commit-message.instructions.md` — Conventional Commits format (applies to
