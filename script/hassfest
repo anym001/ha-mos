@@ -66,6 +66,12 @@ _git_fetch_tag() {
     return 1
 }
 
+# Activate the virtual environment before anything reads the installed Home
+# Assistant: the version detection below imports homeassistant, which only
+# resolves inside the venv. Called from script/check this had already happened,
+# so the failure only showed when running this script on its own.
+activate_venv
+
 # Detect Home Assistant version to use
 if [ -n "${HA_VERSION:-}" ]; then
     # Use version from environment (DevContainer); resolve specifiers to concrete versions
@@ -151,8 +157,6 @@ else
         log_info "Using cached version $CURRENT_VERSION"
     fi
 fi
-
-activate_venv
 
 # Check if we have required dependencies
 log_info "Checking dependencies..."
