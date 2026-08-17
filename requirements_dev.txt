@@ -10,13 +10,18 @@
 # Install with: uv pip install -r requirements_dev.txt
 
 # Git hook framework
-# Declared explicitly on purpose: HA Core does NOT ship pre-commit. As of
-# HA 2026.4 its requirements_test.txt pins `prek` (a Rust reimplementation)
-# instead, so relying on HA to provide the hook framework silently left
-# `pre-commit install` failing in script/setup/bootstrap and no hooks
-# installed at all. .pre-commit-config.yaml targets pre-commit, so we own
-# this dependency ourselves.
-pre-commit==4.6.1
+# Declared explicitly on purpose: HA Core ships whichever framework it happens
+# to pin, and relying on that silently left script/setup/bootstrap installing
+# no hooks at all when the pin moved from pre-commit to `prek` in HA 2026.4.
+# #77 switched bootstrap over to prek, so that is what is pinned here now; prek
+# reads the same .pre-commit-config.yaml. The pin stays explicit rather than
+# transitive through pytest-homeassistant-custom-component, for the same reason
+# it always was.
+prek==0.4.14
+
+# GitHub Actions workflow auditing (script/yaml-check)
+# Not shipped by HA. Reporting only for now — see #81.
+zizmor==1.29.0
 
 # Type Checking
 # HA Core uses mypy; this blueprint uses the Node.js pyright package via package.json
