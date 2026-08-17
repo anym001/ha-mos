@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# script/setup/seed-http-config: Seed the HTTP integration's UI-managed config store
+# script/seed-http-config: Seed the HTTP integration's UI-managed config store
 #
 # Since Home Assistant 2026.8, the `http:` YAML block is imported into
 # config/.storage/http on first boot and ignored on every boot after that
@@ -28,6 +28,8 @@ cd "$SCRIPT_DIR/.."
 # shellcheck source=script/.lib/output.sh
 source "$SCRIPT_DIR/.lib/output.sh"
 
+run_hook "setup/seed-http-config" "pre"
+
 activate_venv
 
 if [[ -f config/.storage/http ]]; then
@@ -49,8 +51,6 @@ mkdir -p config/.storage
 # Edit the `desired` dict below to change the seeded dev network settings.
 # Values mirror what the http: YAML block used to configure.
 python3 <<'PY'
-from __future__ import annotations
-
 import json
 import os
 import tempfile
@@ -101,3 +101,5 @@ except BaseException:
 PY
 
 log_success "Wrote config/.storage/http with development-friendly network settings"
+
+run_hook "setup/seed-http-config" "post"

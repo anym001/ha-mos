@@ -3,7 +3,6 @@
 # Source this file in your scripts with: source "$(dirname "$0")/../.lib/output.sh"
 # shellcheck disable=SC2034  # All variables in this library are used by sourcing scripts
 
-# Color codes
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -14,7 +13,6 @@ readonly BOLD='\033[1m'
 readonly DIM='\033[2m'
 readonly NC='\033[0m' # No Color
 
-# Unicode symbols (work in most modern terminals)
 readonly CHECK='✓'
 readonly CROSS='✗'
 readonly ARROW='→'
@@ -28,7 +26,6 @@ readonly SPARKLES='✨'
 readonly BUG='🐛'
 readonly BOOKS='📚'
 
-# Formatted output functions
 log_header() {
     printf "\n%b==> %b%b\n" "$BOLD$BLUE" "$1" "$NC"
 }
@@ -63,18 +60,15 @@ log_result() {
     fi
 }
 
-# Separator lines
 log_separator() {
     printf "%b%s%b\n" "$DIM" "────────────────────────────────────────────────────────────" "$NC"
 }
 
-# Exit with error message
 die() {
     log_error "$1"
     exit "${2:-1}"
 }
 
-# Check command availability
 require_command() {
     local cmd=$1
     local install_hint=${2:-""}
@@ -94,11 +88,11 @@ require_command() {
 # The location must agree with script/setup/bootstrap, which creates and
 # maintains it: DevContainer and Codespaces keep the venv in $HOME (a named
 # volume), GitHub Actions and local development keep it in the workspace.
-# Preferring $HOME/ha-venv unconditionally — as this used to — fails quietly in
-# the one case that matters: a leftover $HOME/ha-venv from an earlier
-# DevContainer session outranks the workspace venv that bootstrap actually
-# updates, so every script keeps running against a stale Home Assistant version
-# while looking perfectly healthy. Fall back to the other locations, but say so.
+# Preferring $HOME/ha-venv unconditionally fails quietly in the one case that
+# matters: a leftover $HOME/ha-venv from an earlier DevContainer session
+# outranks the workspace venv that bootstrap actually updates, so every script
+# keeps running against a stale Home Assistant version while looking perfectly
+# healthy. Fall back to the other locations, but say so.
 resolve_venv_path() {
     local preferred candidate
     if [[ -n ${REMOTE_CONTAINERS:-} || -n ${CODESPACES:-} ]]; then
