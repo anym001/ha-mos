@@ -36,12 +36,39 @@ class MOSDiskSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], StateType]
 
 
+# The ATA power modes a disk can report. Spelled out as an enum so the state
+# reads as "Active"/"Standby" in the user's language instead of the raw value,
+# which is only possible for a sensor that declares its options.
+#
+# ``active`` and ``standby`` are the two MOS is known to send; ``idle`` and
+# ``sleeping`` are the remaining standard modes, listed so a disk in one of them
+# still gets a reading. Options a device never reports cost nothing, whereas a
+# missing one is an error.
+DISK_POWER_STATES = ["active", "idle", "standby", "sleeping"]
+
+
+def _power_status(disk: dict[str, Any]) -> StateType:
+    """
+    Return the disk's power mode, or None if it is not one this sensor names.
+
+    An enum sensor rejects any state outside its options, so a mode MOS reports
+    that ``DISK_POWER_STATES`` does not cover would otherwise raise rather than
+    read. Reporting it as unknown keeps the entity intact and is honest about
+    what happened - the sensor genuinely has no reading it can express.
+    """
+    status = disk.get("powerStatus")
+
+    return status if status in DISK_POWER_STATES else None
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
     MOSDiskSensorEntityDescription(
         key="power_status",
         translation_key="disk_power_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=DISK_POWER_STATES,
         icon="mdi:power",
-        value_fn=lambda disk: disk.get("powerStatus"),
+        value_fn=_power_status,
     ),
     MOSDiskSensorEntityDescription(
         key="temperature",
