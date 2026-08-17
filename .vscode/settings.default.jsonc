@@ -51,7 +51,6 @@
     "**/.git/**": false,
     ".agents/hooks/**": false,
     ".claude/settings.json": false,
-    ".codex/hooks.json": false,
     ".github/workflows/**": false,
     ".github/actions/**": false,
     "release-please-config.json": false,
