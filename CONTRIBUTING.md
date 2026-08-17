@@ -52,12 +52,15 @@ feature/xyz ──PR──▶ main ──release-please──▶ Release (vX.Y.Z
 2. **Test locally** before opening the PR: `./script/develop` against your branch,
    `script/check`, `script/test`.
 3. **Open a PR against `main`.** CI (`Ruff`, `Hassfest validation`, `HACS validation`,
-   `pytest`) must be green; enable "Auto-merge". **Use "Squash and merge"** with a
-   [Conventional Commit](https://www.conventionalcommits.org/)-formatted PR title
-   (e.g. `feat(mos): add pools, disks, and services entities`) — release-please
-   scans commit _subjects_ on `main`'s history for these prefixes, so intermediate
-   WIP commits on the feature branch don't need to be conventional themselves,
-   but the single squashed commit that lands on `main` does.
+   `pytest`) must be green; enable "Auto-merge". **Use "Rebase and merge"** — it is the
+   only method enabled on this repository. Every commit is replayed onto `main`
+   individually, so **each commit subject** has to be a
+   [Conventional Commit](https://www.conventionalcommits.org/)
+   (e.g. `feat(mos): add pools, disks, and services entities`), not just the PR title:
+   release-please scans commit _subjects_ on `main`'s history for these prefixes, so a
+   work-in-progress subject on the feature branch ends up in the changelog verbatim.
+   The `commitlint` hook rejects them at commit time, which is why
+   `script/setup/bootstrap` installs it.
 4. **Releases are automatic.** On push to `main`, release-please maintains a
    "release PR"; merging that PR pushes the `vX.Y.Z` tag and publishes the GitHub
    release with generated notes. There is no manual tag step and no VERSION file —
