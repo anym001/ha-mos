@@ -41,11 +41,15 @@ Every piece of guidance goes in exactly one place. Before writing anything into 
 The last row is decided by audience, not by subject. `docs/development/CUSTOMIZATION.md` describes hooks and template
 sync — blueprint mechanisms both — but it addresses someone who received the blueprint, so it stays there. Why the
 blueprint mints its development token offline addresses whoever maintains the blueprint, so it goes in
-[`docs/blueprint/DECISIONS.md`](../../../docs/blueprint/DECISIONS.md).
+`docs/blueprint/DECISIONS.md`.
 
 `initialize.sh` deletes `docs/blueprint/` wholesale, and `docs/` is already in `.templatesyncignore`, so nothing there
 needs further registration. Anything blueprint-only **outside** that directory needs all three steps — see
-[`docs/blueprint/README.md`](../../../docs/blueprint/README.md).
+`docs/blueprint/README.md`.
+
+> [!NOTE]
+> The two `docs/blueprint/` paths above are unlinked on purpose: `initialize.sh` deleted that directory when this
+> repository was generated, so in an initialised integration they name files that do not exist.
 
 "MUST inherit from X", "never set `name=`", "the per-platform member table" are rules. "First clarify Y, then edit Z,
 then validate with W" is a procedure. When a skill needs a rule in order to make sense, **link to it** — do not copy
