@@ -53,14 +53,60 @@ real-device testing where available. Automated checks reduce risk; they do not e
 
 ## Agents and publication
 
-AI agents may prepare local changes, draft pull requests, release notes, issue drafts, and suggested review responses in
-repositories whose maintainers permit that workflow. A human should review material before publishing or merging it and
-must follow the rules of the destination project. Agents must not represent their output as human-reviewed or tested
-when that has not occurred.
+Review expectations depend on what the agent produced. Generated code and other repository changes that can alter the
+integration, its distribution, security, privacy or user-visible behaviour must receive human review proportionate to
+their risk before they are merged or released. Maintainer attention is finite, so reviewing code, security-sensitive
+work and consequential project decisions takes priority over polishing external prose. Agents must never represent
+code as human-reviewed, understood or tested when that has not occurred.
+
+External communication is different. A maintainer may explicitly delegate both writing and sending replies to issues,
+pull requests, email or other online discussions. This project does not require the maintainer to review each such
+reply before it is sent or published: the purpose of the delegation is to let a volunteer maintainer spend scarce time
+on the integration itself while contributors still receive timely, considerate answers. An instruction to write and
+send or post a reply is sufficient authority to do both without a separate approval of the finished wording. If the
+maintainer asks for a draft or says they want to review it first, the agent must stop before sending or publication.
+The destination project's rules always take precedence.
+
+Delegating the communication does not delegate a decision the maintainer has not made. Where the substance depends on
+a missing technical judgment, policy position or support commitment, the agent must ask instead of inventing one. Once
+the maintainer has made the decision, the agent may communicate it, handle the discussion and carry out an explicitly
+requested close or other moderation action.
+
+A reply written on a maintainer's behalf should read in the maintainer's own voice — first person, and plain about
+what is required rather than merely suggested. Declining an ordinary good-faith contribution should take one brief
+reason rather than a bare no; spam, harassment, and sensitive security handling need no detailed public explanation.
+The reply should match the language of the thread it responds to. Where no visible bot or app identity marks the
+message as agent-authored, it should carry a short disclaimer matching the actual level of human involvement. For
+an unreviewed reply: "An AI agent wrote this on my behalf, unreviewed by me. The work behind it is mine; I delegated
+only the writing." A reply the maintainer reviewed must not claim to be unreviewed. Reading naturally and disclosing
+authorship are not in tension: the first is for the reader's benefit, the second means no one has to assume the
+maintainer typed it themselves.
+
+This deliberately differs from the OHF rule against unreviewed agent-written communication; it does not relax that rule
+when contributing to an OHF project. Community integrations are often maintained by one volunteer in limited personal
+time. Transparency and retained maintainer control over decisions are the safeguards here; mandatory advance review of
+every agent-written message is not.
 
 Deterministic automation such as dependency updates, release workflows, and template synchronization is not treated as
 AI authorship merely because it opens a pull request. Its output should still be reviewed according to the risk of the
 change.
+
+## Contributing upstream to Open Home Foundation
+
+The rules above govern this repository. The moment a contribution is aimed at an Open Home Foundation repository —
+`home-assistant/core`, the developer documentation, the brands repository — the [OHF AI
+policy](https://developers.home-assistant.io/docs/ai_policy) applies instead, and it is stricter:
+
+- **Agents must never open an issue, pull request, or comment there.** Autonomous contributions are closed on sight,
+  and that includes anything that bypasses the issue or pull request templates. Prepare the material locally and hand
+  it to a human to submit.
+- **Do not use AI to answer a maintainer's question.** A contributor is expected to understand and explain their own
+  work.
+- If AI-generated context is quoted in a discussion, it belongs in a quote block, is disclosed as such, and is
+  accompanied by the contributor's own reasoning about why it is relevant. Long pasted transcripts are not welcome.
+- An AI-drafted pull request description still has to be checked for technical accuracy by the person submitting it.
+
+Home Assistant also runs AI review bots of its own. Their comments are not authoritative — maintainers decide.
 
 ## Purpose of this blueprint
 
