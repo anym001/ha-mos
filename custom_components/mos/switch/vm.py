@@ -29,7 +29,6 @@ def _find_machine(coordinator: MOSDataUpdateCoordinator, name: str) -> dict[str,
 ENTITY_DESCRIPTION = SwitchEntityDescription(
     key="power",
     translation_key="vm_power",
-    icon="mdi:power",
 )
 
 

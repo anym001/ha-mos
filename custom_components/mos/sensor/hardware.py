@@ -34,14 +34,13 @@ _DEVICE_CLASS_BY_SUBTYPE: dict[str, SensorDeviceClass] = {
 # state_class - HA expects state_class-tagged sensors to be numeric.
 _MEASUREMENT_SUBTYPES = frozenset({"voltage", "wattage", "temperature", "speed", "percentage"})
 
-_ICON_BY_CATEGORY: dict[str, str] = {
-    "fan": "mdi:fan",
-    "temperature": "mdi:thermometer",
-    "power": "mdi:flash",
-    "voltage": "mdi:sine-wave",
-    "psu": "mdi:power-plug",
-    "other": "mdi:chip",
-}
+# The icons themselves live in icons.json under ``hardware_<category>``. A
+# reading's category is assigned per server and only known at runtime, so a
+# static icon on the description cannot express it - but a translation_key can,
+# because it is resolved per entity. These readings carry one for the icon
+# alone; the display name still comes from ``_attr_name`` below, which takes
+# precedence over any name translation.
+_ICON_CATEGORIES = frozenset({"fan", "temperature", "power", "voltage", "psu", "other"})
 
 
 _CATEGORY_DISPLAY: dict[str, str] = {"psu": "PSU"}
@@ -75,6 +74,16 @@ def _sensor_name(item: dict[str, Any]) -> str:
     return f"Sensor {_CATEGORY_DISPLAY.get(category, category.title())} {name}{suffix}"
 
 
+def _icon_translation_key(item: dict[str, Any]) -> str:
+    """Return the icons.json key holding this reading's icon.
+
+    An unrecognised category resolves to ``other``, which carries the same
+    ``mdi:chip`` this used to fall back to.
+    """
+    category = item.get("category", "")
+    return f"hardware_{category if category in _ICON_CATEGORIES else 'other'}"
+
+
 def _find_sensor(coordinator: MOSDataUpdateCoordinator, key: str) -> dict[str, Any] | None:
     """Look up the current payload for a reading by its ``id``."""
     sensors: list[dict[str, Any]] = coordinator.data.get("sensors") or []
@@ -99,7 +108,7 @@ class MOSHardwareSensor(SensorEntity, MOSEntity):
             device_class=_DEVICE_CLASS_BY_SUBTYPE.get(subtype),
             native_unit_of_measurement=item.get("unit"),
             state_class=SensorStateClass.MEASUREMENT if subtype in _MEASUREMENT_SUBTYPES else None,
-            icon=_ICON_BY_CATEGORY.get(item.get("category", ""), "mdi:chip"),
+            translation_key=_icon_translation_key(item),
         )
         super().__init__(
             coordinator,

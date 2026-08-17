@@ -61,7 +61,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSVmMachineSensorEntityDescription, ...] = (
     MOSVmMachineSensorEntityDescription(
         key="cpu_usage",
         translation_key="vm_cpu_usage",
-        icon="mdi:cpu-64-bit",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda machine: (machine.get("cpu") or {}).get("usage"),

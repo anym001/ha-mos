@@ -39,7 +39,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSLxcContainerBinarySensorEntityDescription, ...] = 
     MOSLxcContainerBinarySensorEntityDescription(
         key="autostart",
         translation_key="lxc_autostart",
-        icon="mdi:play-box-outline",
         value_fn=lambda container: container.get("autostart"),
     ),
 )

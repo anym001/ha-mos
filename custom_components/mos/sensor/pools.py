@@ -40,7 +40,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
     MOSPoolSensorEntityDescription(
         key="usage",
         translation_key="pool_usage",
-        icon="mdi:harddisk",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda pool: (pool.get("status") or {}).get("usagePercent"),
@@ -48,7 +47,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
     MOSPoolSensorEntityDescription(
         key="free_space",
         translation_key="pool_free_space",
-        icon="mdi:harddisk",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
@@ -58,7 +56,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
     MOSPoolSensorEntityDescription(
         key="total_space",
         translation_key="pool_total_space",
-        icon="mdi:harddisk",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
@@ -68,7 +65,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
     MOSPoolSensorEntityDescription(
         key="used_space",
         translation_key="pool_used_space",
-        icon="mdi:harddisk",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
@@ -78,7 +74,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
     MOSPoolSensorEntityDescription(
         key="type",
         translation_key="pool_type",
-        icon="mdi:harddisk",
         value_fn=lambda pool: pool.get("type"),
     ),
 )

@@ -1,19 +1,27 @@
 {
   "entity": {
     "binary_sensor": {
-      "ups_on_battery": {
-        "default": "mdi:power-plug-off",
+      "disk_preclear_running": {
+        "default": "mdi:progress-clock",
         "state": {
-          "on": "mdi:battery-alert",
-          "off": "mdi:power-plug"
-        }
-      },
-      "pool_scrub_running": {
-        "default": "mdi:refresh",
-        "state": {
-          "on": "mdi:refresh",
+          "on": "mdi:progress-clock",
           "off": "mdi:check-circle-outline"
         }
+      },
+      "docker_autostart": {
+        "default": "mdi:play-box-outline"
+      },
+      "docker_running": {
+        "default": "mdi:docker"
+      },
+      "lxc_autostart": {
+        "default": "mdi:play-box-outline"
+      },
+      "netbird_online": {
+        "default": "mdi:network"
+      },
+      "nfs_enabled": {
+        "default": "mdi:folder-network"
       },
       "pool_balance_running": {
         "default": "mdi:refresh",
@@ -29,12 +37,218 @@
           "off": "mdi:check-circle-outline"
         }
       },
-      "disk_preclear_running": {
-        "default": "mdi:progress-clock",
+      "pool_scrub_running": {
+        "default": "mdi:refresh",
         "state": {
-          "on": "mdi:progress-clock",
+          "on": "mdi:refresh",
           "off": "mdi:check-circle-outline"
         }
+      },
+      "samba_enabled": {
+        "default": "mdi:folder-network"
+      },
+      "ssh_enabled": {
+        "default": "mdi:ssh"
+      },
+      "tailscale_online": {
+        "default": "mdi:network"
+      },
+      "ups_battery_high": {
+        "default": "mdi:battery-high"
+      },
+      "ups_discharging": {
+        "default": "mdi:battery-minus-variant"
+      },
+      "ups_on_battery": {
+        "default": "mdi:power-plug-off",
+        "state": {
+          "on": "mdi:battery-alert",
+          "off": "mdi:power-plug"
+        }
+      },
+      "ups_output_off": {
+        "default": "mdi:power-off"
+      },
+      "ups_reachable": {
+        "default": "mdi:power-plug-battery"
+      },
+      "ups_voltage_boost": {
+        "default": "mdi:arrow-collapse-up"
+      },
+      "ups_voltage_trim": {
+        "default": "mdi:arrow-collapse-down"
+      },
+      "vm_autostart": {
+        "default": "mdi:play-box-outline"
+      },
+      "vm_running": {
+        "default": "mdi:server"
+      }
+    },
+    "sensor": {
+      "arch": {
+        "default": "mdi:chip"
+      },
+      "base_os": {
+        "default": "mdi:linux"
+      },
+      "boot_time": {
+        "default": "mdi:clock-start"
+      },
+      "cpu_brand": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "cpu_load": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "disk_model": {
+        "default": "mdi:harddisk"
+      },
+      "disk_power_status": {
+        "default": "mdi:power"
+      },
+      "disk_size": {
+        "default": "mdi:harddisk"
+      },
+      "disk_type": {
+        "default": "mdi:harddisk"
+      },
+      "docker_cpu_usage": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "docker_installed_version": {
+        "default": "mdi:docker"
+      },
+      "docker_latest_version": {
+        "default": "mdi:docker"
+      },
+      "docker_memory_percent": {
+        "default": "mdi:memory"
+      },
+      "hardware_fan": {
+        "default": "mdi:fan"
+      },
+      "hardware_other": {
+        "default": "mdi:chip"
+      },
+      "hardware_power": {
+        "default": "mdi:flash"
+      },
+      "hardware_psu": {
+        "default": "mdi:power-plug"
+      },
+      "hardware_temperature": {
+        "default": "mdi:thermometer"
+      },
+      "hardware_voltage": {
+        "default": "mdi:sine-wave"
+      },
+      "lxc_cpu_usage": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "memory_cache": {
+        "default": "mdi:cached"
+      },
+      "memory_docker": {
+        "default": "mdi:docker"
+      },
+      "memory_lxc": {
+        "default": "mdi:linux"
+      },
+      "memory_system": {
+        "default": "mdi:cog"
+      },
+      "memory_usage": {
+        "default": "mdi:memory"
+      },
+      "memory_vms": {
+        "default": "mdi:server"
+      },
+      "memory_zram": {
+        "default": "mdi:memory"
+      },
+      "mos_api": {
+        "default": "mdi:api"
+      },
+      "mos_build": {
+        "default": "mdi:hammer-wrench"
+      },
+      "mos_channel": {
+        "default": "mdi:source-branch"
+      },
+      "mos_frontend": {
+        "default": "mdi:monitor-dashboard"
+      },
+      "mos_version": {
+        "default": "mdi:tag-outline"
+      },
+      "pool_free_space": {
+        "default": "mdi:harddisk"
+      },
+      "pool_total_space": {
+        "default": "mdi:harddisk"
+      },
+      "pool_type": {
+        "default": "mdi:harddisk"
+      },
+      "pool_usage": {
+        "default": "mdi:harddisk"
+      },
+      "pool_used_space": {
+        "default": "mdi:harddisk"
+      },
+      "recommended_kernel": {
+        "default": "mdi:penguin"
+      },
+      "running_kernel": {
+        "default": "mdi:penguin"
+      },
+      "swap_usage": {
+        "default": "mdi:swap-horizontal"
+      },
+      "ups_battery_charge_low": {
+        "default": "mdi:battery-arrow-down-outline"
+      },
+      "ups_battery_runtime": {
+        "default": "mdi:timer-sand"
+      },
+      "ups_battery_type": {
+        "default": "mdi:battery"
+      },
+      "ups_battery_voltage": {
+        "default": "mdi:current-dc"
+      },
+      "ups_load": {
+        "default": "mdi:gauge"
+      },
+      "ups_manufacturer": {
+        "default": "mdi:factory"
+      },
+      "ups_model": {
+        "default": "mdi:chip"
+      },
+      "ups_name": {
+        "default": "mdi:tag-outline"
+      },
+      "ups_serial": {
+        "default": "mdi:identifier"
+      },
+      "ups_status": {
+        "default": "mdi:power-plug"
+      },
+      "vm_cpu_usage": {
+        "default": "mdi:cpu-64-bit"
+      }
+    },
+    "switch": {
+      "docker_power": {
+        "default": "mdi:power"
+      },
+      "lxc_power": {
+        "default": "mdi:power"
+      },
+      "vm_power": {
+        "default": "mdi:power"
       }
     }
   }

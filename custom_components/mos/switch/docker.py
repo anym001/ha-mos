@@ -35,7 +35,6 @@ def _find_container(coordinator: MOSDataUpdateCoordinator, name: str) -> dict[st
 ENTITY_DESCRIPTION = SwitchEntityDescription(
     key="power",
     translation_key="docker_power",
-    icon="mdi:power",
 )
 
 

@@ -56,7 +56,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
     MOSNutBinarySensorEntityDescription(
         key="ups_reachable",
         translation_key="ups_reachable",
-        icon="mdi:power-plug-battery",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         value_fn=lambda payload: is_ups_reachable(payload),
         survives_unreachable=True,
@@ -102,7 +101,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         # neither charging nor discharging, so the two are separate facts. They
         # are one pair for categorising though - the same battery, the same kind
         # of statement - so both sit here rather than one on each side.
-        icon="mdi:battery-minus-variant",
         value_fn=_has_flag("DISCHRG"),
     ),
     # The remaining NUT flags, all diagnostic. The split is not about how
@@ -127,7 +125,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         # HB at all, so promoting it would mostly add an always-off row.
         # Not the BATTERY device class: that one reads "on = battery low", so
         # using it for the opposite condition would invert its meaning.
-        icon="mdi:battery-high",
         value_fn=_has_flag("HB"),
     ),
     MOSNutBinarySensorEntityDescription(
@@ -163,7 +160,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         key="ups_output_off",
         translation_key="ups_output_off",
         entity_category=EntityCategory.DIAGNOSTIC,
-        icon="mdi:power-off",
         value_fn=_has_flag("OFF"),
     ),
     MOSNutBinarySensorEntityDescription(
@@ -179,14 +175,12 @@ ENTITY_DESCRIPTIONS: tuple[MOSNutBinarySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         # Regulation doing its job, not a fault - hence a direction arrow
         # rather than a warning icon.
-        icon="mdi:arrow-collapse-down",
         value_fn=_has_flag("TRIM"),
     ),
     MOSNutBinarySensorEntityDescription(
         key="ups_voltage_boost",
         translation_key="ups_voltage_boost",
         entity_category=EntityCategory.DIAGNOSTIC,
-        icon="mdi:arrow-collapse-up",
         value_fn=_has_flag("BOOST"),
     ),
     MOSNutBinarySensorEntityDescription(

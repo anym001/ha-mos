@@ -39,7 +39,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSVmMachineBinarySensorEntityDescription, ...] = (
     MOSVmMachineBinarySensorEntityDescription(
         key="autostart",
         translation_key="vm_autostart",
-        icon="mdi:play-box-outline",
         value_fn=lambda machine: machine.get("autostart"),
     ),
 )

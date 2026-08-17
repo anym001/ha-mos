@@ -64,7 +64,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="cpu_load",
         translation_key="cpu_load",
-        icon="mdi:cpu-64-bit",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: (system_load.get("cpu") or {}).get("load"),
@@ -96,7 +95,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_usage",
         translation_key="memory_usage",
-        icon="mdi:memory",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: ((system_load.get("memory") or {}).get("percentage") or {}).get("actuallyUsed"),
@@ -149,7 +147,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_cache",
         translation_key="memory_cache",
-        icon="mdi:cached",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -159,7 +156,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_docker",
         translation_key="memory_docker",
-        icon="mdi:docker",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -169,7 +165,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_system",
         translation_key="memory_system",
-        icon="mdi:cog",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -179,7 +174,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_lxc",
         translation_key="memory_lxc",
-        icon="mdi:linux",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -189,7 +183,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_vms",
         translation_key="memory_vms",
-        icon="mdi:server",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -199,7 +192,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="memory_zram",
         translation_key="memory_zram",
-        icon="mdi:memory",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
@@ -209,7 +201,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSSystemHealthSensorEntityDescription, ...] = (
     MOSSystemHealthSensorEntityDescription(
         key="swap_usage",
         translation_key="swap_usage",
-        icon="mdi:swap-horizontal",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda system_load: (system_load.get("swap") or {}).get("percentage"),

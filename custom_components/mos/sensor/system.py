@@ -57,68 +57,57 @@ ENTITY_DESCRIPTIONS: tuple[MOSSensorEntityDescription, ...] = (
     MOSSensorEntityDescription(
         key="boot_time",
         translation_key="boot_time",
-        icon="mdi:clock-start",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=_boot_time,
     ),
     MOSSensorEntityDescription(
         key="mos_version",
         translation_key="mos_version",
-        icon="mdi:tag-outline",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("version"),
     ),
     MOSSensorEntityDescription(
         key="mos_channel",
         translation_key="mos_channel",
-        icon="mdi:source-branch",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("channel"),
     ),
     MOSSensorEntityDescription(
         key="mos_build",
         translation_key="mos_build",
-        icon="mdi:hammer-wrench",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("build"),
     ),
     MOSSensorEntityDescription(
         key="mos_api",
         translation_key="mos_api",
-        icon="mdi:api",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("api"),
     ),
     MOSSensorEntityDescription(
         key="mos_frontend",
         translation_key="mos_frontend",
-        icon="mdi:monitor-dashboard",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("frontend"),
     ),
     MOSSensorEntityDescription(
         key="running_kernel",
         translation_key="running_kernel",
-        icon="mdi:penguin",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("running_kernel"),
     ),
     MOSSensorEntityDescription(
         key="recommended_kernel",
         translation_key="recommended_kernel",
-        icon="mdi:penguin",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("recommended_kernel"),
     ),
     MOSSensorEntityDescription(
         key="arch",
         translation_key="arch",
-        icon="mdi:chip",
         value_fn=lambda osinfo: (osinfo.get("mos") or {}).get("arch"),
     ),
     MOSSensorEntityDescription(
         key="cpu_brand",
         translation_key="cpu_brand",
-        icon="mdi:cpu-64-bit",
         value_fn=lambda osinfo: (osinfo.get("cpu") or {}).get("brand"),
     ),
     MOSSensorEntityDescription(
         key="base_os",
         translation_key="base_os",
-        icon="mdi:linux",
         value_fn=_base_os,
     ),
 )

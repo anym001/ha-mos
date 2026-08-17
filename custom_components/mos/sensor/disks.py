@@ -67,7 +67,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         translation_key="disk_power_status",
         device_class=SensorDeviceClass.ENUM,
         options=DISK_POWER_STATES,
-        icon="mdi:power",
         value_fn=_power_status,
     ),
     MOSDiskSensorEntityDescription(
@@ -81,19 +80,16 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
     MOSDiskSensorEntityDescription(
         key="model",
         translation_key="disk_model",
-        icon="mdi:harddisk",
         value_fn=lambda disk: disk.get("model"),
     ),
     MOSDiskSensorEntityDescription(
         key="type",
         translation_key="disk_type",
-        icon="mdi:harddisk",
         value_fn=lambda disk: disk.get("type"),
     ),
     MOSDiskSensorEntityDescription(
         key="size",
         translation_key="disk_size",
-        icon="mdi:harddisk",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,

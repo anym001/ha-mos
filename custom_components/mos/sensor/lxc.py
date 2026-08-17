@@ -70,7 +70,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSLxcContainerSensorEntityDescription, ...] = (
     MOSLxcContainerSensorEntityDescription(
         key="cpu_usage",
         translation_key="lxc_cpu_usage",
-        icon="mdi:cpu-64-bit",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda container: (container.get("cpu") or {}).get("usage"),

@@ -41,8 +41,8 @@ echo ""
 "$SCRIPT_DIR/markdown"
 echo ""
 "$SCRIPT_DIR/skills-check"
-# architecture-check is deliberately not wired in yet — see script/lint-check
-# and #80. Run ./script/architecture-check by hand.
+echo ""
+"$SCRIPT_DIR/architecture-check"
 
 run_hook "lint" "post"
 
