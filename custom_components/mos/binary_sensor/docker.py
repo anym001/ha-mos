@@ -87,7 +87,6 @@ ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerBinarySensorEntityDescription, ...]
     MOSDockerContainerBinarySensorEntityDescription(
         key="autostart",
         translation_key="docker_autostart",
-        icon="mdi:play-box-outline",
         value_fn=lambda container: container.get("autostart"),
     ),
 )

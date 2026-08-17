@@ -119,13 +119,11 @@ ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...] = (
     MOSDockerContainerSensorEntityDescription(
         key="installed_version",
         translation_key="docker_installed_version",
-        icon="mdi:docker",
         value_fn=lambda container: container.get("local"),
     ),
     MOSDockerContainerSensorEntityDescription(
         key="latest_version",
         translation_key="docker_latest_version",
-        icon="mdi:docker",
         value_fn=lambda container: container.get("remote"),
     ),
 )
@@ -142,7 +140,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
     MOSDockerContainerSensorEntityDescription(
         key="cpu_usage",
         translation_key="docker_cpu_usage",
-        icon="mdi:cpu-64-bit",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda container: container.get("stats_cpu_percent"),
@@ -169,7 +166,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
     MOSDockerContainerSensorEntityDescription(
         key="memory_percent",
         translation_key="docker_memory_percent",
-        icon="mdi:memory",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda container: container.get("stats_memory_percent"),
