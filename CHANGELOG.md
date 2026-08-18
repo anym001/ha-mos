@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/anym001/ha-mos/compare/v0.2.2...v0.2.3) (2026-08-18)
+
+
+### Bug Fixes
+
+* **deps:** stop pinning tooling Home Assistant already installs ([78408b5](https://github.com/anym001/ha-mos/commit/78408b55758bd44114802d9da8a4c14aafe5e915))
+* **hassfest:** activate the venv before detecting the HA version ([f4f00cf](https://github.com/anym001/ha-mos/commit/f4f00cfec8a44ee38544526f578e7133dbb582bf))
+* **sensor:** normalize hardware reading units to HA's spelling ([7b4d284](https://github.com/anym001/ha-mos/commit/7b4d2841df72207ecf111eb0d76e75879c26d04a))
+
 ## [0.2.2](https://github.com/anym001/ha-mos/compare/v0.2.1...v0.2.2) (2026-08-17)
 
 
