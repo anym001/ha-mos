@@ -44,6 +44,8 @@ async def test_only_reported_readings_become_entities(
         ("sensor.sirius_sensor_nvme_1_temperature", "temperature", "°C"),
         ("sensor.sirius_sensor_psu_voltage_5v_voltage", "voltage", "V"),
         ("sensor.sirius_sensor_psu_power_5v_wattage", "power", "W"),
+        # Reported as "c" by MOS, and only accepted by HA as "°C".
+        ("sensor.sirius_sensor_psu_vrm_temp_temperature", "temperature", "°C"),
         # No device class covers a fan speed, but the unit MOS reports still does.
         ("sensor.sirius_sensor_psu_fan_speed", None, "rpm"),
     ],
@@ -55,12 +57,104 @@ async def test_device_class_follows_the_subtype(
     device_class: str | None,
     unit: str,
 ) -> None:
-    """The reading's subtype decides its device class; the unit is taken as reported."""
+    """The reading's subtype decides its device class, and its unit is normalised to HA's spelling."""
     attributes = hass.states.get(entity_id).attributes
 
     assert attributes.get(ATTR_DEVICE_CLASS) == device_class
     assert attributes[ATTR_UNIT_OF_MEASUREMENT] == unit
     assert attributes[ATTR_STATE_CLASS] is SensorStateClass.MEASUREMENT
+
+
+@pytest.mark.parametrize(
+    "spelling",
+    [("c", "°C"), ("°C", "°C"), ("CELSIUS", "°C"), ("v", "V"), ("w", "W"), ("rpm", "rpm")],
+)
+async def test_unit_spellings_fold_onto_the_one_ha_accepts(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_sensors: dict[str, list[dict[str, Any]]],
+    spelling: tuple[str, str],
+) -> None:
+    """Whatever spelling MOS reports, the entity carries the one HA validates against."""
+    reported, expected = spelling
+    payload = copy.deepcopy(mock_sensors)
+    payload["other"] = [
+        {"id": "1767390599999", "index": 0, "name": "Probe", "subtype": "temperature", "value": 21.5, "unit": reported}
+    ]
+    mock_client.async_get_sensors.return_value = payload
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.sirius_sensor_other_probe_temperature")
+    assert state.attributes[ATTR_UNIT_OF_MEASUREMENT] == expected
+
+
+async def test_a_fahrenheit_reading_is_converted_to_the_users_unit(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_sensors: dict[str, list[dict[str, Any]]],
+) -> None:
+    """A normalised unit is one HA can convert, so a Fahrenheit reading reaches a metric user in Celsius."""
+    payload = copy.deepcopy(mock_sensors)
+    payload["other"] = [
+        {"id": "1767390566666", "index": 0, "name": "Probe", "subtype": "temperature", "value": 212, "unit": "f"}
+    ]
+    mock_client.async_get_sensors.return_value = payload
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.sirius_sensor_other_probe_temperature")
+
+    assert state.attributes[ATTR_UNIT_OF_MEASUREMENT] == "°C"
+    assert float(state.state) == pytest.approx(100.0)
+
+
+async def test_unit_ha_cannot_reconcile_drops_the_device_class(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_sensors: dict[str, list[dict[str, Any]]],
+) -> None:
+    """A unit no device class accepts costs the device class, not the reading.
+
+    HA refuses to convert or record such a sensor and warns once per start, so
+    the reading is kept as a plain measurement instead.
+    """
+    payload = copy.deepcopy(mock_sensors)
+    payload["other"] = [
+        {"id": "1767390588888", "index": 0, "name": "Probe", "subtype": "temperature", "value": 21.5, "unit": "arb"}
+    ]
+    mock_client.async_get_sensors.return_value = payload
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    attributes = hass.states.get("sensor.sirius_sensor_other_probe_temperature").attributes
+
+    assert ATTR_DEVICE_CLASS not in attributes
+    assert attributes[ATTR_UNIT_OF_MEASUREMENT] == "arb"
+    assert attributes[ATTR_STATE_CLASS] is SensorStateClass.MEASUREMENT
+
+
+async def test_reading_without_a_unit_reports_none(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_sensors: dict[str, list[dict[str, Any]]],
+) -> None:
+    """A reading MOS reports no unit for gets none, rather than an empty one."""
+    payload = copy.deepcopy(mock_sensors)
+    payload["other"] = [
+        {"id": "1767390577777", "index": 0, "name": "Probe", "subtype": "mode", "value": "normal", "unit": ""}
+    ]
+    mock_client.async_get_sensors.return_value = payload
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    attributes = hass.states.get("sensor.sirius_sensor_other_probe_mode").attributes
+
+    assert ATTR_UNIT_OF_MEASUREMENT not in attributes
 
 
 async def test_names_name_the_category_without_repeating_the_subtype(

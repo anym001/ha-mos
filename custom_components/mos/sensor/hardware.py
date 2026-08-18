@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.components.sensor.const import DEVICE_CLASS_UNITS
+from homeassistant.const import PERCENTAGE, UnitOfElectricPotential, UnitOfPower, UnitOfTemperature
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -33,6 +35,34 @@ _DEVICE_CLASS_BY_SUBTYPE: dict[str, SensorDeviceClass] = {
 # textual/enum-like reading (e.g. a PSU's operating mode), so it gets no
 # state_class - HA expects state_class-tagged sensors to be numeric.
 _MEASUREMENT_SUBTYPES = frozenset({"voltage", "wattage", "temperature", "speed", "percentage"})
+
+# MOS spells the same unit differently depending on where the reading comes
+# from - one server reports a CPU temperature in "c", another in "°C" - and HA
+# rejects everything but its own spelling for a unit that belongs to a device
+# class. Only the spellings that need folding are listed; units HA has no
+# opinion on (e.g. "rpm") pass through untouched.
+_UNIT_ALIASES: dict[str, str] = {
+    "c": UnitOfTemperature.CELSIUS,
+    "°c": UnitOfTemperature.CELSIUS,
+    "degc": UnitOfTemperature.CELSIUS,
+    "celsius": UnitOfTemperature.CELSIUS,
+    "f": UnitOfTemperature.FAHRENHEIT,
+    "°f": UnitOfTemperature.FAHRENHEIT,
+    "degf": UnitOfTemperature.FAHRENHEIT,
+    "fahrenheit": UnitOfTemperature.FAHRENHEIT,
+    "k": UnitOfTemperature.KELVIN,
+    "kelvin": UnitOfTemperature.KELVIN,
+    "v": UnitOfElectricPotential.VOLT,
+    "volt": UnitOfElectricPotential.VOLT,
+    "volts": UnitOfElectricPotential.VOLT,
+    "mv": UnitOfElectricPotential.MILLIVOLT,
+    "w": UnitOfPower.WATT,
+    "watt": UnitOfPower.WATT,
+    "watts": UnitOfPower.WATT,
+    "kw": UnitOfPower.KILO_WATT,
+    "%": PERCENTAGE,
+    "percent": PERCENTAGE,
+}
 
 # The icons themselves live in icons.json under ``hardware_<category>``. A
 # reading's category is assigned per server and only known at runtime, so a
@@ -74,6 +104,31 @@ def _sensor_name(item: dict[str, Any]) -> str:
     return f"Sensor {_CATEGORY_DISPLAY.get(category, category.title())} {name}{suffix}"
 
 
+def _unit(item: dict[str, Any]) -> str | None:
+    """Return the reading's unit in the spelling HA expects, or None if MOS reports none."""
+    raw = str(item.get("unit") or "").strip()
+    if not raw:
+        return None
+    return _UNIT_ALIASES.get(raw.casefold(), raw)
+
+
+def _device_class(subtype: str, unit: str | None) -> SensorDeviceClass | None:
+    """Return the device class for a subtype, unless the unit contradicts it.
+
+    A device class HA cannot reconcile with the unit is worse than none: it
+    makes HA drop the reading out of unit conversion and long-term statistics
+    and log a warning per start. Dropping it keeps the reading itself intact,
+    so an unforeseen unit costs display polish rather than the entity.
+    """
+    device_class = _DEVICE_CLASS_BY_SUBTYPE.get(subtype)
+    if device_class is None:
+        return None
+    valid_units = DEVICE_CLASS_UNITS.get(device_class)
+    if valid_units is None or unit in valid_units:
+        return device_class
+    return None
+
+
 def _icon_translation_key(item: dict[str, Any]) -> str:
     """Return the icons.json key holding this reading's icon.
 
@@ -103,10 +158,11 @@ class MOSHardwareSensor(SensorEntity, MOSEntity):
         self._key = key
         item = _find_sensor(coordinator, key) or {}
         subtype = item.get("subtype", "")
+        unit = _unit(item)
         entity_description = SensorEntityDescription(
             key=key,
-            device_class=_DEVICE_CLASS_BY_SUBTYPE.get(subtype),
-            native_unit_of_measurement=item.get("unit"),
+            device_class=_device_class(subtype, unit),
+            native_unit_of_measurement=unit,
             state_class=SensorStateClass.MEASUREMENT if subtype in _MEASUREMENT_SUBTYPES else None,
             translation_key=_icon_translation_key(item),
         )
