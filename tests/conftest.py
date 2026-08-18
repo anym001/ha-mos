@@ -437,8 +437,9 @@ def mock_sensors() -> dict[str, list[dict[str, Any]]]:
 
     Taken from a real server, so it carries the cases that shape the entities:
     categories that are empty, a category whose readings are all of one subtype
-    (temperature), and a PSU mixing voltage/wattage/temperature/speed readings -
-    including one ("Fan Speed") whose name already ends in its own subtype.
+    (temperature), a PSU mixing voltage/wattage/temperature/speed readings -
+    including one ("Fan Speed") whose name already ends in its own subtype - and
+    the two spellings MOS uses for the same unit ("°C" and "c").
     """
     return {
         "fan": [
@@ -576,7 +577,7 @@ def mock_sensors() -> dict[str, list[dict[str, Any]]]:
                 "model": "HX750i",
                 "subtype": "temperature",
                 "value": 40.25,
-                "unit": "°C",
+                "unit": "c",
             },
             {
                 "id": "1767004135523",
