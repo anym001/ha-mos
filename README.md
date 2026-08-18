@@ -36,6 +36,10 @@ Disks, pools, LXC/Docker containers, VMs and the UPS each get their **own device
 
 **Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, which counts as an answer rather than a failure: those entities are left out, the log names them once, and nothing else is affected. The request goes out on every poll anyway, so after a MOS update the matching entities appear on their own within a poll or two — no version numbers to look up, nothing to reload. Switch the category off in the options if you would rather it stopped asking.
 
+## Companion Card
+
+The [MOS NAS Card](https://github.com/anym001/ha-mos-card) renders the devices this integration creates — Docker/LXC containers, VMs, disks, storage pools and the UPS — as a stack of tiles, and follows them as they come and go.
+
 ## Installation
 
 **MOS NAS** is in the HACS default store, so no custom repository is needed:
