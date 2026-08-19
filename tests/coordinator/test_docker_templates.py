@@ -118,6 +118,44 @@ def test_template_pair_matches_on_its_host_side_too() -> None:
     assert resolve_web_ui_url(stopped, _template(), HOST) == f"http://{HOST}:8081"
 
 
+def test_a_udp_only_mapping_is_not_a_web_interface() -> None:
+    """A browser reaches an http(s) link over TCP, so a UDP publication cannot be the one meant."""
+    udp_only = _container(
+        labels={"mos.webui": "http://[ADDRESS]:[PORT:51820]"},
+        ports=[{"PrivatePort": 51820, "PublicPort": 51820, "Type": "udp"}],
+    )
+
+    assert resolve_web_ui_url(udp_only, None, HOST) is None
+
+
+def test_the_tcp_half_of_a_dual_protocol_port_still_resolves() -> None:
+    """Prismarr publishes 443 on both protocols for HTTP/3; skipping UDP must not skip its TCP twin."""
+    dual = _container(
+        labels={"mos.webui": "https://[ADDRESS]:[PORT:443]"},
+        ports=[
+            {"PrivatePort": 443, "Type": "udp"},
+            {"PrivatePort": 443, "PublicPort": 7443, "Type": "tcp"},
+        ],
+    )
+
+    assert resolve_web_ui_url(dual, None, HOST) == f"https://{HOST}:7443"
+
+
+def test_an_entry_without_a_protocol_is_still_offered() -> None:
+    """Only an explicit UDP is excluded, so an unexpected or absent protocol never costs a link."""
+    untyped = _container(ports=[{"PrivatePort": 8080, "PublicPort": 8081}])
+
+    assert resolve_web_ui_url(untyped, None, HOST) == f"http://{HOST}:8081/"
+
+
+def test_a_udp_template_pair_is_passed_over() -> None:
+    """The template names a protocol too, and the same reasoning applies to its configured pairs."""
+    stopped = _container(state="exited", ports=[])
+    udp_pair = _template(ports=[{"protocol": "udp", "host": "8081", "container": "8080"}])
+
+    assert resolve_web_ui_url(stopped, udp_pair, HOST) is None
+
+
 def test_template_url_used_when_the_container_has_no_label() -> None:
     """A container without the mos.webui label can still have a web interface configured in its template."""
     unlabelled = _container(labels={})

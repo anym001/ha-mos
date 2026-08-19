@@ -36,6 +36,22 @@ _HOST_PLACEHOLDER = re.compile(r"\[(?:ADDRESS|IP)\]")
 _PORT_PLACEHOLDER = re.compile(r"\[PORT:(\d+)\]")
 
 
+def _is_udp(protocol: Any) -> bool:
+    """
+    Whether a port entry is UDP, and so cannot be the web interface.
+
+    Only an explicit ``udp`` counts. Requiring ``tcp`` instead would drop an
+    entry whose protocol is missing, spelled unexpectedly, or something else
+    Docker supports (``sctp``) - which would cost a link over a field that was
+    never the point, the same way assuming one port convention already did.
+
+    Returns:
+        ``True`` only for an entry that says it is UDP.
+
+    """
+    return isinstance(protocol, str) and protocol.casefold() == "udp"
+
+
 def _resolve_port(port: int, container: dict[str, Any], template: dict[str, Any] | None) -> int | None:
     """
     Translate the port a web interface placeholder names into the host port.
@@ -61,15 +77,23 @@ def _resolve_port(port: int, container: dict[str, Any], template: dict[str, Any]
     Host networking publishes nothing and needs neither source: a container on
     the host's network stack is reachable on the very port it listens on.
 
+    UDP entries are passed over throughout. A ``mos.webui`` link is http(s),
+    which a browser reaches over TCP, and a container can publish the same
+    number on both - Prismarr publishes 443 on TCP and on UDP for HTTP/3.
+
     Returns:
         The host port, or ``None`` if no source knows this port.
 
     """
     for published in container.get("ports") or []:
+        if _is_udp(published.get("Type")):
+            continue
         if published.get("PrivatePort") == port and published.get("PublicPort"):
             return int(published["PublicPort"])
 
     for published in container.get("ports") or []:
+        if _is_udp(published.get("Type")):
+            continue
         if published.get("PublicPort") == port:
             return port
 
@@ -80,6 +104,8 @@ def _resolve_port(port: int, container: dict[str, Any], template: dict[str, Any]
         return port
 
     for configured in (template or {}).get("ports") or []:
+        if _is_udp(configured.get("protocol")):
+            continue
         sides = (str(configured.get("container")), str(configured.get("host")))
         if str(port) in sides and configured.get("host"):
             try:
