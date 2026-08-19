@@ -59,6 +59,65 @@ def test_unresolvable_port_yields_no_link() -> None:
     assert resolve_web_ui_url(stopped, None, HOST) is None
 
 
+def test_placeholder_naming_the_host_port_resolves_to_it() -> None:
+    """MOS writes whichever side of the mapping was configured; qbittorrent names 8092, published from 8080."""
+    host_side = _container(
+        labels={"mos.webui": "http://[ADDRESS]:[PORT:8092]"},
+        ports=[{"IP": "0.0.0.0", "PrivatePort": 8080, "PublicPort": 8092, "Type": "tcp"}],
+    )
+
+    assert resolve_web_ui_url(host_side, None, HOST) == f"http://{HOST}:8092"
+
+
+def test_container_port_wins_over_a_host_port_of_the_same_number() -> None:
+    """Trying the container side first is what keeps a remapped container pointing where Docker publishes it."""
+    both_sides = _container(
+        ports=[
+            {"PrivatePort": 9001, "PublicPort": 7000, "Type": "tcp"},
+            {"PrivatePort": 8080, "PublicPort": 9001, "Type": "tcp"},
+        ],
+        labels={"mos.webui": "http://[ADDRESS]:[PORT:9001]"},
+    )
+
+    assert resolve_web_ui_url(both_sides, None, HOST) == f"http://{HOST}:7000"
+
+
+def test_host_networking_reaches_the_listening_port_directly() -> None:
+    """Docker publishes nothing for a host-networked container, which is reachable on the port it listens on."""
+    esphome = _container(
+        labels={"mos.webui": "http://[ADDRESS]:[PORT:6052]"},
+        ports=[],
+        network_mode="host",
+    )
+
+    assert resolve_web_ui_url(esphome, None, HOST) == f"http://{HOST}:6052"
+
+
+def test_a_network_merely_named_like_host_is_not_host_networking() -> None:
+    """The field carries a user-defined network's own name, and one called "hostnet" publishes ports normally."""
+    hostnet = _container(ports=[], network_mode="hostnet")
+
+    assert resolve_web_ui_url(hostnet, None, HOST) is None
+
+
+def test_host_networking_without_a_web_interface_stays_unlinked() -> None:
+    """Knowing where a container is reachable is not the same as it having something to reach."""
+    unlabelled = _container(labels={}, ports=[], network_mode="host")
+
+    assert resolve_web_ui_url(unlabelled, None, HOST) is None
+
+
+def test_template_pair_matches_on_its_host_side_too() -> None:
+    """A stopped container whose placeholder names the host port resolves from the same configured pair."""
+    stopped = _container(
+        labels={"mos.webui": "http://[ADDRESS]:[PORT:8081]"},
+        state="exited",
+        ports=[],
+    )
+
+    assert resolve_web_ui_url(stopped, _template(), HOST) == f"http://{HOST}:8081"
+
+
 def test_template_url_used_when_the_container_has_no_label() -> None:
     """A container without the mos.webui label can still have a web interface configured in its template."""
     unlabelled = _container(labels={})

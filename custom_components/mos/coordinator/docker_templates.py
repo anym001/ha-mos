@@ -38,29 +38,50 @@ _PORT_PLACEHOLDER = re.compile(r"\[PORT:(\d+)\]")
 
 def _resolve_port(port: int, container: dict[str, Any], template: dict[str, Any] | None) -> int | None:
     """
-    Translate a container port into the host port it is published on.
+    Translate the port a web interface placeholder names into the host port.
 
-    The number inside ``[PORT:n]`` is the *container* port, verified by
-    remapping a container from ``3000:3000`` to ``3001:3000``: the placeholder
-    kept naming 3000 while the reachable port became 3001. Taking it at face
-    value therefore yields a dead link on every container whose ports are
-    remapped.
+    The number inside ``[PORT:n]`` is *not* reliably the container port. MOS
+    writes whichever side of the mapping was configured, and one server had
+    both conventions at once: Dozzle (``8080:9001``) and Nextcloud
+    (``443:7443``) named the container port, while qbittorrent
+    (``8080:8092``), filebrowser-quantum (``80:8100``) and omnitools
+    (``80:8990``) named the host port. So both sides are tried.
 
-    The live mapping is preferred because it reflects what Docker is actually
-    doing, including containers changed outside MOS. It only exists while the
-    container runs, though - Docker reports no ports for a stopped container -
-    so the template's configured pairs stand in for the stopped case.
+    The container port is tried first, which is what keeps a remapped container
+    pointing where Docker publishes it - verified by remapping one from
+    ``3000:3000`` to ``3001:3000``, where the placeholder kept naming 3000 and
+    the reachable port became 3001. Reversing the two would send that link back
+    to the port nothing listens on.
+
+    The live mapping is preferred over the template because it reflects what
+    Docker is actually doing, including containers changed outside MOS. It only
+    exists while the container runs, though - Docker reports no ports for a
+    stopped container - so the template's configured pairs stand in.
+
+    Host networking publishes nothing and needs neither source: a container on
+    the host's network stack is reachable on the very port it listens on.
 
     Returns:
-        The host port, or ``None`` if neither source knows this container port.
+        The host port, or ``None`` if no source knows this port.
 
     """
     for published in container.get("ports") or []:
         if published.get("PrivatePort") == port and published.get("PublicPort"):
             return int(published["PublicPort"])
 
+    for published in container.get("ports") or []:
+        if published.get("PublicPort") == port:
+            return port
+
+    # Compared exactly rather than by substring: this field carries a
+    # user-defined network's own name, and one called "hostnet" publishes its
+    # ports like any other bridge.
+    if container.get("network_mode") == "host":
+        return port
+
     for configured in (template or {}).get("ports") or []:
-        if str(configured.get("container")) == str(port) and configured.get("host"):
+        sides = (str(configured.get("container")), str(configured.get("host")))
+        if str(port) in sides and configured.get("host"):
             try:
                 return int(configured["host"])
             except TypeError, ValueError:
