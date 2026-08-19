@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/anym001/ha-mos/compare/v0.2.3...v0.2.4) (2026-08-19)
+
+
+### Bug Fixes
+
+* **coordinator:** ignore udp mappings when resolving a web link ([a0f07cf](https://github.com/anym001/ha-mos/commit/a0f07cf48b800e62e8785c1966d2bd48ba3478cf))
+* **coordinator:** restore missing docker web interface links ([4324d5c](https://github.com/anym001/ha-mos/commit/4324d5cee246eddf69c8c569bf370986b78cb604))
+
 ## [0.2.3](https://github.com/anym001/ha-mos/compare/v0.2.2...v0.2.3) (2026-08-18)
 
 
