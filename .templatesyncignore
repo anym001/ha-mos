@@ -163,6 +163,19 @@ GEMINI.md
 # only loads when a matching file is edited, and no file here matches any of
 # the four, so shipping them unused costs nothing.
 
+# Two skills the blueprint links to documentation that only exists upstream:
+# blueprint-skill-maintenance points at docs/blueprint/DECISIONS.md and
+# docs/blueprint/README.md, blueprint-tooling at
+# docs/development/CUSTOMIZATION.md. initialize.sh deletes docs/blueprint/ and
+# CUSTOMIZATION.md is never shipped downstream, so all three are absent here by
+# design. 7cd19fd unlinked them to keep script/skills-check green; #91 relinked
+# all three and took the check red again. Owned here until the blueprint stops
+# linking blueprint-only docs from skills it ships downstream.
+# Trade-off: real content the blueprint adds to these two skills has to be
+# copied over by hand — `script/compare-blueprint` shows what changed.
+.agents/skills/blueprint-skill-maintenance/SKILL.md
+.agents/skills/blueprint-tooling/SKILL.md
+
 # Schema for the services.yaml this integration does not ship.
 schemas/yaml/services_schema.yaml
 
