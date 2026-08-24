@@ -16,8 +16,8 @@ name: Sync from Blueprint Template
 
 on:
   schedule:
-    # Every Monday at 07:00 UTC
-    - cron: "0 7 * * 1"
+    # First day of the month at 07:00 UTC
+    - cron: "0 7 1 * *"
   workflow_dispatch:
 
 # The job below requests exactly what it needs; nothing is inherited.
