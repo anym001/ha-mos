@@ -193,6 +193,5 @@ Review before merging.
 - Workflow files under `.github/workflows/` only sync when a `TEMPLATE_SYNC_TARGET_PAT` secret with `workflows: write`
   exists; otherwise those updates are skipped with a notice in the run summary.
 
-Background, recovery procedures, and the default exclusion list are in `docs/development/CUSTOMIZATION.md` — a
-blueprint document this repository does not carry, hence unlinked. The exclusion list that actually applies here is
-`.templatesyncignore`, which documents the reason for every entry inline.
+Background, recovery procedures, and the default exclusion list are in
+[`docs/development/CUSTOMIZATION.md`](../../../docs/development/CUSTOMIZATION.md).

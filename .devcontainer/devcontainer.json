@@ -49,6 +49,9 @@
     },
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/dirien/devcontainer-feature-codex/codex:0": {
+      "version": "latest"
+    },
     "ghcr.io/devcontainer-community/devcontainer-features/yq:1": {
       "version": "latest"
     },
@@ -161,6 +164,7 @@
           "**/.git/**": false,
           ".agents/hooks/**": false,
           ".claude/settings.json": false,
+          ".codex/hooks.json": false,
           ".github/workflows/**": false,
           ".github/actions/**": false,
           "release-please-config.json": false,
@@ -243,6 +247,9 @@
     // Persist Claude CLI home data (sessions/history/auth) across container rebuilds.
     // Useful when using Claude Code locally inside the DevContainer.
     "source=${localWorkspaceFolderBasename}_claude_home,target=/home/vscode/.claude,type=volume",
+    // Persist Codex CLI data (sessions/history/config) across container rebuilds.
+    // Config bootstrap in on-create continues to work because this directory stays writable.
+    "source=${localWorkspaceFolderBasename}_codex_home,target=/home/vscode/.codex,type=volume",
     // Mount host gitconfig for local development (ignored in Codespaces)
     // In Codespaces, GitHub automatically configures Git with your account
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gitconfig,target=/home/vscode/.gitconfig.host,type=bind,consistency=cached,readonly"
