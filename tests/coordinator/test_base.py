@@ -22,6 +22,7 @@ from custom_components.mos.api import (
 from custom_components.mos.const import (
     AUTH_FAILURE_GRACE_PERIOD,
     AUTH_FAILURE_MIN_FAILURES,
+    CONF_ENABLE_COMPOSE,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -145,11 +146,17 @@ async def test_fetches_all_resources_by_default(
                 "update_available": False,
                 "container_count": 2,
                 "running_containers": 2,
+                "unhealthy": True,
+                "images": ["busybox:latest", "nginx:alpine"],
                 "icon_url": mock_compose_stacks[0]["iconUrl"],
                 "web_ui_url": None,
             },
             {
                 **mock_compose_stacks[1],
+                "container_count": 1,
+                "running_containers": 0,
+                "unhealthy": None,
+                "images": ["busybox:latest"],
                 "icon_url": None,
                 "web_ui_url": None,
             },
@@ -193,6 +200,7 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
             CONF_ENABLE_SERVICES: False,
             CONF_ENABLE_LXC: False,
             CONF_ENABLE_DOCKER: False,
+            CONF_ENABLE_COMPOSE: False,
             CONF_ENABLE_VM: False,
         },
     )
@@ -206,6 +214,7 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     mock_client.async_get_lxc_containers.assert_not_called()
     mock_client.async_get_docker_containers.assert_not_called()
     mock_client.async_get_docker_engine_containers.assert_not_called()
+    mock_client.async_get_compose_stacks.assert_not_called()
     mock_client.async_get_vm_machines.assert_not_called()
     mock_client.async_get_osinfo.assert_called_once()
 
@@ -214,7 +223,28 @@ async def test_disabled_categories_are_not_fetched(hass: HomeAssistant, mock_cli
     assert coordinator.data["pools"] == []
     assert coordinator.data["lxc_containers"] == []
     assert coordinator.data["docker_containers"] == []
+    assert coordinator.data["compose_stacks"] == []
     assert coordinator.data["vm_machines"] == []
+
+
+async def test_the_engine_list_is_still_fetched_for_compose_alone(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+) -> None:
+    """One request answers for both categories, so either one is reason enough to make it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        state=ConfigEntryState.SETUP_IN_PROGRESS,
+        options={CONF_ENABLE_DOCKER: False},
+    )
+    coordinator = _make_coordinator(hass, mock_client, entry)
+
+    await coordinator.async_config_entry_first_refresh()
+
+    mock_client.async_get_docker_containers.assert_not_called()
+    mock_client.async_get_docker_engine_containers.assert_called_once()
+    assert coordinator.data["docker_containers"] == []
+    assert coordinator.data["compose_stacks"][0]["running_containers"] == 2
 
 
 async def test_async_start_lxc_container_calls_client_and_updates_state_optimistically(

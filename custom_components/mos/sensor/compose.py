@@ -9,8 +9,9 @@ sensors - MOS tracks images per container and a stack has several, so it reports
 no installed/latest pair to put in one. There are no CPU or memory sensors
 either: Docker measures one container at a time, and a per-stack figure would
 cost one request per service on every poll to produce a number nobody asked for.
-What a stack has instead is its two counters, which come from the group MOS
-auto-creates for it (see coordinator/compose.py).
+What a stack has instead is its two counters and the images its services run,
+both derived from the member containers in the raw Docker Engine list (see
+coordinator/compose.py).
 """
 
 from __future__ import annotations
@@ -60,7 +61,8 @@ def _state_attributes(stack: dict[str, Any]) -> dict[str, Any]:
 
     ``services`` and ``containers`` are the pair that makes a stack legible: the
     first is what the compose file declares, the second what Docker actually
-    named them, and neither is derivable from the other.
+    named them, and neither is derivable from the other. ``images`` is what those
+    containers are running, which the stack list does not report at all.
 
     Returns:
         The attributes to expose, with unset ones omitted.
@@ -70,6 +72,9 @@ def _state_attributes(stack: dict[str, Any]) -> dict[str, Any]:
         "web_ui_url": stack.get("web_ui_url"),
         "services": stack.get("services"),
         "containers": stack.get("containers"),
+        # The images actually in use, deduplicated: several services of one
+        # stack routinely share an image, and listing it twice says nothing.
+        "images": stack.get("images"),
     }
     return {key: value for key, value in attributes.items() if value}
 
@@ -81,6 +86,9 @@ class MOSComposeStackSensorEntityDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], StateType]
     attributes_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
     picture_fn: Callable[[dict[str, Any]], str | None] | None = None
+    # Resources this sensor reads beyond the one the dynamic helper syncs it
+    # against, so it can report itself unavailable once they go stale.
+    extra_resource_keys: frozenset[str] = frozenset()
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
@@ -102,6 +110,9 @@ ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
         key="running_containers",
         translation_key="compose_running_containers",
         value_fn=lambda stack: stack.get("running_containers"),
+        # Counted from the member containers in the engine proxy, which is a
+        # different endpoint from the stack list this sensor is synced against.
+        extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
     MOSComposeStackSensorEntityDescription(
         key="container_count",
@@ -134,6 +145,7 @@ class MOSComposeStackSensor(SensorEntity, MOSEntity):
             device_kind=MOSDeviceKind.COMPOSE,
             device_configuration_url=device_configuration_url,
         )
+        self.resource_keys |= entity_description.extra_resource_keys
 
     @property
     def native_value(self) -> StateType:

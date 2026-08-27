@@ -4,10 +4,9 @@ Stacks are a dynamic list, so entities are added/removed via
 ``async_setup_dynamic_entities`` (see sensor/compose.py for the matching state
 and counter sensors, on the same per-stack device).
 
-There is no health sensor to go with the Docker one: a healthcheck is a property
-of a container, and MOS reports nothing equivalent for the stack as a whole. The
-running/total counter pair in sensor/compose.py is what shows a stack whose
-services disagree.
+The health flag has no counterpart in anything MOS reports about a stack: a
+healthcheck is a property of a container, so it is derived from the stack's
+member containers in the raw Docker Engine list (see coordinator/compose.py).
 """
 
 from __future__ import annotations
@@ -47,6 +46,14 @@ class MOSComposeStackBinarySensorEntityDescription(BinarySensorEntityDescription
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSComposeStackBinarySensorEntityDescription, ...] = (
+    MOSComposeStackBinarySensorEntityDescription(
+        key="healthy",
+        translation_key="compose_healthy",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda stack: stack.get("unhealthy"),
+        extra_resource_keys=frozenset({"docker_engine_containers"}),
+    ),
     MOSComposeStackBinarySensorEntityDescription(
         key="update_available",
         translation_key="compose_update_available",

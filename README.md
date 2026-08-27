@@ -21,7 +21,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture; Docker containers also get a web link and image metadata, plus a health sensor
-- **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
+- **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -30,7 +30,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 Entities are spread across three platforms:
 
 - **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, hardware sensors, UPS readings
-- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, Compose stack update/autostart, UPS power/battery flags
+- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container and Compose stack health, Compose stack update/autostart, UPS power/battery flags
 - **`switch`** — LXC container, Docker container, Compose stack and VM power
 
 Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get their **own device**, linked to the server device, so you can enable or disable one of them from its device page instead of hunting through a single long entity list. They follow your server: a container you delete in MOS takes its entities with it, and a new one appears on its own within a poll or two.

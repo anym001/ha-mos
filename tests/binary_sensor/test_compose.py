@@ -48,12 +48,24 @@ async def test_autostart_comes_from_the_stack_itself(
     assert on.state == STATE_ON
 
 
-async def test_no_health_sensor_is_created_for_a_stack(
+async def test_health_is_aggregated_from_the_member_containers(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """A healthcheck is a property of a container; MOS reports nothing equivalent per stack."""
-    assert hass.states.get("binary_sensor.sirius_compose_hatest_health") is None
+    """MOS reports no stack-level health, so one failing service is what makes the stack a problem."""
+    state = hass.states.get("binary_sensor.sirius_compose_hatest_health")
+    assert state is not None
+    assert state.state == STATE_ON
+
+
+async def test_a_stack_with_nothing_running_has_no_health_verdict(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Docker leaves a stopped container's health at whatever it last was, which is no verdict."""
+    state = hass.states.get("binary_sensor.sirius_compose_orphan_health")
+    assert state is not None
+    assert state.state == STATE_UNKNOWN
 
 
 async def test_stack_binary_sensors_share_the_sensors_device(

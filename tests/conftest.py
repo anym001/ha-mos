@@ -289,6 +289,12 @@ def mock_docker_engine_containers() -> list[dict[str, Any]]:
     stopped, defines no healthcheck (MOS says so with ``"none"`` rather than by
     omitting the field) and has no web interface label, so its link has to come
     from its template or not at all.
+
+    The four ``compose_*`` entries are the member containers of the stacks in
+    ``mock_compose_stacks``. They are in this same list because that is where
+    Docker puts them: a stack's live state, health and images are had from the
+    request the containers already make. ``hatest`` has one running unhealthy
+    service and one running healthy one; ``orphan``'s single service is stopped.
     """
     return [
         {
@@ -319,6 +325,42 @@ def mock_docker_engine_containers() -> list[dict[str, Any]]:
             "Labels": {"mos.backend": "docker", "mos.no_autoupdate": "false"},
             "State": "exited",
             "Status": "Exited (0) 2 weeks ago",
+            "Health": {"Status": "none", "FailingStreak": 0},
+            "HostConfig": {"NetworkMode": "bridge"},
+        },
+        {
+            "Id": "aaa111",
+            "Names": ["/compose_hatest-alpha-1"],
+            "Image": "busybox:latest",
+            "Created": 1785148600,
+            "Ports": [],
+            "Labels": {"com.docker.compose.project": "compose_hatest", "com.docker.compose.service": "alpha"},
+            "State": "running",
+            "Status": "Up 5 minutes (unhealthy)",
+            "Health": {"Status": "unhealthy", "FailingStreak": 3},
+            "HostConfig": {"NetworkMode": "bridge"},
+        },
+        {
+            "Id": "bbb222",
+            "Names": ["/compose_hatest-beta-1"],
+            "Image": "nginx:alpine",
+            "Created": 1785148601,
+            "Ports": [],
+            "Labels": {"com.docker.compose.project": "compose_hatest", "com.docker.compose.service": "beta"},
+            "State": "running",
+            "Status": "Up 5 minutes (healthy)",
+            "Health": {"Status": "healthy", "FailingStreak": 0},
+            "HostConfig": {"NetworkMode": "bridge"},
+        },
+        {
+            "Id": "ccc333",
+            "Names": ["/compose_orphan-solo-1"],
+            "Image": "busybox:latest",
+            "Created": 1785148602,
+            "Ports": [],
+            "Labels": {"com.docker.compose.project": "compose_orphan", "com.docker.compose.service": "solo"},
+            "State": "exited",
+            "Status": "Exited (0) 5 minutes ago",
             "Health": {"Status": "none", "FailingStreak": 0},
             "HostConfig": {"NetworkMode": "bridge"},
         },

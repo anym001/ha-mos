@@ -55,7 +55,9 @@ from custom_components.mos.const import (
     RESOURCE_STALE_MIN_FAILURES,
 )
 from custom_components.mos.coordinator.compose import (
+    carry_forward_engine_state,
     carry_forward_group_data,
+    merge_engine_state,
     merge_group_data,
     resolve_stack_icon,
     resolve_stack_web_ui_url,
@@ -733,7 +735,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # Checked separately from the container list: the raw Docker Engine proxy
         # is a different endpoint and can be denied on its own, in which case the
         # containers still appear, just without live running state.
-        if wanted(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER, "docker_engine_containers"):
+        #
+        # Either category is reason enough to fetch it. It is one request that
+        # answers for both: containers get their running state from it, stacks
+        # their member containers' state, health and images.
+        if wanted(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER, "docker_engine_containers") or wanted(
+            CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE, "docker_engine_containers"
+        ):
             tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
         if wanted(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE, "compose_stacks"):
             tasks["compose_stacks"] = client.async_get_compose_stacks()
@@ -1306,10 +1314,12 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                                           # (/docker/containers/json), plus "icon_url" and
                                           # "web_ui_url" from the cached MOS template
             "compose_stacks": [...],   # Compose stacks from /docker/mos/compose/stacks,
-                                        # with "update_available", "container_count" and
-                                        # "running_containers" merged in from the
-                                        # auto-created group in /docker/mos/groups, plus
-                                        # "icon_url" and "web_ui_url"
+                                        # with "update_available" from the auto-created
+                                        # group in /docker/mos/groups, "container_count",
+                                        # "running_containers", "unhealthy" and "images"
+                                        # derived from the member containers in the raw
+                                        # Docker Engine proxy, plus "icon_url" and
+                                        # "web_ui_url"
             "vm_machines": [...],      # VMs from /vm/machines/usage
             "sensors": [...],       # Hardware readings from /sensors, flattened
                                      # from their per-category grouping into one
@@ -1389,10 +1399,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # dict reads as unreachable everywhere it is consumed anyway.
         data.setdefault("nut", {})
         self._log_unreadable_ups(data["nut"])
-        if "docker_engine_containers" in data:
+        # Popped once and held, because both the containers and the stacks below
+        # read it; leaving it in ``data`` would publish the raw payload.
+        engine_containers = data.pop("docker_engine_containers", None)
+        if engine_containers is not None:
             data["docker_containers"] = _merge_docker_engine_state(
                 data["docker_containers"],
-                data.pop("docker_engine_containers"),
+                engine_containers,
             )
         elif data["docker_containers"]:
             # Engine proxy was transiently unavailable this poll; keep the
@@ -1403,7 +1416,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
         data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
-        data["compose_stacks"] = self._add_compose_stack_data(data["compose_stacks"], data.pop("docker_groups", None))
+        data["compose_stacks"] = self._add_compose_stack_data(
+            data["compose_stacks"],
+            data.pop("docker_groups", None),
+            engine_containers,
+        )
         data["lxc_containers"] = await self._guest_icon_cache.async_add_lxc_icons(data["lxc_containers"])
         data["vm_machines"] = await self._guest_icon_cache.async_add_vm_icons(data["vm_machines"])
         return data
@@ -1467,28 +1484,38 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self,
         stacks: list[dict[str, Any]],
         groups: list[dict[str, Any]] | None,
+        engine_containers: list[dict[str, Any]] | None,
     ) -> list[dict[str, Any]]:
         """
-        Stamp each Compose stack with its group data, icon URL and web link.
+        Stamp each Compose stack with its group and engine data, icon URL and web link.
 
         Synchronous, unlike its Docker counterpart: a stack carries its own
         ``iconUrl`` and ``webui``, so there is no per-item template to fetch and
-        no cache to keep. ``groups`` is ``None`` when that endpoint was not
+        no cache to keep. Either source is ``None`` when its endpoint was not
         fetched or failed this poll, in which case the fields it supplies are
         carried forward rather than blanked.
 
+        The engine pass runs second on purpose: it answers the counters from the
+        member containers themselves and overwrites the group's version of them.
+
         Returns:
             The stacks, each with ``icon_url`` and ``web_ui_url`` added (either
-            may be ``None``) on top of the group-derived fields.
+            may be ``None``) on top of the group- and engine-derived fields.
 
         """
         if not stacks:
             return stacks
 
+        previous = (self.data or {}).get("compose_stacks") or []
         if groups is not None:
             stacks = merge_group_data(stacks, groups)
         else:
-            stacks = carry_forward_group_data(stacks, (self.data or {}).get("compose_stacks") or [])
+            stacks = carry_forward_group_data(stacks, previous)
+
+        if engine_containers is not None:
+            stacks = merge_engine_state(stacks, engine_containers)
+        else:
+            stacks = carry_forward_engine_state(stacks, previous)
 
         host = self.config_entry.data.get(CONF_HOST)
         return [
