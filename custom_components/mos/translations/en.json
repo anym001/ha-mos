@@ -438,6 +438,12 @@
       "docker_autostart": {
         "name": "Autostart"
       },
+      "compose_update_available": {
+        "name": "Update available"
+      },
+      "compose_autostart": {
+        "name": "Autostart"
+      },
       "vm_autostart": {
         "name": "Autostart"
       },
