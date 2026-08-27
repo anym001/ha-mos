@@ -28,6 +28,7 @@ class MOSDeviceKind(StrEnum):
     """
 
     DOCKER = "docker_container"
+    COMPOSE = "compose_stack"
     LXC = "lxc_container"
     VM = "virtual_machine"
     DISK = "disk"
@@ -50,6 +51,7 @@ class MOSDeviceKind(StrEnum):
 # model, which matches how Home Assistant treats models everywhere else.
 DEVICE_KIND_MODEL_NAMES: dict[MOSDeviceKind, str] = {
     MOSDeviceKind.DOCKER: "Docker Container",
+    MOSDeviceKind.COMPOSE: "Compose Stack",
     MOSDeviceKind.LXC: "LXC Container",
     MOSDeviceKind.VM: "Virtual Machine",
     MOSDeviceKind.POOL: "Storage Pool",
@@ -262,6 +264,8 @@ PERMISSION_RESOURCE_BY_KEY = {
     "lxc_containers": "lxc",
     "docker_containers": "docker",
     "docker_engine_containers": "docker",
+    "compose_stacks": "docker",
+    "docker_groups": "docker",
     "vm_machines": "vm",
     "nut": "nut",
 }
@@ -298,6 +302,7 @@ CONF_ENABLE_SERVICES = "enable_services"
 CONF_ENABLE_LXC = "enable_lxc"
 CONF_ENABLE_DOCKER = "enable_docker"
 CONF_ENABLE_DOCKER_STATS = "enable_docker_stats"
+CONF_ENABLE_COMPOSE = "enable_compose"
 CONF_ENABLE_VM = "enable_vm"
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_ENABLE_NUT = "enable_nut"
@@ -320,6 +325,7 @@ DEFAULT_ENABLE_DOCKER = True
 # actually polled then follows from which of those entities the user leaves
 # enabled (see ``DockerStatsContext``).
 DEFAULT_ENABLE_DOCKER_STATS = False
+DEFAULT_ENABLE_COMPOSE = True
 DEFAULT_ENABLE_VM = True
 DEFAULT_ENABLE_SENSORS = True
 DEFAULT_ENABLE_NUT = True

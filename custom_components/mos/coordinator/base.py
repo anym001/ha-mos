@@ -29,6 +29,7 @@ from custom_components.mos.const import (
     AUTH_FAILURE_GRACE_PERIOD,
     AUTH_FAILURE_MIN_FAILURES,
     AUTH_FAILURE_STORE,
+    CONF_ENABLE_COMPOSE,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -37,6 +38,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_SENSORS,
     CONF_ENABLE_SERVICES,
     CONF_ENABLE_VM,
+    DEFAULT_ENABLE_COMPOSE,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
@@ -51,6 +53,12 @@ from custom_components.mos.const import (
     READ_PERMISSION_RESOURCES,
     RESOURCE_STALE_GRACE_PERIOD,
     RESOURCE_STALE_MIN_FAILURES,
+)
+from custom_components.mos.coordinator.compose import (
+    carry_forward_group_data,
+    merge_group_data,
+    resolve_stack_icon,
+    resolve_stack_web_ui_url,
 )
 from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS, DockerStatsCollector, DockerStatsContext
 from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
@@ -691,6 +699,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # containers still appear, just without live running state.
         if wanted(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER, "docker_engine_containers"):
             tasks["docker_engine_containers"] = client.async_get_docker_engine_containers()
+        if wanted(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE, "compose_stacks"):
+            tasks["compose_stacks"] = client.async_get_compose_stacks()
+        # The stacks' update flag and container counters live in the group list,
+        # which is a separate endpoint and so can fail on its own; the stacks
+        # then still appear, just without those three fields.
+        if wanted(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE, "docker_groups"):
+            tasks["docker_groups"] = client.async_get_docker_groups()
         if wanted(CONF_ENABLE_VM, DEFAULT_ENABLE_VM, "vm_machines"):
             tasks["vm_machines"] = client.async_get_vm_machines()
         if wanted(CONF_ENABLE_SENSORS, DEFAULT_ENABLE_SENSORS, "sensors"):
@@ -1254,6 +1269,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                                           # the raw Docker Engine proxy
                                           # (/docker/containers/json), plus "icon_url" and
                                           # "web_ui_url" from the cached MOS template
+            "compose_stacks": [...],   # Compose stacks from /docker/mos/compose/stacks,
+                                        # with "update_available", "container_count" and
+                                        # "running_containers" merged in from the
+                                        # auto-created group in /docker/mos/groups, plus
+                                        # "icon_url" and "web_ui_url"
             "vm_machines": [...],      # VMs from /vm/machines/usage
             "sensors": [...],       # Hardware readings from /sensors, flattened
                                      # from their per-category grouping into one
@@ -1325,6 +1345,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         data.setdefault("pools", [])
         data.setdefault("lxc_containers", [])
         data.setdefault("docker_containers", [])
+        data.setdefault("compose_stacks", [])
         data.setdefault("vm_machines", [])
         data.setdefault("sensors", [])
         # Defaults to an empty payload rather than {"reachable": False}: "not
@@ -1346,6 +1367,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
         data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
+        data["compose_stacks"] = self._add_compose_stack_data(data["compose_stacks"], data.pop("docker_groups", None))
         data["lxc_containers"] = await self._guest_icon_cache.async_add_lxc_icons(data["lxc_containers"])
         data["vm_machines"] = await self._guest_icon_cache.async_add_vm_icons(data["vm_machines"])
         return data
@@ -1403,6 +1425,43 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         # values: a frozen CPU reading is indistinguishable from a live one.
         return [
             {**container, **collected.get(container.get("name") or "", NO_DOCKER_STATS)} for container in containers
+        ]
+
+    def _add_compose_stack_data(
+        self,
+        stacks: list[dict[str, Any]],
+        groups: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        """
+        Stamp each Compose stack with its group data, icon URL and web link.
+
+        Synchronous, unlike its Docker counterpart: a stack carries its own
+        ``iconUrl`` and ``webui``, so there is no per-item template to fetch and
+        no cache to keep. ``groups`` is ``None`` when that endpoint was not
+        fetched or failed this poll, in which case the fields it supplies are
+        carried forward rather than blanked.
+
+        Returns:
+            The stacks, each with ``icon_url`` and ``web_ui_url`` added (either
+            may be ``None``) on top of the group-derived fields.
+
+        """
+        if not stacks:
+            return stacks
+
+        if groups is not None:
+            stacks = merge_group_data(stacks, groups)
+        else:
+            stacks = carry_forward_group_data(stacks, (self.data or {}).get("compose_stacks") or [])
+
+        host = self.config_entry.data.get(CONF_HOST)
+        return [
+            {
+                **stack,
+                "icon_url": resolve_stack_icon(stack),
+                "web_ui_url": resolve_stack_web_ui_url(stack, host),
+            }
+            for stack in stacks
         ]
 
     async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:

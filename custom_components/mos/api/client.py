@@ -658,6 +658,52 @@ class MOSApiClient:
         """
         return await self._get("docker/mos/containers", base_url=self._root_base_url)
 
+    async def async_get_compose_stacks(self) -> list[dict[str, Any]]:
+        """
+        Get the Docker Compose stacks from ``/docker/mos/compose/stacks``.
+
+        A stack is not a container and does not appear in
+        ``/docker/mos/containers`` at all - the two lists are disjoint. Its
+        member containers do show up in the raw Docker Engine list, tagged with
+        Compose's own ``com.docker.compose.project`` label, but MOS reports the
+        stack as a single unit: one ``running`` flag for all of its services.
+
+        Unlike a container's, a stack's icon and web interface URL come with the
+        list itself (``iconUrl``, ``webui``), so there is no per-stack template
+        fetch to go with this one.
+
+        Returns:
+            The parsed ``docker/mos/compose/stacks`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("docker/mos/compose/stacks", base_url=self._root_base_url)
+
+    async def async_get_docker_groups(self) -> list[dict[str, Any]]:
+        """
+        Get the container groups from ``/docker/mos/groups``.
+
+        Fetched for the sake of Compose stacks: MOS creates one group per stack
+        automatically (``compose: true``), and that group - not the stack list -
+        is where ``update_available`` and the running/total container counters
+        live. Groups a user built by hand carry ``compose: false`` and are
+        ignored here.
+
+        Returns:
+            The parsed ``docker/mos/groups`` payload.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        return await self._get("docker/mos/groups", base_url=self._root_base_url)
+
     async def async_get_docker_template(self, name: str) -> dict[str, Any]:
         """
         Get one container's MOS template from ``/docker/mos/templates/{name}``.

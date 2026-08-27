@@ -82,8 +82,10 @@ def _make_coordinator(hass: HomeAssistant, client: AsyncMock, entry: MockConfigE
 async def test_fetches_all_resources_by_default(
     hass: HomeAssistant,
     mock_client: AsyncMock,
+    *,
     mock_docker_containers: list[dict],
     mock_docker_engine_containers: list[dict],
+    mock_compose_stacks: list[dict],
     mock_sensors: dict[str, list[dict]],
 ) -> None:
     """With no options set, all resources are fetched; docker_containers gets the engine and template data merged in.
@@ -135,6 +137,21 @@ async def test_fetches_all_resources_by_default(
                 "icon_url": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/nginx.png",
                 "web_ui_url": None,
                 **NO_DOCKER_STATS,
+            },
+        ],
+        "compose_stacks": [
+            {
+                **mock_compose_stacks[0],
+                "update_available": False,
+                "container_count": 2,
+                "running_containers": 2,
+                "icon_url": mock_compose_stacks[0]["iconUrl"],
+                "web_ui_url": None,
+            },
+            {
+                **mock_compose_stacks[1],
+                "icon_url": None,
+                "web_ui_url": None,
             },
         ],
         "vm_machines": _with_icon_url(mock_client.async_get_vm_machines.return_value),

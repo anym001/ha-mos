@@ -116,6 +116,38 @@ async def test_docker_engine_containers_uses_raw_proxy(
     ]
 
 
+async def test_get_compose_stacks_uses_the_compose_endpoint(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Compose stacks live under their own path - they never appear in /docker/mos/containers."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/docker/mos/compose/stacks",
+        json=[{"name": "hatest", "services": ["alpha"], "running": True}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_compose_stacks() == [{"name": "hatest", "services": ["alpha"], "running": True}]
+
+
+async def test_get_docker_groups_returns_the_group_list(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """The group list is where a compose stack's update flag and container counters live."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/api/v1/docker/mos/groups",
+        json=[{"name": "hatest", "compose": True, "count": 2, "runningCount": 2, "update_available": False}],
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_get_docker_groups() == [
+        {"name": "hatest", "compose": True, "count": 2, "runningCount": 2, "update_available": False}
+    ]
+
+
 async def test_start_docker_container_posts_to_raw_proxy_and_handles_204(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,

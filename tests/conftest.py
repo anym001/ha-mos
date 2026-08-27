@@ -659,6 +659,78 @@ def mock_config_entry() -> MockConfigEntry:
 
 
 @pytest.fixture
+def mock_compose_stacks() -> list[dict[str, Any]]:
+    """
+    Return a realistic ``/docker/mos/compose/stacks`` payload.
+
+    The two stacks differ in the ways the entities care about. ``hatest`` runs,
+    has a web interface whose host is a placeholder, and has a matching group in
+    ``mock_docker_groups``. ``orphan`` is stopped, has no web interface and no
+    group at all - the case where the update flag and both counters must stay
+    absent rather than defaulting to something the server never said.
+    """
+    return [
+        {
+            "name": "hatest",
+            "services": ["alpha", "beta"],
+            "containers": ["compose_hatest-alpha-1", "compose_hatest-beta-1"],
+            "iconUrl": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/docker.png",
+            "autostart": False,
+            "webui": "http://[ADDRESS]:18099",
+            "no_autoupdate": False,
+            "running": True,
+        },
+        {
+            "name": "orphan",
+            "services": ["solo"],
+            "containers": ["compose_orphan-solo-1"],
+            "iconUrl": None,
+            "autostart": True,
+            "webui": None,
+            "no_autoupdate": False,
+            "running": False,
+        },
+    ]
+
+
+@pytest.fixture
+def mock_docker_groups() -> list[dict[str, Any]]:
+    """
+    Return a realistic ``/docker/mos/groups`` payload.
+
+    MOS creates one group per compose stack automatically; the hand-made group
+    here carries ``compose: false`` and must be ignored even though its name
+    matches a stack, since its counters describe a different set of containers.
+    """
+    return [
+        {
+            "id": "1787846094449",
+            "name": "hatest",
+            "index": 1,
+            "containers": ["compose_hatest-alpha-1", "compose_hatest-beta-1"],
+            "icon": None,
+            "compose": True,
+            "updated_at": "2026-08-27T15:54:57.593Z",
+            "count": 2,
+            "runningCount": 2,
+            "update_available": False,
+        },
+        {
+            "id": "1787846094450",
+            "name": "orphan",
+            "index": 2,
+            "containers": ["PushBits"],
+            "icon": None,
+            "compose": False,
+            "updated_at": "2026-08-27T15:54:57.593Z",
+            "count": 1,
+            "runningCount": 1,
+            "update_available": True,
+        },
+    ]
+
+
+@pytest.fixture
 def mock_client(
     *,
     mock_osinfo: dict[str, Any],
@@ -673,6 +745,8 @@ def mock_client(
     mock_docker_engine_containers: list[dict[str, Any]],
     mock_docker_templates: dict[str, dict[str, Any]],
     mock_docker_stats: dict[str, Any],
+    mock_compose_stacks: list[dict[str, Any]],
+    mock_docker_groups: list[dict[str, Any]],
     mock_vm_machines: list[dict[str, Any]],
     mock_sensors: dict[str, list[dict[str, Any]]],
     mock_nut: dict[str, Any],
@@ -688,6 +762,8 @@ def mock_client(
     client.async_get_lxc_containers.return_value = mock_lxc_containers
     client.async_get_docker_containers.return_value = mock_docker_containers
     client.async_get_docker_engine_containers.return_value = mock_docker_engine_containers
+    client.async_get_compose_stacks.return_value = mock_compose_stacks
+    client.async_get_docker_groups.return_value = mock_docker_groups
 
     async def _template(name: str) -> dict[str, Any]:
         """Answer like MOS does: the template, or 404 for a container it did not create."""

@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 
 # MOS writes the host placeholder as ``[ADDRESS]`` in the container label and as
 # ``[IP]`` in the template; the two mean the same thing.
-_HOST_PLACEHOLDER = re.compile(r"\[(?:ADDRESS|IP)\]")
-_PORT_PLACEHOLDER = re.compile(r"\[PORT:(\d+)\]")
+HOST_PLACEHOLDER = re.compile(r"\[(?:ADDRESS|IP)\]")
+PORT_PLACEHOLDER = re.compile(r"\[PORT:(\d+)\]")
 
 
 def _is_udp(protocol: Any) -> bool:
@@ -135,7 +135,7 @@ def resolve_web_ui_url(container: dict[str, Any], template: dict[str, Any] | Non
     if not isinstance(raw, str) or not raw or not isinstance(host, str) or not host:
         return None
 
-    resolved = _HOST_PLACEHOLDER.sub(host, raw)
+    resolved = HOST_PLACEHOLDER.sub(host, raw)
 
     unresolved = False
 
@@ -147,7 +147,7 @@ def resolve_web_ui_url(container: dict[str, Any], template: dict[str, Any] | Non
             return match.group(0)
         return str(port)
 
-    resolved = _PORT_PLACEHOLDER.sub(_substitute, resolved)
+    resolved = PORT_PLACEHOLDER.sub(_substitute, resolved)
     return None if unresolved else resolved
 
 
