@@ -110,6 +110,12 @@
     "lxc_stop_failed": {
       "message": "Stopp des LXC-Containers {name} fehlgeschlagen."
     },
+    "compose_start_failed": {
+      "message": "Compose-Stack {name} konnte nicht gestartet werden."
+    },
+    "compose_stop_failed": {
+      "message": "Compose-Stack {name} konnte nicht gestoppt werden."
+    },
     "docker_start_failed": {
       "message": "Start des Docker-Containers {name} fehlgeschlagen."
     },
@@ -499,6 +505,9 @@
     "switch": {
       "lxc_power": {
         "name": "Ein/Aus"
+      },
+      "compose_power": {
+        "name": "Power"
       },
       "docker_power": {
         "name": "Ein/Aus"
