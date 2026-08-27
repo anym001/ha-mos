@@ -12,6 +12,7 @@ custom_components/mos/
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
 │   ├── base.py              # Main coordinator class
+│   ├── compose.py           # Compose stack shaping: group join, icon and web link
 │   ├── docker_templates.py  # Per-container template cache and web link resolution
 │   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker and VM guests
 ├── data.py                  # Runtime data classes and type definitions
@@ -64,6 +65,11 @@ updates to all entities. It is organized as a package with separate modules for 
 **Package structure:**
 
 - `base.py` - Main coordinator class (`MOSDataUpdateCoordinator`)
+- `compose.py` - Joins each Docker Compose stack with the container group
+  MOS auto-creates for it, which is where `update_available` and the
+  running/total counters live rather than in the stack list. Also resolves the
+  stack's icon and web link, which — unlike a container's — need no template
+  fetch, since the stack list carries both
 - `docker_templates.py` - Caches each Docker container's MOS template, the only
   source for its icon and for the port mapping a stopped container's web link
   needs. Keyed by container id: MOS recreates a container when its template is
@@ -169,13 +175,14 @@ Provides common functionality for all entities in the integration:
 **Key class:** `MOSEntity` (in `entity/base.py`)
 
 **Device layout:** one device for the MOS server, plus a device per item that can appear and disappear at runtime —
-disks, storage pools, LXC/Docker containers, VMs and the UPS. Each of those is linked back to the server device and
+disks, storage pools, LXC/Docker containers, Compose stacks, VMs and the UPS. Each of those is linked back to the
+server device and
 created/removed by `async_setup_dynamic_entities` (see `entity_utils/dynamic_entities.py`), so an item that vanishes
 from MOS takes its entities and its now-empty device with it. That is distinct from a _failing_ resource, which keeps
 its data and only reports its entities unavailable — see the coordinator's staleness handling above.
 
 **Device kinds:** every container device declares what it is in its `model_id`, from `MOSDeviceKind` in `const.py`
-(`docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`). Each platform building
+(`docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`). Each platform building
 entities for a device passes it through `MOSEntity(device_kind=...)`, and all entities on one device must agree. This
 is the supported way to select devices of one kind from a dashboard card or a template
 (`device_attr(id, 'model_id')`) — device `identifiers` and display names are internal and must not be parsed. The
