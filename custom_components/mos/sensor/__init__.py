@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.mos.const import (
+    CONF_ENABLE_COMPOSE,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_LXC,
@@ -12,6 +13,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_POOLS,
     CONF_ENABLE_SENSORS,
     CONF_ENABLE_VM,
+    DEFAULT_ENABLE_COMPOSE,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_LXC,
@@ -23,6 +25,7 @@ from custom_components.mos.const import (
 )
 from custom_components.mos.entity_utils import async_setup_dynamic_entities, async_setup_ups_entities
 
+from .compose import build_compose_stack_sensors
 from .disks import build_disk_sensors
 from .docker import build_docker_container_sensors
 from .hardware import build_hardware_sensors, sensor_key
@@ -101,6 +104,16 @@ async def async_setup_entry(
             id_fn=lambda container: container["name"],
             entity_factory=build_docker_container_sensors,
             device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_docker_{name}"),
+        )
+    if entry.options.get(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE):
+        async_setup_dynamic_entities(
+            hass,
+            entry,
+            async_add_entities,
+            data_key="compose_stacks",
+            id_fn=lambda stack: stack["name"],
+            entity_factory=build_compose_stack_sensors,
+            device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_compose_{name}"),
         )
     if entry.options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
         async_setup_dynamic_entities(

@@ -311,6 +311,19 @@
       "docker_memory_percent": {
         "name": "Speicher in Prozent"
       },
+      "compose_state": {
+        "name": "Status",
+        "state": {
+          "running": "Läuft",
+          "stopped": "Gestoppt"
+        }
+      },
+      "compose_running_containers": {
+        "name": "Laufende Container"
+      },
+      "compose_container_count": {
+        "name": "Container"
+      },
       "vm_state": {
         "name": "Zustand",
         "state": {

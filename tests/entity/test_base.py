@@ -38,20 +38,20 @@ async def test_disks_and_pools_get_their_own_device(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Each disk/pool is a separate device linked back to the server device, same as LXC/Docker/VM items."""
+    """Each disk/pool is a separate device linked back to the server device, same as LXC/Docker/VM/Compose items."""
     registry = dr.async_get(hass)
     devices = dr.async_entries_for_config_entry(registry, setup_integration.entry_id)
 
     # 1 server device + 2 disks + 2 pools + 2 LXC containers + 2 Docker containers
-    # + 2 VMs + the UPS.
-    assert len(devices) == 12
+    # + 2 Compose stacks + 2 VMs + the UPS.
+    assert len(devices) == 14
     server_device = registry.async_get_device_by_identifier(
         (DOMAIN, setup_integration.entry_id), setup_integration.entry_id
     )
     assert server_device is not None
     assert server_device.name == "Sirius"
     container_devices = [device for device in devices if device.id != server_device.id]
-    assert len(container_devices) == 11
+    assert len(container_devices) == 13
     assert all(device.via_device_id == server_device.id for device in container_devices)
 
 
