@@ -250,6 +250,9 @@
       }
     },
     "switch": {
+      "compose_power": {
+        "default": "mdi:layers"
+      },
       "docker_power": {
         "default": "mdi:power"
       },

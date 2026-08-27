@@ -810,6 +810,49 @@ class MOSApiClient:
             content_type=None,
         )
 
+    async def async_start_compose_stack(self, name: str) -> None:
+        """
+        Start every service in a Compose stack.
+
+        Calls ``POST /docker/mos/compose/stacks/{name}/start``. Unlike Docker's,
+        this is a purpose-built MOS endpoint rather than a proxied Engine call,
+        and it acts on the whole stack - MOS exposes no per-service start, which
+        is why the switch this backs sits on the stack device.
+
+        Takes as long as ``docker compose up`` does for the whole stack, so it
+        gets the same extended timeout the container actions use.
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        await self._post(
+            f"docker/mos/compose/stacks/{_quote_segment(name)}/start",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
+
+    async def async_stop_compose_stack(self, name: str) -> None:
+        """
+        Stop every service in a Compose stack.
+
+        Calls ``POST /docker/mos/compose/stacks/{name}/stop`` (see
+        ``async_start_compose_stack`` for details).
+
+        Raises:
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        await self._post(
+            f"docker/mos/compose/stacks/{_quote_segment(name)}/stop",
+            base_url=self._root_base_url,
+            timeout=CONTAINER_ACTION_TIMEOUT,
+        )
+
     async def async_start_docker_container(self, name: str) -> None:
         """
         Start a single Docker container via the raw Docker Engine proxy.

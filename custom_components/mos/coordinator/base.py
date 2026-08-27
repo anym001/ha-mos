@@ -511,9 +511,9 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             )
         self.forbidden_resources = frozenset(denied)
 
-    def _optimistically_set_container_state(self, resource_key: str, name: str, state: str) -> None:
+    def _optimistically_patch_item(self, resource_key: str, name: str, patch: dict[str, Any]) -> None:
         """
-        Patch a single container's ``state`` in ``self.data`` and notify listeners, without polling.
+        Patch one item's fields in ``self.data`` and notify listeners, without polling.
 
         Used after a successful start/stop so the switch flips immediately,
         instead of waiting on (or triggering) a full ``_async_update_data``
@@ -529,12 +529,10 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         being disabled), this is a no-op - the next scheduled poll will pick
         up the real state regardless.
         """
-        containers: list[dict[str, Any]] = self.data.get(resource_key) or []
-        if not any(container.get("name") == name for container in containers):
+        items: list[dict[str, Any]] = self.data.get(resource_key) or []
+        if not any(item.get("name") == name for item in items):
             return
-        patched = [
-            {**container, "state": state} if container.get("name") == name else container for container in containers
-        ]
+        patched = [{**item, **patch} if item.get("name") == name else item for item in items]
         self.async_set_updated_data({**self.data, resource_key: patched})
 
     def _check_write_access(self, resource: str) -> None:
@@ -578,7 +576,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("lxc")
         client = self.config_entry.runtime_data.client
         await client.async_start_lxc_container(name)
-        self._optimistically_set_container_state("lxc_containers", name, "running")
+        self._optimistically_patch_item("lxc_containers", name, {"state": "running"})
 
     async def async_stop_lxc_container(self, name: str) -> None:
         """
@@ -594,7 +592,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("lxc")
         client = self.config_entry.runtime_data.client
         await client.async_stop_lxc_container(name)
-        self._optimistically_set_container_state("lxc_containers", name, "stopped")
+        self._optimistically_patch_item("lxc_containers", name, {"state": "stopped"})
 
     async def async_start_docker_container(self, name: str) -> None:
         """
@@ -610,7 +608,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("docker")
         client = self.config_entry.runtime_data.client
         await client.async_start_docker_container(name)
-        self._optimistically_set_container_state("docker_containers", name, "running")
+        self._optimistically_patch_item("docker_containers", name, {"state": "running"})
 
     async def async_stop_docker_container(self, name: str) -> None:
         """
@@ -626,7 +624,45 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self._check_write_access("docker")
         client = self.config_entry.runtime_data.client
         await client.async_stop_docker_container(name)
-        self._optimistically_set_container_state("docker_containers", name, "exited")
+        self._optimistically_patch_item("docker_containers", name, {"state": "exited"})
+
+    async def async_start_compose_stack(self, name: str) -> None:
+        """
+        Start a Compose stack, then optimistically flip its local state to running.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "docker".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("docker")
+        client = self.config_entry.runtime_data.client
+        await client.async_start_compose_stack(name)
+        # Only ``running`` is patched, not ``running_containers``: how many
+        # services actually came up is not knowable from a successful start, and
+        # the next poll answers it. See the stop path for why the reverse is.
+        self._optimistically_patch_item("compose_stacks", name, {"running": True})
+
+    async def async_stop_compose_stack(self, name: str) -> None:
+        """
+        Stop a Compose stack, then optimistically flip its local state to stopped.
+
+        Raises:
+            HomeAssistantError: If the token lacks write access to "docker".
+            MOSApiClientAuthenticationError: If the token is rejected.
+            MOSApiClientCommunicationError: If communication fails.
+            MOSApiClientError: For other API errors.
+
+        """
+        self._check_write_access("docker")
+        client = self.config_entry.runtime_data.client
+        await client.async_stop_compose_stack(name)
+        # A stopped stack has no running services, which is a fact rather than a
+        # guess - so the counter is patched here even though the start path
+        # leaves it alone.
+        self._optimistically_patch_item("compose_stacks", name, {"running": False, "running_containers": 0})
 
     async def async_start_vm_machine(self, name: str) -> None:
         """

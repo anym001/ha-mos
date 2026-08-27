@@ -148,6 +148,31 @@ async def test_get_docker_groups_returns_the_group_list(
     ]
 
 
+async def test_compose_stack_start_and_stop_hit_the_mos_endpoints(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Compose has purpose-built MOS endpoints, unlike Docker's proxied Engine calls."""
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/docker/mos/compose/stacks/hatest/start",
+        json={"success": True, "stack": "hatest"},
+    )
+    aioclient_mock.post(
+        "http://10.0.1.30:80/api/v1/docker/mos/compose/stacks/hatest/stop",
+        json={"success": True, "stack": "hatest"},
+    )
+
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    await client.async_start_compose_stack("hatest")
+    await client.async_stop_compose_stack("hatest")
+
+    assert [str(call[1]) for call in aioclient_mock.mock_calls] == [
+        "http://10.0.1.30/api/v1/docker/mos/compose/stacks/hatest/start",
+        "http://10.0.1.30/api/v1/docker/mos/compose/stacks/hatest/stop",
+    ]
+
+
 async def test_start_docker_container_posts_to_raw_proxy_and_handles_204(
     hass: HomeAssistant,
     aioclient_mock: AiohttpClientMocker,
