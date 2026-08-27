@@ -113,6 +113,12 @@
       "disk_type": {
         "default": "mdi:harddisk"
       },
+      "compose_container_count": {
+        "default": "mdi:layers-outline"
+      },
+      "compose_running_containers": {
+        "default": "mdi:layers"
+      },
       "docker_cpu_usage": {
         "default": "mdi:cpu-64-bit"
       },
