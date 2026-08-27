@@ -8,6 +8,9 @@
           "off": "mdi:check-circle-outline"
         }
       },
+      "compose_autostart": {
+        "default": "mdi:play-box-outline"
+      },
       "docker_autostart": {
         "default": "mdi:play-box-outline"
       },
