@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from custom_components.mos.coordinator.compose import (
+    carry_forward_engine_state,
     carry_forward_group_data,
+    merge_engine_state,
     merge_group_data,
     resolve_stack_icon,
     resolve_stack_web_ui_url,
@@ -24,6 +26,16 @@ def _stack(**overrides: Any) -> dict[str, Any]:
         "autostart": False,
         "webui": "http://[ADDRESS]:18099",
         "running": True,
+    } | overrides
+
+
+def _member(name: str, **overrides: Any) -> dict[str, Any]:
+    """Build one running, healthy member container as the engine list reports it."""
+    return {
+        "Names": [f"/{name}"],
+        "Image": "busybox:latest",
+        "State": "running",
+        "Health": {"Status": "healthy", "FailingStreak": 0},
     } | overrides
 
 
@@ -102,3 +114,77 @@ def test_icon_must_be_loadable_by_a_browser() -> None:
     assert resolve_stack_icon(_stack()) == "https://example.invalid/icon.png"
     assert resolve_stack_icon(_stack(iconUrl=None)) is None
     assert resolve_stack_icon(_stack(iconUrl="/docker_icons/hatest.png")) is None
+
+
+def test_counters_are_derived_from_the_member_containers() -> None:
+    """The engine answers them from the containers themselves, so no group is needed."""
+    engine = [
+        _member("compose_hatest-alpha-1"),
+        _member("compose_hatest-beta-1", State="exited"),
+    ]
+
+    merged = merge_engine_state([_stack()], engine)
+
+    assert merged[0]["container_count"] == 2
+    assert merged[0]["running_containers"] == 1
+
+
+def test_engine_counters_win_over_the_groups() -> None:
+    """Both describe the same thing, and only one of them counted the actual containers."""
+    stacks = merge_group_data([_stack()], [_group(runningCount=2)])
+
+    merged = merge_engine_state(stacks, [_member("compose_hatest-alpha-1", State="exited")])
+
+    assert merged[0]["running_containers"] == 0
+    # The one field the engine cannot answer is left alone.
+    assert merged[0]["update_available"] is False
+
+
+def test_members_are_matched_by_name_not_by_compose_label() -> None:
+    """A container of another stack must not be counted into this one."""
+    engine = [_member("compose_hatest-alpha-1"), _member("compose_other-alpha-1")]
+
+    merged = merge_engine_state([_stack(containers=["compose_hatest-alpha-1"])], engine)
+
+    assert merged[0]["container_count"] == 1
+    assert merged[0]["running_containers"] == 1
+
+
+def test_one_failing_service_makes_the_stack_a_problem() -> None:
+    """MOS reports no stack-level health, so any unhealthy member is the verdict."""
+    engine = [
+        _member("compose_hatest-alpha-1", Health={"Status": "unhealthy", "FailingStreak": 3}),
+        _member("compose_hatest-beta-1"),
+    ]
+
+    assert merge_engine_state([_stack()], engine)[0]["unhealthy"] is True
+
+
+def test_a_stack_with_no_running_healthcheck_has_no_verdict() -> None:
+    """Docker leaves a stopped container's health at whatever it last was."""
+    stopped = [_member("compose_hatest-alpha-1", State="exited", Health={"Status": "unhealthy"})]
+    unchecked = [_member("compose_hatest-alpha-1", Health={"Status": "none"})]
+
+    assert merge_engine_state([_stack()], stopped)[0]["unhealthy"] is None
+    assert merge_engine_state([_stack()], unchecked)[0]["unhealthy"] is None
+
+
+def test_images_are_deduplicated() -> None:
+    """Several services of one stack routinely share an image, and listing it twice says nothing."""
+    engine = [
+        _member("compose_hatest-alpha-1"),
+        _member("compose_hatest-beta-1", Image="nginx:alpine"),
+    ]
+
+    assert merge_engine_state([_stack()], engine)[0]["images"] == ["busybox:latest", "nginx:alpine"]
+
+
+def test_engine_fields_survive_a_failed_proxy_request() -> None:
+    """The stack list still answered, so the last known figures beat blanks."""
+    previous = merge_engine_state([_stack()], [_member("compose_hatest-alpha-1")])
+
+    carried = carry_forward_engine_state([_stack(running=False)], previous)
+
+    assert carried[0]["running_containers"] == 1
+    assert carried[0]["images"] == ["busybox:latest"]
+    assert carried[0]["running"] is False

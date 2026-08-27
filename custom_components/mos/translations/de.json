@@ -444,6 +444,9 @@
       "docker_autostart": {
         "name": "Autostart"
       },
+      "compose_healthy": {
+        "name": "Zustand"
+      },
       "compose_update_available": {
         "name": "Update verfügbar"
       },

@@ -12,7 +12,7 @@ custom_components/mos/
 ├── coordinator/             # Data update coordinator package
 │   ├── __init__.py          # Exports MOSDataUpdateCoordinator
 │   ├── base.py              # Main coordinator class
-│   ├── compose.py           # Compose stack shaping: group join, icon and web link
+│   ├── compose.py           # Compose stack shaping: group and engine join, icon, web link
 │   ├── docker_templates.py  # Per-container template cache and web link resolution
 │   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker and VM guests
 ├── data.py                  # Runtime data classes and type definitions
@@ -65,11 +65,13 @@ updates to all entities. It is organized as a package with separate modules for 
 **Package structure:**
 
 - `base.py` - Main coordinator class (`MOSDataUpdateCoordinator`)
-- `compose.py` - Joins each Docker Compose stack with the container group
-  MOS auto-creates for it, which is where `update_available` and the
-  running/total counters live rather than in the stack list. Also resolves the
-  stack's icon and web link, which — unlike a container's — need no template
-  fetch, since the stack list carries both
+- `compose.py` - Shapes each Docker Compose stack from two sources the stack
+  list itself does not carry: the container group MOS auto-creates per stack,
+  which holds `update_available`, and the raw Docker Engine list, from which the
+  stack's member containers supply the running/total counters, a health verdict
+  and the images in use. The engine list is already fetched for the containers,
+  so this costs no request. Also resolves the stack's icon and web link, which —
+  unlike a container's — need no template fetch, since the stack list carries both
 - `docker_templates.py` - Caches each Docker container's MOS template, the only
   source for its icon and for the port mapping a stopped container's web link
   needs. Keyed by container id: MOS recreates a container when its template is

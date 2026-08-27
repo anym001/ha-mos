@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.mos.const import DOMAIN, MOSDeviceKind
-from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
@@ -69,18 +68,28 @@ async def test_counters_come_from_the_auto_created_group(
     assert total.state == "2"
 
 
-async def test_a_stack_without_a_group_reports_unknown_counters(
+async def test_counters_survive_a_stack_having_no_group(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Unknown is the honest answer - a zero would claim the stack has no containers."""
+    """The engine answers both counters from the member containers, so the group is not needed for them."""
     running = hass.states.get("sensor.sirius_compose_orphan_running_containers")
     assert running is not None
-    assert running.state == STATE_UNKNOWN
+    assert running.state == "0"
 
     total = hass.states.get("sensor.sirius_compose_orphan_containers")
     assert total is not None
-    assert total.state == STATE_UNKNOWN
+    assert total.state == "1"
+
+
+async def test_state_sensor_lists_the_images_in_use(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The stack list reports no images at all; they come from the member containers."""
+    state = hass.states.get("sensor.sirius_compose_hatest_state")
+    assert state is not None
+    assert state.attributes["images"] == ["busybox:latest", "nginx:alpine"]
 
 
 async def test_each_stack_gets_its_own_device_marked_as_a_stack(

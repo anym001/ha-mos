@@ -100,7 +100,8 @@ async def test_starting_leaves_the_running_counter_to_the_next_poll(
     await hass.async_block_till_done()
 
     assert hass.states.get("switch.sirius_compose_orphan_power").state == "on"
-    assert hass.states.get("sensor.sirius_compose_orphan_running_containers").state == "unknown"
+    # Still what the engine last counted, not a guess at what the start brought up.
+    assert hass.states.get("sensor.sirius_compose_orphan_running_containers").state == "0"
 
 
 @pytest.mark.parametrize(
