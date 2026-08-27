@@ -6,9 +6,9 @@ the container on the MOS server. It doubles as the container's running-state
 indicator (see binary_sensor/lxc.py, which deliberately does not duplicate
 this).
 
-Docker containers have no equivalent switch yet: MOS has no single-container
-start/stop endpoint for Docker (only compose-stack and group level), so this
-is LXC-only until such an endpoint exists.
+Docker's equivalent lives in switch/docker.py and works differently: MOS
+exposes no purpose-built single-container start/stop for Docker, so that one
+drives the raw Docker Engine proxy instead.
 """
 
 from __future__ import annotations
