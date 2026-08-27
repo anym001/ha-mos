@@ -21,6 +21,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture; Docker containers also get a web link and image metadata, plus a health sensor
+- **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -28,11 +29,11 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, hardware sensors, UPS readings
-- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, UPS power/battery flags
-- **`switch`** — LXC container, Docker container and VM power
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, hardware sensors, UPS readings
+- **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container health, Compose stack update/autostart, UPS power/battery flags
+- **`switch`** — LXC container, Docker container, Compose stack and VM power
 
-Disks, pools, LXC/Docker containers, VMs and the UPS each get their **own device**, linked to the server device, so you can enable or disable one of them from its device page instead of hunting through a single long entity list. They follow your server: a container you delete in MOS takes its entities with it, and a new one appears on its own within a poll or two.
+Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get their **own device**, linked to the server device, so you can enable or disable one of them from its device page instead of hunting through a single long entity list. They follow your server: a container you delete in MOS takes its entities with it, and a new one appears on its own within a poll or two.
 
 **Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, which counts as an answer rather than a failure: those entities are left out, the log names them once, and nothing else is affected. The request goes out on every poll anyway, so after a MOS update the matching entities appear on their own within a poll or two — no version numbers to look up, nothing to reload. Switch the category off in the options if you would rather it stopped asking.
 
@@ -73,23 +74,23 @@ Connection details can be changed later via **⋮** → **Reconfigure**, without
 Click **Configure** on the integration to change these anytime — the integration reloads itself:
 
 - **Update interval** — 30–3600 seconds between polls, 30 by default. Use the low end to track container/VM state closely; 5–30 minutes is plenty for slow-moving values like disk temperature or pool usage. Switches apply immediately, without waiting for the next poll.
-- **Categories** — disks, pools, services, LXC, Docker, VMs, hardware sensors, UPS. Each toggles independently and is on by default; a disabled category isn't fetched at all. System info and health (CPU, memory, swap) are always on.
+- **Categories** — disks, pools, services, LXC, Docker, Compose stacks, VMs, hardware sensors, UPS. Each toggles independently and is on by default; a disabled category isn't fetched at all. System info and health (CPU, memory, swap) are always on.
 - **Docker container stats** — off by default. Adds a CPU and memory sensor to each Docker container, at the cost of one extra request per poll for every running container with stats enabled — disable a container's stats sensors on its device page to stop those requests. With many containers, consider excluding these sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/), since they change on every poll.
 
 ## Security
 
 **Give the token only the access it needs.** MOS tokens come in three modes. **Full** grants far more than this integration touches. **Read-only** blocks writes. **Custom** sets the level per resource and is the best fit:
 
-| Resource | Level             | Needed for                                          |
-| -------- | ----------------- | --------------------------------------------------- |
-| `mos`    | `read`            | System info, services, hardware sensors — required  |
-| `system` | `read`            | CPU load, memory and swap — required                |
-| `disks`  | `read`            | Disk entities, if the category is enabled           |
-| `pools`  | `read`            | Pool entities, if the category is enabled           |
-| `lxc`    | `read` or `write` | LXC entities — `write` only for the power switch    |
-| `docker` | `read` or `write` | Docker entities — `write` only for the power switch |
-| `vm`     | `read` or `write` | VM entities — `write` only for the power switch     |
-| `nut`    | `read`            | UPS entities, if the category is enabled            |
+| Resource | Level             | Needed for                                                                        |
+| -------- | ----------------- | --------------------------------------------------------------------------------- |
+| `mos`    | `read`            | System info, services, hardware sensors — required                                |
+| `system` | `read`            | CPU load, memory and swap — required                                              |
+| `disks`  | `read`            | Disk entities, if the category is enabled                                         |
+| `pools`  | `read`            | Pool entities, if the category is enabled                                         |
+| `lxc`    | `read` or `write` | LXC entities — `write` only for the power switch                                  |
+| `docker` | `read` or `write` | Docker container and Compose stack entities — `write` only for the power switches |
+| `vm`     | `read` or `write` | VM entities — `write` only for the power switch                                   |
+| `nut`    | `read`            | UPS entities, if the category is enabled                                          |
 
 A row can be missing on an older server: a resource only appears in this list once that MOS version has the matching endpoint. There is nothing to grant and nothing to fix then — the missing endpoint is handled as described [above](#features), and the row shows up in the token dialog once MOS is updated.
 
