@@ -15,7 +15,13 @@ from custom_components.mos.api import (
     MOSApiClientPermissionError,
 )
 from custom_components.mos.coordinator import guest_icons
-from custom_components.mos.coordinator.guest_icons import GuestIconCache, docker_icon_path, lxc_icon_path, vm_icon_path
+from custom_components.mos.coordinator.guest_icons import (
+    GuestIconCache,
+    compose_icon_path,
+    docker_icon_path,
+    lxc_icon_path,
+    vm_icon_path,
+)
 
 ROOT_URL = "http://10.0.1.30:80"
 
@@ -47,6 +53,13 @@ def test_a_nameless_guest_has_no_icon_path() -> None:
 def test_guest_name_is_percent_encoded() -> None:
     """A name is server data, not a promise; it must stay one path segment."""
     assert docker_icon_path("../../etc/passwd") == "docker_icons/..%2F..%2Fetc%2Fpasswd.png"
+
+
+def test_a_stack_icon_lives_under_the_docker_directory() -> None:
+    """MOS mirrors a stack's icon there rather than under a directory of its own."""
+    assert compose_icon_path("hahealth") == "docker_icons/compose/hahealth.png"
+    assert compose_icon_path(None) is None
+    assert compose_icon_path("../../etc/passwd") == "docker_icons/compose/..%2F..%2Fetc%2Fpasswd.png"
 
 
 def test_lxc_without_a_custom_icon_uses_the_distribution_artwork() -> None:

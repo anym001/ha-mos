@@ -8,6 +8,8 @@ from custom_components.mos.const import DOMAIN, MOSDeviceKind
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
+    from unittest.mock import AsyncMock
+
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
     from homeassistant.core import HomeAssistant
@@ -90,6 +92,21 @@ async def test_state_sensor_lists_the_images_in_use(
     state = hass.states.get("sensor.sirius_compose_hatest_state")
     assert state is not None
     assert state.attributes["images"] == ["busybox:latest", "nginx:alpine"]
+
+
+async def test_the_server_hosted_icon_wins_over_the_stacks_cdn_url(
+    hass: HomeAssistant,
+    mock_client: AsyncMock,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Same picture either way, but the local mirror also loads on a browser with no internet access."""
+    mock_client.async_static_asset_exists.return_value = True
+    await hass.config_entries.async_reload(setup_integration.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.sirius_compose_hatest_state")
+    assert state is not None
+    assert state.attributes["entity_picture"] == "http://10.0.1.30:80/docker_icons/compose/hatest.png"
 
 
 async def test_each_stack_gets_its_own_device_marked_as_a_stack(

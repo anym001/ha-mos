@@ -1416,7 +1416,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
         data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
-        data["compose_stacks"] = self._add_compose_stack_data(
+        data["compose_stacks"] = await self._async_add_compose_stack_data(
             data["compose_stacks"],
             data.pop("docker_groups", None),
             engine_containers,
@@ -1480,7 +1480,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             {**container, **collected.get(container.get("name") or "", NO_DOCKER_STATS)} for container in containers
         ]
 
-    def _add_compose_stack_data(
+    async def _async_add_compose_stack_data(
         self,
         stacks: list[dict[str, Any]],
         groups: list[dict[str, Any]] | None,
@@ -1489,14 +1489,19 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         """
         Stamp each Compose stack with its group and engine data, icon URL and web link.
 
-        Synchronous, unlike its Docker counterpart: a stack carries its own
-        ``iconUrl`` and ``webui``, so there is no per-item template to fetch and
-        no cache to keep. Either source is ``None`` when its endpoint was not
-        fetched or failed this poll, in which case the fields it supplies are
-        carried forward rather than blanked.
+        Needs no per-item template fetch, unlike its Docker counterpart: a stack
+        carries its own ``iconUrl`` and ``webui``. Either source is ``None`` when
+        its endpoint was not fetched or failed this poll, in which case the
+        fields it supplies are carried forward rather than blanked.
 
         The engine pass runs second on purpose: it answers the counters from the
         member containers themselves and overwrites the group's version of them.
+
+        The icon prefers the copy MOS mirrors under its own web root when a stack
+        was given one (``/docker_icons/compose/<name>.png``) and falls back to
+        the URL the stack reports, which normally points at a public CDN. Same
+        picture either way, but the local one also loads on a dashboard whose
+        browser has no internet access.
 
         Returns:
             The stacks, each with ``icon_url`` and ``web_ui_url`` added (either
@@ -1518,14 +1523,17 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             stacks = carry_forward_engine_state(stacks, previous)
 
         host = self.config_entry.data.get(CONF_HOST)
-        return [
-            {
-                **stack,
-                "icon_url": resolve_stack_icon(stack),
-                "web_ui_url": resolve_stack_web_ui_url(stack, host),
-            }
-            for stack in stacks
-        ]
+        decorated: list[dict[str, Any]] = []
+        for stack in stacks:
+            name = stack.get("name") or ""
+            decorated.append(
+                {
+                    **stack,
+                    "icon_url": await self._guest_icon_cache.async_compose_icon_url(name) or resolve_stack_icon(stack),
+                    "web_ui_url": resolve_stack_web_ui_url(stack, host),
+                }
+            )
+        return decorated
 
     async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
