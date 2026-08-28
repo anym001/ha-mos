@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.5](https://github.com/anym001/ha-mos/compare/v0.2.4...v0.2.5) (2026-08-28)
+
+
+### Features
+
+* **binary-sensor:** add compose stack update and autostart flags ([1a665c0](https://github.com/anym001/ha-mos/commit/1a665c07cac2f4d16244e35ae0f58f9662baa2b1))
+* **compose:** derive stack health, counters and images from the engine ([3d9a2ee](https://github.com/anym001/ha-mos/commit/3d9a2ee8a31a6c9e88c5bda44e9fef3930205378))
+* **compose:** prefer the server-hosted stack icon over the CDN url ([4b3fddf](https://github.com/anym001/ha-mos/commit/4b3fddfcc70e05884cec34ed40692a128b150862))
+* **coordinator:** add docker compose stacks as a data source ([ab106d3](https://github.com/anym001/ha-mos/commit/ab106d3b3dabd3e4251fea9a63fa892caa492ad2))
+* **sensor:** add compose stack state and container counters ([fd7b1eb](https://github.com/anym001/ha-mos/commit/fd7b1eb9c9999df718f1b13612969d223a18bccc))
+* **switch:** add compose stack power switch ([33d87cc](https://github.com/anym001/ha-mos/commit/33d87cc52291e960d637fdc8b77f645e34f9fb14))
+
 ## [0.2.4](https://github.com/anym001/ha-mos/compare/v0.2.3...v0.2.4) (2026-08-19)
 
 
