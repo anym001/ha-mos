@@ -6,6 +6,7 @@ plain static files under its own web root, outside ``/api/v1`` and needing no
 token::
 
     /docker_icons/<container name>.png
+    /docker_icons/compose/<stack name>.png
     /os_icons/<distribution>.png        - the stock per-distribution artwork
     /lxc_custom/<guest name>.png        - a custom icon uploaded for one guest
 
@@ -43,6 +44,9 @@ from custom_components.mos.api import MOSApiClientError, MOSApiClientNotFoundErr
 from custom_components.mos.const import LOGGER
 
 _DOCKER_ICON_DIR = "docker_icons"
+# A stack's icon is stored under the Docker directory rather than one of its
+# own; MOS mirrors it there when the stack is created or updated with an icon.
+_COMPOSE_ICON_DIR = "docker_icons/compose"
 _OS_ICON_DIR = "os_icons"
 # Shared by LXC and VMs despite the name: MOS stores a VM's uploaded icon in the
 # same directory as an LXC container's.
@@ -94,6 +98,20 @@ def docker_icon_path(name: str | None) -> str | None:
 
     """
     return _asset_path(_DOCKER_ICON_DIR, name)
+
+
+def compose_icon_path(name: str | None) -> str | None:
+    """
+    Return the icon path for a Compose stack.
+
+    Like Docker's, named after the thing itself: a stack given an icon has MOS
+    download it to this path, and one without simply 404s.
+
+    Returns:
+        The path, or ``None`` for a stack with no name.
+
+    """
+    return _asset_path(_COMPOSE_ICON_DIR, name)
 
 
 def lxc_icon_path(detail: dict[str, Any]) -> str | None:
@@ -293,6 +311,16 @@ class GuestIconCache:
 
         """
         return await self.async_icon_url(docker_icon_path(name))
+
+    async def async_compose_icon_url(self, name: str | None) -> str | None:
+        """
+        Return the server-hosted icon URL for a Compose stack.
+
+        Returns:
+            The URL, or ``None`` when the server hosts no icon for it.
+
+        """
+        return await self.async_icon_url(compose_icon_path(name))
 
     async def async_add_lxc_icons(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """

@@ -14,7 +14,7 @@ custom_components/mos/
 │   ├── base.py              # Main coordinator class
 │   ├── compose.py           # Compose stack shaping: group and engine join, icon, web link
 │   ├── docker_templates.py  # Per-container template cache and web link resolution
-│   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker and VM guests
+│   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker, Compose and VM guests
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── manifest.json            # Integration metadata
@@ -70,15 +70,16 @@ updates to all entities. It is organized as a package with separate modules for 
   which holds `update_available`, and the raw Docker Engine list, from which the
   stack's member containers supply the running/total counters, a health verdict
   and the images in use. The engine list is already fetched for the containers,
-  so this costs no request. Also resolves the stack's icon and web link, which —
-  unlike a container's — need no template fetch, since the stack list carries both
+  so this costs no request. Also resolves the stack's web link, which — unlike a
+  container's — needs no template fetch, since the stack list carries it outright
 - `docker_templates.py` - Caches each Docker container's MOS template, the only
   source for its icon and for the port mapping a stopped container's web link
   needs. Keyed by container id: MOS recreates a container when its template is
   edited, so the id already in the poll's payload invalidates the cache and the
   steady state issues no requests
 - `guest_icons.py` - Resolves the icon URL MOS serves off its own web root
-  (`/docker_icons`, `/os_icons`, `/lxc_custom`) for Docker containers, LXC
+  (`/docker_icons`, `/docker_icons/compose`, `/os_icons`, `/lxc_custom`) for
+  Docker containers, Compose stacks, LXC
   containers and VMs, confirming each candidate with a HEAD before it reaches
   the frontend. Caches both which file a guest points at and whether that file
   exists, so the steady state issues no requests
