@@ -269,11 +269,11 @@ half did not. Nothing on a container device said what kind of thing it was: `man
 Both are internal — one is a format we reserve the right to change, the other is the user's to rename.
 
 **Decision:** Add a `MOSDeviceKind` enum in `const.py` and write its value to each container device's `model_id`:
-`docker_container`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`. Every platform that builds
-entities for a device (sensor, binary_sensor, switch) passes the same kind through the new `device_kind` argument on
-`MOSEntity`. The kinds MOS provides itself additionally get a human-readable `model` from `DEVICE_KIND_MODEL_NAMES`
-("Docker Container", "LXC Container", "Virtual Machine", "Storage Pool"). The server device is untouched — it is the
-MOS server and needs nothing to tell it apart.
+`docker_container`, `compose_stack`, `lxc_container`, `virtual_machine`, `disk`, `storage_pool`, `ups`. Every platform
+that builds entities for a device (sensor, binary_sensor, switch) passes the same kind through the new `device_kind`
+argument on `MOSEntity`. The kinds MOS provides itself additionally get a human-readable `model` from
+`DEVICE_KIND_MODEL_NAMES` ("Docker Container", "Compose Stack", "LXC Container", "Virtual Machine", "Storage Pool").
+The server device is untouched — it is the MOS server and needs nothing to tell it apart.
 
 **Rationale:**
 
