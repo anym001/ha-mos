@@ -309,6 +309,45 @@ The server device is untouched — it is the MOS server and needs nothing to tel
 
 ---
 
+### Compose Stack Usage Has Its Own Option and Its Own Sum
+
+**Date:** 2026-08-29
+
+**Context:** A Compose stack is a device like a Docker container, and a dashboard covering both wants the same CPU and
+memory fields from each. MOS reports neither for a stack. The figures exist only in the Docker Engine's stats
+endpoint, which answers for one container at a time and takes about a second per call, and a stack's members are
+generated containers (`compose_<stack>-<service>-1`) that appear only in the raw engine list.
+
+**Decision:** Sum the running members' figures into per-stack `cpu_usage`, `memory_usage` and `memory_percent`
+sensors, behind `enable_compose_stats` — a second option, off by default, separate from `enable_docker_stats`. Which
+stacks are measured follows from `ComposeStatsContext`, the stack counterpart of `DockerStatsContext`. The percentage
+is reported only when every measured member reports the same memory limit.
+
+**Rationale:**
+
+- The two options measure different amounts of work. A Docker container costs one request per device; a stack costs
+  one per running service, so a handful of large stacks costs more than a long list of containers. Folding them into
+  one toggle would sign a user up for the second bill on accepting the first.
+- The engine stats endpoint answers for a generated member name exactly as it does for a MOS-managed container, so
+  the collector needs no new client call — only a caller that decides which members are running, which the engine
+  list already in the poll supplies.
+- Only running members are measured. Docker answers for a stopped container with zeroes, which would read as an idle
+  service rather than an absent one.
+- CPU and used bytes add up because both are absolute amounts on the same host. A percentage does not: it needs a
+  single budget, and members share one only when they are limited alike — the usual case, since Docker reports an
+  unconstrained container as limited to the host's entire RAM. Where they differ there is no denominator, and the
+  sensor reads unknown rather than authoritative-looking nonsense.
+
+**Consequences:**
+
+- A stack's stats sensors read unknown for one poll after a start or reload: the first refresh runs before any entity
+  registers a context.
+- Nothing is carried forward. A poll without the engine list, or one where every member's request fails, blanks the
+  figures instead of holding the previous ones, which a reader cannot tell from live values.
+- `enable_compose_stats` is a released option name from here on; renaming it silently resets the setting.
+
+---
+
 ## Future Considerations
 
 ### State Restoration

@@ -6,12 +6,17 @@ descriptive fields as attributes, and its icon as the entity picture.
 
 Where a stack genuinely differs, so does this module. There are no version
 sensors - MOS tracks images per container and a stack has several, so it reports
-no installed/latest pair to put in one. There are no CPU or memory sensors
-either: Docker measures one container at a time, and a per-stack figure would
-cost one request per service on every poll to produce a number nobody asked for.
-What a stack has instead is its two counters and the images its services run,
-both derived from the member containers in the raw Docker Engine list (see
-coordinator/compose.py).
+no installed/latest pair to put in one. What a stack has instead is its two
+counters and the images its services run, both derived from the member
+containers in the raw Docker Engine list (see coordinator/compose.py).
+
+CPU and memory come from a second, optional group (``STATS_ENTITY_DESCRIPTIONS``)
+behind an option of its own. Docker measures one container at a time, so a
+stack's figures are summed over its running services and cost a request each on
+every poll - a bill that scales with the size of the stack rather than with the
+number of devices, which is why it is not folded into the Docker stats option.
+Like their Docker counterparts they read unknown for one cycle after a start or
+reload - see ``_async_add_compose_stats``.
 """
 
 from __future__ import annotations
@@ -20,9 +25,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from custom_components.mos.const import MOSDeviceKind
+from custom_components.mos.const import CONF_ENABLE_COMPOSE_STATS, DEFAULT_ENABLE_COMPOSE_STATS, MOSDeviceKind
+from custom_components.mos.coordinator.compose import ComposeStatsContext
 from custom_components.mos.entity import MOSEntity
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.const import PERCENTAGE, UnitOfInformation
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -89,6 +96,10 @@ class MOSComposeStackSensorEntityDescription(SensorEntityDescription):
     # Resources this sensor reads beyond the one the dynamic helper syncs it
     # against, so it can report itself unavailable once they go stale.
     extra_resource_keys: frozenset[str] = frozenset()
+    # Whether this sensor's value costs a request per running service. Such a
+    # sensor registers a ``ComposeStatsContext``, which is how the coordinator
+    # learns that this stack is worth measuring.
+    needs_stats: bool = False
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
@@ -121,6 +132,49 @@ ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
     ),
 )
 
+# Only created when the Compose stats option is on, and each one costs a request
+# per running service per poll for as long as it stays enabled.
+#
+# The keys, device classes and state classes mirror the Docker container stats
+# down to the suggested unit, so a dashboard covering both reads the same fields
+# from a stack as from a container. Every one of them needs the engine list on
+# top of the stack list: it is what says which services are running, and an
+# unmeasured service contributes nothing to the sum.
+STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
+    MOSComposeStackSensorEntityDescription(
+        key="cpu_usage",
+        translation_key="compose_cpu_usage",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda stack: stack.get("stats_cpu_percent"),
+        needs_stats=True,
+        extra_resource_keys=frozenset({"docker_engine_containers"}),
+    ),
+    MOSComposeStackSensorEntityDescription(
+        key="memory_usage",
+        translation_key="compose_memory_usage",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.MEBIBYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda stack: stack.get("stats_memory_bytes"),
+        needs_stats=True,
+        extra_resource_keys=frozenset({"docker_engine_containers"}),
+    ),
+    # Reads unknown, rather than wrong, for a stack whose services are limited
+    # differently from one another - there is no single budget to take a
+    # percentage of then (see ``_sum_stats``).
+    MOSComposeStackSensorEntityDescription(
+        key="memory_percent",
+        translation_key="compose_memory_percent",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda stack: stack.get("stats_memory_percent"),
+        needs_stats=True,
+        extra_resource_keys=frozenset({"docker_engine_containers"}),
+    ),
+)
+
 
 class MOSComposeStackSensor(SensorEntity, MOSEntity):
     """Sensor for a single Compose stack, backed by a value function."""
@@ -144,6 +198,11 @@ class MOSComposeStackSensor(SensorEntity, MOSEntity):
             container_device=(f"compose_{name}", f"Compose {name}"),
             device_kind=MOSDeviceKind.COMPOSE,
             device_configuration_url=device_configuration_url,
+            # Only a stats sensor announces itself to the coordinator: it is the
+            # one whose value is not already in the poll. Home Assistant drops
+            # the context when the entity is removed, so disabling the sensor is
+            # what stops its stack from being measured.
+            coordinator_context=ComposeStatsContext(name) if entity_description.needs_stats else None,
         )
         self.resource_keys |= entity_description.extra_resource_keys
 
@@ -195,7 +254,10 @@ def build_compose_stack_sensors(coordinator: MOSDataUpdateCoordinator, name: str
     entry_id = coordinator.config_entry.entry_id
     stack = _find_stack(coordinator, name) or {}
     device_configuration_url = stack.get("web_ui_url")
+    descriptions = ENTITY_DESCRIPTIONS
+    if coordinator.config_entry.options.get(CONF_ENABLE_COMPOSE_STATS, DEFAULT_ENABLE_COMPOSE_STATS):
+        descriptions += STATS_ENTITY_DESCRIPTIONS
     return [
         MOSComposeStackSensor(coordinator, description, name, entry_id, device_configuration_url)
-        for description in ENTITY_DESCRIPTIONS
+        for description in descriptions
     ]

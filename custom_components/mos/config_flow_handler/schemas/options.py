@@ -14,6 +14,7 @@ import voluptuous as vol
 
 from custom_components.mos.const import (
     CONF_ENABLE_COMPOSE,
+    CONF_ENABLE_COMPOSE_STATS,
     CONF_ENABLE_DISKS,
     CONF_ENABLE_DOCKER,
     CONF_ENABLE_DOCKER_STATS,
@@ -24,6 +25,7 @@ from custom_components.mos.const import (
     CONF_ENABLE_SERVICES,
     CONF_ENABLE_VM,
     DEFAULT_ENABLE_COMPOSE,
+    DEFAULT_ENABLE_COMPOSE_STATS,
     DEFAULT_ENABLE_DISKS,
     DEFAULT_ENABLE_DOCKER,
     DEFAULT_ENABLE_DOCKER_STATS,
@@ -94,6 +96,10 @@ def get_options_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
             vol.Optional(
                 CONF_ENABLE_COMPOSE,
                 default=defaults.get(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_ENABLE_COMPOSE_STATS,
+                default=defaults.get(CONF_ENABLE_COMPOSE_STATS, DEFAULT_ENABLE_COMPOSE_STATS),
             ): selector.BooleanSelector(),
             vol.Optional(
                 CONF_ENABLE_VM,

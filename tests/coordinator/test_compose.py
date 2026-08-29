@@ -9,11 +9,15 @@ from custom_components.mos.coordinator.compose import (
     carry_forward_group_data,
     merge_engine_state,
     merge_group_data,
+    merge_stats,
     resolve_stack_icon,
     resolve_stack_web_ui_url,
+    stats_targets,
 )
 
 HOST = "10.0.1.30"
+
+GIBIBYTE = 1_073_741_824
 
 
 def _stack(**overrides: Any) -> dict[str, Any]:
@@ -188,3 +192,87 @@ def test_engine_fields_survive_a_failed_proxy_request() -> None:
     assert carried[0]["running_containers"] == 1
     assert carried[0]["images"] == ["busybox:latest"]
     assert carried[0]["running"] is False
+
+
+def _stats(cpu: float | None, used: int | None, limit: int | None = GIBIBYTE) -> dict[str, Any]:
+    """Build one container's parsed stats as ``parse_stats`` returns them."""
+    return {
+        "stats_cpu_percent": cpu,
+        "stats_memory_bytes": used,
+        "stats_memory_limit_bytes": limit,
+        "stats_memory_percent": None,
+    }
+
+
+def test_only_running_members_are_worth_a_request() -> None:
+    """Docker answers for a stopped container with zeroes, which would read as an idle service."""
+    engine = [
+        _member("compose_hatest-alpha-1"),
+        _member("compose_hatest-beta-1", State="exited"),
+    ]
+
+    assert stats_targets([_stack()], engine, {"hatest"}) == {"hatest": ["compose_hatest-alpha-1"]}
+
+
+def test_a_stack_nobody_watches_is_never_targeted() -> None:
+    """The whole point of the context: a stack no sensor asked about costs nothing."""
+    engine = [_member("compose_hatest-alpha-1")]
+
+    assert stats_targets([_stack()], engine, set()) == {}
+
+
+def test_a_stack_with_nothing_running_is_not_targeted_at_all() -> None:
+    """An empty target list would still cost the caller a lookup, so the stack drops out entirely."""
+    engine = [_member("compose_hatest-alpha-1", State="exited")]
+
+    assert stats_targets([_stack()], engine, {"hatest"}) == {}
+
+
+def test_figures_are_summed_over_the_services() -> None:
+    """A stack's cost is what all of its services cost together."""
+    targets = {"hatest": ["compose_hatest-alpha-1", "compose_hatest-beta-1"]}
+    measured = {
+        "compose_hatest-alpha-1": _stats(25.0, 200_000_000),
+        "compose_hatest-beta-1": _stats(15.5, 100_000_000),
+    }
+
+    merged = merge_stats([_stack()], targets, measured)[0]
+
+    assert merged["stats_cpu_percent"] == 40.5
+    assert merged["stats_memory_bytes"] == 300_000_000
+    assert merged["stats_memory_percent"] == 27.94
+
+
+def test_services_limited_differently_have_no_shared_budget() -> None:
+    """There is no denominator to divide by then, and inventing one reads as authoritative."""
+    targets = {"hatest": ["compose_hatest-alpha-1", "compose_hatest-beta-1"]}
+    measured = {
+        "compose_hatest-alpha-1": _stats(25.0, 200_000_000, limit=GIBIBYTE),
+        "compose_hatest-beta-1": _stats(15.5, 100_000_000, limit=536_870_912),
+    }
+
+    merged = merge_stats([_stack()], targets, measured)[0]
+
+    assert merged["stats_memory_bytes"] == 300_000_000
+    assert merged["stats_memory_limit_bytes"] is None
+    assert merged["stats_memory_percent"] is None
+
+
+def test_a_service_that_could_not_be_measured_is_left_out_of_the_sum() -> None:
+    """One failed request costs that service's share, not the whole stack's figures."""
+    targets = {"hatest": ["compose_hatest-alpha-1", "compose_hatest-beta-1"]}
+    measured = {"compose_hatest-alpha-1": _stats(25.0, 200_000_000)}
+
+    merged = merge_stats([_stack()], targets, measured)[0]
+
+    assert merged["stats_cpu_percent"] == 25.0
+    assert merged["stats_memory_bytes"] == 200_000_000
+
+
+def test_an_unmeasured_stack_reads_blank_rather_than_zero() -> None:
+    """A frozen or invented figure is indistinguishable from a live one."""
+    merged = merge_stats([_stack()], {}, {})[0]
+
+    assert merged["stats_cpu_percent"] is None
+    assert merged["stats_memory_bytes"] is None
+    assert merged["stats_memory_percent"] is None

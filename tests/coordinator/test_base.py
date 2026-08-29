@@ -150,6 +150,7 @@ async def test_fetches_all_resources_by_default(
                 "images": ["busybox:latest", "nginx:alpine"],
                 "icon_url": mock_compose_stacks[0]["iconUrl"],
                 "web_ui_url": None,
+                **NO_DOCKER_STATS,
             },
             {
                 **mock_compose_stacks[1],
@@ -159,6 +160,7 @@ async def test_fetches_all_resources_by_default(
                 "images": ["busybox:latest"],
                 "icon_url": None,
                 "web_ui_url": None,
+                **NO_DOCKER_STATS,
             },
         ],
         "vm_machines": _with_icon_url(mock_client.async_get_vm_machines.return_value),

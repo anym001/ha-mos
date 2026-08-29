@@ -74,6 +74,7 @@
           "enable_docker": "Docker-Container aktivieren",
           "enable_docker_stats": "Docker-Auslastung aktivieren",
           "enable_compose": "Compose-Stacks aktivieren",
+          "enable_compose_stats": "Compose-Auslastung aktivieren",
           "enable_vm": "VMs aktivieren",
           "enable_sensors": "Hardware-Sensoren aktivieren",
           "enable_nut": "USV aktivieren"
@@ -87,6 +88,7 @@
           "enable_docker": "Entitäten für jeden Docker-Container anlegen.",
           "enable_docker_stats": "CPU- und Speicher-Sensoren für jeden Docker-Container anlegen. Kostet pro laufendem Container eine zusätzliche Abfrage je Poll - bei vielen Containern besser ausgeschaltet lassen.",
           "enable_compose": "Entitäten für jeden Docker-Compose-Stack anlegen. Ein Stack ist ein Gerät für alle seine Services und getrennt von den einzelnen Docker-Containern.",
+          "enable_compose_stats": "CPU- und Speicher-Sensoren für jeden Compose-Stack anlegen, summiert über seine Services. Kostet pro laufendem Service eine zusätzliche Abfrage je Poll - wenige große Stacks kosten also mehr als viele kleine.",
           "enable_vm": "Entitäten für jede VM anlegen.",
           "enable_sensors": "Entitäten für Hardware-Messwerte anlegen (Lüfter, Temperaturen, Spannungen, ...).",
           "enable_nut": "Entitäten für die USV anlegen, die MOS über Network UPS Tools überwacht."
@@ -329,6 +331,15 @@
       },
       "compose_container_count": {
         "name": "Container"
+      },
+      "compose_cpu_usage": {
+        "name": "CPU-Auslastung"
+      },
+      "compose_memory_usage": {
+        "name": "Speicherauslastung"
+      },
+      "compose_memory_percent": {
+        "name": "Speicher in Prozent"
       },
       "vm_state": {
         "name": "Zustand",
