@@ -303,6 +303,7 @@ CONF_ENABLE_LXC = "enable_lxc"
 CONF_ENABLE_DOCKER = "enable_docker"
 CONF_ENABLE_DOCKER_STATS = "enable_docker_stats"
 CONF_ENABLE_COMPOSE = "enable_compose"
+CONF_ENABLE_COMPOSE_STATS = "enable_compose_stats"
 CONF_ENABLE_VM = "enable_vm"
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_ENABLE_NUT = "enable_nut"
@@ -326,6 +327,10 @@ DEFAULT_ENABLE_DOCKER = True
 # enabled (see ``DockerStatsContext``).
 DEFAULT_ENABLE_DOCKER_STATS = False
 DEFAULT_ENABLE_COMPOSE = True
+# Off for the same reason as its Docker counterpart, only more so: a stack is
+# measured through its member containers, so one stack costs one request per
+# running service on every poll rather than one per device.
+DEFAULT_ENABLE_COMPOSE_STATS = False
 DEFAULT_ENABLE_VM = True
 DEFAULT_ENABLE_SENSORS = True
 DEFAULT_ENABLE_NUT = True

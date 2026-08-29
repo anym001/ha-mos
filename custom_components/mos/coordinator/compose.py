@@ -13,11 +13,17 @@ already fetched for the containers also carries every stack's member containers,
 so their live state, health and images are had for no extra request. The
 container group MOS auto-creates per stack carries ``update_available``, which
 nothing else reports.
+
+Live CPU and memory are the exception that costs something. Docker measures one
+container at a time, so a stack's figures are the sum over its running members -
+one request per service per poll, which is why the option behind them is off by
+default and separate from the Docker one.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 from custom_components.mos.coordinator.docker_templates import HOST_PLACEHOLDER, PORT_PLACEHOLDER
@@ -143,6 +149,111 @@ def carry_forward_engine_state(stacks: list[dict[str, Any]], previous: list[dict
 
     """
     return _carry_forward(stacks, previous, ENGINE_DERIVED_FIELDS)
+
+
+@dataclass(frozen=True)
+class ComposeStatsContext:
+    """
+    A running stack stats sensor's request to have its stack measured.
+
+    The stack counterpart of ``DockerStatsContext``, and a separate type for the
+    same reason that one is: contexts from every platform land in the same
+    ``async_contexts()`` stream, and a stack must not be measured because a
+    container happens to share its name.
+    """
+
+    name: str
+
+
+def stats_targets(
+    stacks: list[dict[str, Any]],
+    engine_containers: list[dict[str, Any]],
+    wanted: set[str],
+) -> dict[str, list[str]]:
+    """
+    Map each wanted stack to the member containers worth spending a request on.
+
+    Only running members are listed: Docker answers for a stopped container with
+    zeroes, which would drag a stack's sum down as if the service were idle
+    rather than absent.
+
+    Returns:
+        The member container names to measure, keyed by stack name. A stack with
+        nothing running is absent rather than present with an empty list.
+
+    """
+    running = {
+        name
+        for container in engine_containers
+        if container.get("State") == "running" and (name := (container.get("Names") or [""])[0].lstrip("/"))
+    }
+    targets: dict[str, list[str]] = {}
+    for stack in stacks:
+        name = stack.get("name")
+        names = stack.get("containers")
+        if name not in wanted or not isinstance(names, list):
+            continue
+        members = [member for member in names if member in running]
+        if members:
+            targets[name] = members
+    return targets
+
+
+def merge_stats(
+    stacks: list[dict[str, Any]],
+    targets: dict[str, list[str]],
+    measured: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Stamp each stack with the sum of its running members' figures.
+
+    A stack that was not measured at all - not wanted, nothing running, or every
+    request failed - is blanked rather than left at its previous values, on the
+    same reasoning as the Docker containers: a frozen CPU reading is
+    indistinguishable from a live one.
+
+    Returns:
+        The stacks, each with the ``DOCKER_STATS_FIELDS`` added.
+
+    """
+    merged: list[dict[str, Any]] = []
+    for stack in stacks:
+        members = [measured[name] for name in targets.get(stack.get("name") or "", []) if name in measured]
+        merged.append({**stack, **_sum_stats(members)})
+    return merged
+
+
+def _sum_stats(members: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Add up the per-container figures into one set for the whole stack.
+
+    CPU and used bytes simply add: both are absolute amounts on the same host,
+    and a stack using two fully-busy cores reading as 200% matches what its
+    containers report individually.
+
+    The percentage is the one that cannot always be formed. It needs a single
+    budget to divide by, and members only share one when they are all limited
+    the same way - which is the usual case, since an unconstrained container is
+    reported by Docker as limited to the host's entire RAM. Where the members
+    disagree there is no such budget, and inventing a denominator would produce
+    a figure that looks authoritative and means nothing.
+
+    Returns:
+        The ``DOCKER_STATS_FIELDS``, each a number or ``None``.
+
+    """
+    cpu = [value for member in members if (value := member.get("stats_cpu_percent")) is not None]
+    used = [value for member in members if (value := member.get("stats_memory_bytes")) is not None]
+    limits = {value for member in members if (value := member.get("stats_memory_limit_bytes")) is not None}
+
+    total_used = sum(used) if used else None
+    limit = limits.pop() if len(limits) == 1 else None
+    return {
+        "stats_cpu_percent": round(sum(cpu), 2) if cpu else None,
+        "stats_memory_bytes": total_used,
+        "stats_memory_limit_bytes": limit,
+        "stats_memory_percent": round(total_used / limit * 100, 2) if total_used is not None and limit else None,
+    }
 
 
 def _is_unhealthy(members: list[dict[str, Any]]) -> bool | None:

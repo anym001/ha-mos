@@ -55,12 +55,15 @@ from custom_components.mos.const import (
     RESOURCE_STALE_MIN_FAILURES,
 )
 from custom_components.mos.coordinator.compose import (
+    ComposeStatsContext,
     carry_forward_engine_state,
     carry_forward_group_data,
     merge_engine_state,
     merge_group_data,
+    merge_stats,
     resolve_stack_icon,
     resolve_stack_web_ui_url,
+    stats_targets,
 )
 from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS, DockerStatsCollector, DockerStatsContext
 from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
@@ -308,7 +311,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
     # ``forbidden_resources`` below).
     _docker_templates: DockerTemplateCache | None = None
 
-    # Fetches per-container CPU and memory. Bound lazily on first use for the
+    # Fetches per-container CPU and memory, for the Docker containers and for the
+    # Compose stacks' member containers alike. Bound lazily on first use for the
     # same reason as ``_docker_templates`` above, and left unbound entirely on a
     # setup where no stats sensor is enabled - which is the default.
     _docker_stats: DockerStatsCollector | None = None
@@ -1318,7 +1322,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                                         # group in /docker/mos/groups, "container_count",
                                         # "running_containers", "unhealthy" and "images"
                                         # derived from the member containers in the raw
-                                        # Docker Engine proxy, plus "icon_url" and
+                                        # Docker Engine proxy, the stats fields summed
+                                        # over those members, plus "icon_url" and
                                         # "web_ui_url"
             "vm_machines": [...],      # VMs from /vm/machines/usage
             "sensors": [...],       # Hardware readings from /sensors, flattened
@@ -1438,6 +1443,19 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             self._guest_icons = GuestIconCache(self.config_entry.runtime_data.client)
         return self._guest_icons
 
+    @property
+    def _stats_collector(self) -> DockerStatsCollector:
+        """
+        Return the shared container stats collector, creating it on first use.
+
+        Returns:
+            The collector bound to this entry's API client.
+
+        """
+        if self._docker_stats is None:
+            self._docker_stats = DockerStatsCollector(self.config_entry.runtime_data.client)
+        return self._docker_stats
+
     async def _async_add_docker_stats(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Stamp each Docker container with its live CPU and memory figures.
@@ -1471,9 +1489,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         if not wanted:
             return [{**container, **NO_DOCKER_STATS} for container in containers]
 
-        if self._docker_stats is None:
-            self._docker_stats = DockerStatsCollector(self.config_entry.runtime_data.client)
-        collected = await self._docker_stats.async_collect(containers, wanted)
+        collected = await self._stats_collector.async_collect(containers, wanted)
         # Unmeasured containers are blanked rather than left at their previous
         # values: a frozen CPU reading is indistinguishable from a live one.
         return [
@@ -1496,6 +1512,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         The engine pass runs second on purpose: it answers the counters from the
         member containers themselves and overwrites the group's version of them.
+        The stats pass runs after it because it needs the same member list to
+        decide which services are running.
 
         The icon prefers the copy MOS mirrors under its own web root when a stack
         was given one (``/docker_icons/compose/<name>.png``) and falls back to
@@ -1522,6 +1540,8 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             stacks = carry_forward_engine_state(stacks, previous)
 
+        stacks = await self._async_add_compose_stats(stacks, engine_containers)
+
         host = self.config_entry.data.get(CONF_HOST)
         decorated: list[dict[str, Any]] = []
         for stack in stacks:
@@ -1534,6 +1554,41 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 }
             )
         return decorated
+
+    async def _async_add_compose_stats(
+        self,
+        stacks: list[dict[str, Any]],
+        engine_containers: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        """
+        Stamp each Compose stack with the CPU and memory its services are using.
+
+        Which stacks are measured is decided by the sensors themselves, exactly
+        as it is for the Docker containers: every stack stats sensor registers a
+        ``ComposeStatsContext``, so a stack nobody is displaying costs nothing.
+        The bill is steeper here - one request per *running service*, not per
+        device - which is why the option that creates these sensors is separate
+        from the Docker one and off by default.
+
+        Without the engine list there is no way to tell which services are up,
+        and measuring a stopped one would report zeroes as though it were idle.
+        The figures are blanked for that poll rather than carried forward, on the
+        same reasoning as ``_async_add_docker_stats``.
+
+        Returns:
+            The stacks, each with the ``DOCKER_STATS_FIELDS`` added (all ``None``
+            for a stack that was not measured).
+
+        """
+        wanted = {context.name for context in self.async_contexts() if isinstance(context, ComposeStatsContext)}
+        if not wanted or engine_containers is None:
+            return [{**stack, **NO_DOCKER_STATS} for stack in stacks]
+
+        targets = stats_targets(stacks, engine_containers, wanted)
+        measured = await self._stats_collector.async_measure(
+            [member for members in targets.values() for member in members]
+        )
+        return merge_stats(stacks, targets, measured)
 
     async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """

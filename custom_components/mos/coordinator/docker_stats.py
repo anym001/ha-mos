@@ -30,6 +30,7 @@ container's state and switch, is unaffected.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -200,6 +201,23 @@ class DockerStatsCollector:
             for container in containers
             if container.get("state") == "running" and (name := container.get("name")) and name in wanted
         ]
+        return await self.async_measure(targets)
+
+    async def async_measure(self, names: Iterable[str]) -> dict[str, dict[str, Any]]:
+        """
+        Measure each named container, whether or not MOS knows the name.
+
+        Split out of ``async_collect`` for the Compose stacks, whose members are
+        generated containers that appear only in the raw engine list: they have
+        no MOS payload to carry a ``state``, so their caller is the one that
+        knows which of them are running.
+
+        Returns:
+            Parsed stats keyed by container name, with any whose request failed
+            simply absent.
+
+        """
+        targets = list(names)
         if not targets:
             return {}
 

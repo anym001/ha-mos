@@ -74,6 +74,7 @@
           "enable_docker": "Enable Docker containers",
           "enable_docker_stats": "Enable Docker container stats",
           "enable_compose": "Enable Compose stacks",
+          "enable_compose_stats": "Enable Compose stack stats",
           "enable_vm": "Enable VMs",
           "enable_sensors": "Enable hardware sensors",
           "enable_nut": "Enable UPS"
@@ -87,6 +88,7 @@
           "enable_docker": "Create entities for each Docker container.",
           "enable_docker_stats": "Add CPU and memory sensors to each Docker container. Costs one extra request per running container on every poll, so leave it off if you run many containers.",
           "enable_compose": "Create entities for each Docker Compose stack. A stack is one device covering all of its services, separate from the individual Docker containers.",
+          "enable_compose_stats": "Add CPU and memory sensors to each Compose stack, summed over its services. Costs one extra request per running service on every poll, so a few large stacks cost more than many small ones.",
           "enable_vm": "Create entities for each VM.",
           "enable_sensors": "Create entities for hardware readings (fans, temperatures, voltages, ...).",
           "enable_nut": "Create entities for the UPS MOS monitors via Network UPS Tools."
@@ -329,6 +331,15 @@
       },
       "compose_container_count": {
         "name": "Containers"
+      },
+      "compose_cpu_usage": {
+        "name": "CPU usage"
+      },
+      "compose_memory_usage": {
+        "name": "Memory usage"
+      },
+      "compose_memory_percent": {
+        "name": "Memory percent"
       },
       "vm_state": {
         "name": "State",

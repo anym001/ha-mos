@@ -119,6 +119,12 @@
       "compose_container_count": {
         "default": "mdi:layers-outline"
       },
+      "compose_cpu_usage": {
+        "default": "mdi:cpu-64-bit"
+      },
+      "compose_memory_percent": {
+        "default": "mdi:memory"
+      },
       "compose_running_containers": {
         "default": "mdi:layers"
       },

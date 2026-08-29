@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import DOMAIN, MOSDeviceKind
+from custom_components.mos.const import CONF_ENABLE_COMPOSE_STATS, DOMAIN, MOSDeviceKind
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
@@ -134,3 +135,80 @@ async def test_stack_sensors_are_scoped_to_the_entry(
 
     assert entity is not None
     assert entity.unique_id == f"{setup_integration.entry_id}_compose_hatest_state"
+
+
+async def test_stats_sensors_are_absent_unless_the_option_is_on(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """The option is off by default, so no stats sensor exists and no service is measured."""
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage") is None
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_usage") is None
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent") is None
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_stats_sensors_sum_the_running_services(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A stack costs what its services cost together, so the figures are their sum.
+
+    The refresh is explicit because the very first poll runs before any entity
+    exists: with no context registered yet, nothing was measured. That one blank
+    cycle is expected behaviour - see ``_async_add_compose_stats``.
+    """
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == STATE_UNKNOWN
+
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    # Both services answer with the same payload: 25% of two CPUs and 64 MiB of
+    # a 512 MiB limit each.
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "50.0"
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_usage").state == "128.0"
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent").state == "25.0"
+
+
+async def test_a_stopped_stack_reports_no_usage(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """Its one service is down, so there is nothing to measure and nothing to report."""
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_compose_orphan_cpu_usage").state == STATE_UNKNOWN
+    measured = {call.args[0] for call in mock_client.async_get_docker_container_stats.await_args_list}
+    assert measured == {"compose_hatest-alpha-1", "compose_hatest-beta-1"}
+
+
+async def test_disabling_a_stacks_stats_sensors_stops_measuring_it(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """A request per service is only worth paying while something displays the result."""
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
+    await hass.async_block_till_done()
+
+    registry = er.async_get(hass)
+    for key in ("cpu_usage", "memory_usage", "memory_percent"):
+        registry.async_update_entity(
+            f"sensor.sirius_compose_hatest_{key}",
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    await hass.async_block_till_done()
+
+    mock_client.async_get_docker_container_stats.reset_mock()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
