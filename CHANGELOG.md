@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/anym001/ha-mos/compare/v0.2.5...v0.2.6) (2026-08-29)
+
+
+### Features
+
+* **sensor:** add cpu and memory sensors to compose stacks ([08e96be](https://github.com/anym001/ha-mos/commit/08e96bed6beff4088955fc19b3e17ee7ae47f378))
+
 ## [0.2.5](https://github.com/anym001/ha-mos/compare/v0.2.4...v0.2.5) (2026-08-28)
 
 
