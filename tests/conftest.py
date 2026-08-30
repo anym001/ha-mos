@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -401,14 +402,14 @@ def mock_docker_stats() -> dict[str, Any]:
     """
     Return a realistic raw Docker Engine ``/containers/{name}/stats`` payload.
 
-    Trimmed to the fields the integration reads, but with their real shapes and
-    magnitudes: cumulative nanosecond CPU counters in both samples, and a cgroup
-    v2 memory block where ``usage`` includes reclaimable page cache that
+    Shaped as the one-shot form the client asks for: cumulative nanosecond CPU
+    counters for the instant of the reading and an empty ``precpu_stats``, plus a
+    cgroup v2 memory block where ``usage`` includes reclaimable page cache that
     ``inactive_file`` accounts for.
 
-    The numbers work out to 25% of two CPUs and 64 MiB of a 512 MiB limit, so a
-    test asserting on them reads as a statement about the container rather than
-    about arithmetic.
+    The memory numbers work out to 64 MiB of a 512 MiB limit. A CPU percentage
+    needs a second reading to measure against, which ``mock_client`` supplies by
+    advancing the counters between polls.
     """
     return {
         "cpu_stats": {
@@ -416,10 +417,7 @@ def mock_docker_stats() -> dict[str, Any]:
             "system_cpu_usage": 40_000_000_000,
             "online_cpus": 2,
         },
-        "precpu_stats": {
-            "cpu_usage": {"total_usage": 1_000_000_000},
-            "system_cpu_usage": 36_000_000_000,
-        },
+        "precpu_stats": {},
         "memory_stats": {
             "usage": 100_663_296,
             "limit": 536_870_912,
@@ -814,7 +812,25 @@ def mock_client(
         return mock_docker_templates[name]
 
     client.async_get_docker_template.side_effect = _template
-    client.async_get_docker_container_stats.return_value = mock_docker_stats
+    # Each container's counters advance by 0.5 s of CPU against 4 s of machine
+    # time per reading, so the poll after a container's first one derives 25% of
+    # its two CPUs. Per container rather than per call, because one poll measures
+    # several and each is measured against its own previous reading.
+    readings: defaultdict[str, int] = defaultdict(int)
+
+    def _advancing_stats(name: str) -> dict[str, Any]:
+        step = readings[name]
+        readings[name] += 1
+        return {
+            **mock_docker_stats,
+            "cpu_stats": {
+                **mock_docker_stats["cpu_stats"],
+                "cpu_usage": {"total_usage": 1_500_000_000 + step * 500_000_000},
+                "system_cpu_usage": 40_000_000_000 + step * 4_000_000_000,
+            },
+        }
+
+    client.async_get_docker_container_stats.side_effect = _advancing_stats
     client.async_get_vm_machines.return_value = mock_vm_machines
     client.async_get_sensors.return_value = mock_sensors
     client.async_get_nut_status.return_value = mock_nut

@@ -155,9 +155,11 @@ async def test_stats_sensors_sum_the_running_services(
 ) -> None:
     """A stack costs what its services cost together, so the figures are their sum.
 
-    The refresh is explicit because the very first poll runs before any entity
-    exists: with no context registered yet, nothing was measured. That one blank
-    cycle is expected behaviour - see ``_async_add_compose_stats``.
+    The refreshes are explicit because the very first poll runs before any entity
+    exists: with no context registered yet, nothing is measured. The poll after
+    that measures the services and establishes their CPU baseline, and the one
+    after that is the first to derive a percentage - see
+    ``_async_add_compose_stats`` and ``DockerStatsCollector``.
     """
     hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
     await hass.async_block_till_done()
@@ -167,11 +169,16 @@ async def test_stats_sensors_sum_the_running_services(
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    # Both services answer with the same payload: 25% of two CPUs and 64 MiB of
-    # a 512 MiB limit each.
-    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "50.0"
+    # Both services answer with the same payload: 64 MiB of a 512 MiB limit each.
     assert hass.states.get("sensor.sirius_compose_hatest_memory_usage").state == "128.0"
     assert hass.states.get("sensor.sirius_compose_hatest_memory_percent").state == "25.0"
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == STATE_UNKNOWN
+
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    # 25% of two CPUs each.
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "50.0"
 
 
 async def test_a_stopped_stack_reports_no_usage(

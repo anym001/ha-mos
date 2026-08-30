@@ -9,7 +9,32 @@ from unittest.mock import AsyncMock
 import pytest
 
 from custom_components.mos.api import MOSApiClientCommunicationError
-from custom_components.mos.coordinator.docker_stats import DockerStatsCollector, DockerStatsContext, parse_stats
+from custom_components.mos.const import MAX_SCAN_INTERVAL
+from custom_components.mos.coordinator import docker_stats
+from custom_components.mos.coordinator.docker_stats import (
+    CPU_SAMPLE_TTL,
+    CpuSample,
+    DockerStatsCollector,
+    DockerStatsContext,
+    cpu_sample,
+    parse_stats,
+)
+
+
+class _FakeClock:
+    """Stands in for the module's ``time`` so a retention window can be crossed."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        """Return the current fake reading.
+
+        Returns:
+            Seconds on the fake clock.
+
+        """
+        return self.now
 
 
 def _containers() -> list[dict[str, Any]]:
@@ -20,13 +45,18 @@ def _containers() -> list[dict[str, Any]]:
     ]
 
 
+def _earlier(usage: int = 1_000_000_000, system: int = 36_000_000_000, cpus: int = 2) -> CpuSample:
+    """Return the reading the fixture payload is 0.5s of CPU against 4s of machine time ahead of."""
+    return CpuSample(usage=usage, system=system, cpus=cpus)
+
+
 def test_parses_a_full_payload(mock_docker_stats: dict[str, Any]) -> None:
-    """A complete payload yields all four figures.
+    """A payload with an earlier reading to measure against yields all four figures.
 
     The fixture is 0.5s of CPU against 4s of machine time on 2 CPUs, and 96 MiB
     of usage minus 32 MiB of reclaimable cache against a 512 MiB limit.
     """
-    assert parse_stats(mock_docker_stats) == {
+    assert parse_stats(mock_docker_stats, _earlier()) == {
         "stats_cpu_percent": 25.0,
         "stats_memory_bytes": 67_108_864,
         "stats_memory_limit_bytes": 536_870_912,
@@ -34,15 +64,30 @@ def test_parses_a_full_payload(mock_docker_stats: dict[str, Any]) -> None:
     }
 
 
-def test_reports_no_cpu_when_both_samples_are_the_same_instant(mock_docker_stats: dict[str, Any]) -> None:
-    """A container too freshly started to have moved reports None, not zero.
+def test_reports_memory_but_no_cpu_on_a_first_reading(mock_docker_stats: dict[str, Any]) -> None:
+    """Without an earlier reading the memory figures still stand and CPU is blank.
 
     Zero would be indistinguishable from a genuinely idle container, which is a
     different and knowable thing.
     """
-    payload = {**mock_docker_stats, "precpu_stats": mock_docker_stats["cpu_stats"]}
+    parsed = parse_stats(mock_docker_stats, None)
 
-    assert parse_stats(payload)["stats_cpu_percent"] is None
+    assert parsed["stats_cpu_percent"] is None
+    assert parsed["stats_memory_bytes"] == 67_108_864
+
+
+def test_reports_no_cpu_when_the_machine_counter_has_not_moved(mock_docker_stats: dict[str, Any]) -> None:
+    """Two readings the machine counter did not advance between support no percentage."""
+    same_instant = _earlier(usage=1_000_000_000, system=40_000_000_000)
+
+    assert parse_stats(mock_docker_stats, same_instant)["stats_cpu_percent"] is None
+
+
+def test_reports_no_cpu_when_the_container_counter_reset(mock_docker_stats: dict[str, Any]) -> None:
+    """A recreated container starts counting again, so the two readings span no interval."""
+    before_restart = _earlier(usage=9_000_000_000)
+
+    assert parse_stats(mock_docker_stats, before_restart)["stats_cpu_percent"] is None
 
 
 def test_counts_cpus_from_the_per_cpu_breakdown(mock_docker_stats: dict[str, Any]) -> None:
@@ -55,12 +100,13 @@ def test_counts_cpus_from_the_per_cpu_breakdown(mock_docker_stats: dict[str, Any
         },
     }
 
-    assert parse_stats(payload)["stats_cpu_percent"] == 25.0
+    assert parse_stats(payload, _earlier())["stats_cpu_percent"] == 25.0
 
 
 def test_reports_no_cpu_without_any_counters() -> None:
     """An engine that reported no CPU block at all yields None rather than raising."""
-    assert parse_stats({})["stats_cpu_percent"] is None
+    assert parse_stats({}, _earlier())["stats_cpu_percent"] is None
+    assert cpu_sample({}) is None
 
 
 @pytest.mark.parametrize(
@@ -117,6 +163,88 @@ async def test_measures_nothing_when_no_sensor_asks(mock_client: AsyncMock) -> N
 
     assert await collector.async_collect(_containers(), set()) == {}
     mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_cpu_fills_in_on_the_poll_after_the_first(mock_client: AsyncMock) -> None:
+    """The first reading establishes the baseline; the next one derives a percentage.
+
+    Memory needs no baseline and is reported straight away, so only the CPU
+    figure is blank for that one cycle.
+    """
+    collector = DockerStatsCollector(mock_client)
+
+    first = await collector.async_collect(_containers(), {"PushBits"})
+    second = await collector.async_collect(_containers(), {"PushBits"})
+
+    assert first["PushBits"]["stats_cpu_percent"] is None
+    assert first["PushBits"]["stats_memory_bytes"] == 67_108_864
+    assert second["PushBits"]["stats_cpu_percent"] == 25.0
+
+
+async def test_each_container_is_measured_against_its_own_reading(mock_client: AsyncMock) -> None:
+    """Counters are kept per container, so one container cannot skew another."""
+    containers = [
+        {"name": "PushBits", "state": "running"},
+        {"name": "nginx", "state": "running"},
+    ]
+    collector = DockerStatsCollector(mock_client)
+
+    await collector.async_collect(containers, {"PushBits"})
+    both = await collector.async_collect(containers, {"PushBits", "nginx"})
+
+    assert both["PushBits"]["stats_cpu_percent"] == 25.0
+    assert both["nginx"]["stats_cpu_percent"] is None
+
+
+async def test_both_measuring_paths_share_one_set_of_readings(mock_client: AsyncMock) -> None:
+    """A container reached as a Compose member and as a Docker container has one baseline.
+
+    The coordinator holds a single collector for both, so whichever path measures
+    a container first is what the other measures against.
+    """
+    collector = DockerStatsCollector(mock_client)
+
+    await collector.async_measure(["PushBits"])
+    collected = await collector.async_collect(_containers(), {"PushBits"})
+
+    assert collected["PushBits"]["stats_cpu_percent"] == 25.0
+
+
+async def test_a_container_that_stops_being_measured_is_forgotten(
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Counters are dropped once nothing has refreshed them for the retention window.
+
+    The container then reads as if measured for the first time, which is what a
+    dropped baseline means.
+    """
+    clock = _FakeClock()
+    monkeypatch.setattr(docker_stats, "time", clock)
+    collector = DockerStatsCollector(mock_client)
+
+    await collector.async_measure(["PushBits"])
+    clock.now += CPU_SAMPLE_TTL + 1
+    await collector.async_measure(["nginx"])
+    collected = await collector.async_measure(["PushBits"])
+
+    assert collected["PushBits"]["stats_cpu_percent"] is None
+
+
+async def test_a_container_still_being_measured_keeps_its_counters(
+    mock_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Polling at the slowest interval the options flow allows never loses a baseline."""
+    clock = _FakeClock()
+    monkeypatch.setattr(docker_stats, "time", clock)
+    collector = DockerStatsCollector(mock_client)
+
+    await collector.async_measure(["PushBits"])
+    clock.now += MAX_SCAN_INTERVAL
+    collected = await collector.async_measure(["PushBits"])
+
+    assert collected["PushBits"]["stats_cpu_percent"] == 25.0
 
 
 async def test_one_failing_container_does_not_take_the_others_down(mock_client: AsyncMock) -> None:

@@ -763,21 +763,21 @@ class MOSApiClient:
         """
         Get one container's live resource usage via the raw Docker Engine proxy.
 
-        Calls ``GET /docker/containers/{name}/stats?stream=false``, proxied
-        straight through to Docker's own stats endpoint. There is no collection
-        form of it - Docker reports usage one container at a time - so a caller
-        that wants figures for N containers pays N requests. That is why the
-        feature this backs is opt-in; see ``DEFAULT_ENABLE_DOCKER_STATS``.
+        Calls ``GET /docker/containers/{name}/stats?stream=false&one-shot=true``,
+        proxied straight through to Docker's own stats endpoint. There is no
+        collection form of it - Docker reports usage one container at a time -
+        so a caller that wants figures for N containers pays N requests. That is
+        why the feature this backs is opt-in; see
+        ``DEFAULT_ENABLE_DOCKER_STATS``.
 
-        ``one-shot=true`` is deliberately **not** passed, even though it would
-        make the call return faster. It suppresses ``precpu_stats``, and CPU
-        usage is a delta between two samples: with only one sample there is
-        nothing to subtract from and no percentage can be derived at all.
-        ``stream=false`` on its own is what makes Docker take the second sample
-        and answer with both - which is also why this request takes about a
-        second rather than being instant. ``DEFAULT_TIMEOUT`` is left in place:
-        ten seconds is far above that, and a stats call that needs longer is
-        reporting a server in trouble rather than a figure worth waiting for.
+        ``one-shot=true`` makes Docker answer from the counters it already has,
+        in about ten milliseconds. Without it Docker takes a second sample
+        before answering, which holds the request open for roughly a second per
+        container. The cost of one-shot is an empty ``precpu_stats``, so the
+        payload carries no ready-made CPU percentage; ``cpu_stats`` still holds
+        the cumulative counters, and the caller derives the percentage from how
+        far they moved since the previous poll (see
+        ``coordinator.docker_stats``).
 
         A stopped container answers with zeroes rather than an error, so callers
         are expected to skip those instead of relying on this to tell them
@@ -798,7 +798,7 @@ class MOSApiClient:
 
         """
         return await self._get(
-            f"docker/containers/{_quote_segment(name)}/stats?stream=false",
+            f"docker/containers/{_quote_segment(name)}/stats?stream=false&one-shot=true",
             base_url=self._root_base_url,
             # This endpoint answers 200 with a JSON body and *no* ``Content-Type``
             # header at all - verified against MOS 0.5.x, where the neighbouring
