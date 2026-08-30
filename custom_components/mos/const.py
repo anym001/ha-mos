@@ -85,16 +85,23 @@ CONTAINER_ACTION_TIMEOUT = 30
 # as fast as before.
 API_MIN_REQUEST_INTERVAL = 0.1
 
-# How many requests may be in flight at once - a safety valve on top of the
-# pacing, not the main mechanism.
+# How many requests may be in flight at once - the backstop for slow responses,
+# with API_MIN_REQUEST_INTERVAL as the main mechanism.
 #
 # API_MIN_REQUEST_INTERVAL bounds how fast requests *start*, not how many are
 # outstanding. Against a server that has become very slow but not unresponsive,
 # 10 starts/second against a DEFAULT_TIMEOUT of 10 s could leave ~100 connections
-# open at once. Five is comfortably above what a healthy poll ever reaches (the
-# pacing spreads it thin enough that only two or three overlap), so this only
-# binds once something has already gone wrong.
-API_MAX_CONCURRENT_REQUESTS = 5
+# open at once, which is what this caps.
+#
+# It has to stay well above the pacing floor, because a slow endpoint otherwise
+# turns it into the throughput limit instead. The Docker stats endpoint is
+# exactly that: it blocks ~2 s while Docker takes its second CPU sample (see
+# ``async_get_docker_container_stats``), so N concurrent slots yield only N/2
+# requests per second, and the whole stats phase is one request per running
+# container. Measured against a MOS dev server, 50 stats requests take 20 s at 5
+# slots, 10 s at 10 and 8 s at 15 - at which point the 10 starts/second pacing
+# is the binding limit again, as intended, and adding slots buys little.
+API_MAX_CONCURRENT_REQUESTS = 15
 
 # Connection defaults
 DEFAULT_SSL = False
