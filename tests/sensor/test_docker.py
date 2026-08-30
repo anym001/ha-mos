@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -202,3 +203,51 @@ async def test_the_server_hosted_docker_icon_wins_over_the_template_cdn(
     state = hass.states.get("sensor.sirius_docker_pushbits_state")
     assert state is not None
     assert state.attributes["entity_picture"] == "http://10.0.1.30:80/docker_icons/PushBits.png"
+
+
+async def test_stats_come_from_the_container_list_when_mos_reports_them(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict[str, Any]],
+    mock_system_load: dict[str, Any],
+) -> None:
+    """A container carrying ``performance`` is never asked about separately.
+
+    The figures are there on the first measuring poll, with no baseline cycle,
+    because MOS reports a percentage rather than counters to difference.
+    """
+    total = mock_system_load["memory"]["total"]
+    mock_client.async_get_docker_containers.return_value = [
+        {**container, "performance": {"cpu": {"usage": 2.13, "unit": "%"}, "memory": {"bytes": total // 100}}}
+        if container["name"] == "PushBits"
+        else container
+        for container in mock_docker_containers
+    ]
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "2.13"
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent").state == "1.0"
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_a_container_without_performance_still_falls_back_to_the_engine(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict[str, Any]],
+) -> None:
+    """A server that answers for some containers and not others measures only the rest."""
+    mock_client.async_get_docker_containers.return_value = [
+        {**container, "performance": None} if container["name"] == "PushBits" else container
+        for container in mock_docker_containers
+    ]
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    mock_client.async_get_docker_container_stats.assert_awaited_once_with("PushBits")
