@@ -18,6 +18,7 @@ from custom_components.mos.coordinator.docker_stats import (
     DockerStatsContext,
     cpu_sample,
     parse_stats,
+    performance_stats,
 )
 
 
@@ -285,3 +286,49 @@ def test_context_distinguishes_containers_by_type() -> None:
     assert DockerStatsContext("PushBits") == DockerStatsContext("PushBits")
     assert DockerStatsContext("PushBits") != DockerStatsContext("nginx")
     assert DockerStatsContext("PushBits") != "PushBits"
+
+
+# --- performance blocks, the figures MOS reports with the list itself ---
+
+HOST_RAM = 10_434_109_440
+
+
+def _performance(cpu: float = 2.13, memory: int = 104_857_600) -> dict[str, Any]:
+    """Return a MOS ``performance`` block in the shape the API answers with."""
+    return {
+        "cpu": {"usage": cpu, "unit": "%"},
+        "memory": {"bytes": memory, "formatted": "100 MiB"},
+    }
+
+
+def test_reads_the_four_figures_from_a_performance_block() -> None:
+    """CPU is taken as reported and memory is measured against installed RAM."""
+    entry = {"name": "PushBits", "performance": _performance()}
+
+    assert performance_stats(entry, HOST_RAM) == {
+        "stats_cpu_percent": 2.13,
+        "stats_memory_bytes": 104_857_600,
+        "stats_memory_limit_bytes": HOST_RAM,
+        "stats_memory_percent": 1.0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("entry", "reason"),
+    [
+        pytest.param({"name": "x"}, "server too old for the parameter", id="key-absent"),
+        pytest.param({"name": "x", "performance": None}, "guest is not running", id="null"),
+    ],
+)
+def test_reports_nothing_without_a_performance_block(entry: dict[str, Any], reason: str) -> None:
+    """Both "no figures" shapes yield None so the caller can fall back or blank."""
+    assert performance_stats(entry, HOST_RAM) is None, reason
+
+
+def test_reports_no_memory_percent_without_a_host_total() -> None:
+    """A poll whose system load failed has no denominator, but the bytes still stand."""
+    parsed = performance_stats({"performance": _performance()}, None)
+
+    assert parsed is not None
+    assert parsed["stats_memory_bytes"] == 104_857_600
+    assert parsed["stats_memory_percent"] is None

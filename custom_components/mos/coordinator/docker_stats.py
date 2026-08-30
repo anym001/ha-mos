@@ -1,13 +1,18 @@
 """
 Per-container Docker resource usage for mos.
 
-MOS reports what a Docker container *is* - its image, its update status, its
-template - but never what it currently costs. LXC containers and VMs both get
-CPU and memory from a ``/usage`` endpoint; Docker has no equivalent, so the
-figures have to come from the Docker Engine's own stats endpoint, which answers
-for one container at a time.
+There are two sources for what a Docker container costs, and this module holds
+both.
 
-That per-container shape is what drives every decision in this module:
+``performance_stats`` reads the block MOS attaches to its own container and
+stack lists (see ``async_get_docker_containers``). It is the normal path: the
+figures arrive with a payload the poll already fetches, cost nothing, and are on
+the same scale as the LXC and VM sensors, since they come from the same server.
+
+Everything else here is the fallback for a server whose API predates that block,
+where the figures come from the Docker Engine's stats endpoint - which answers
+for one container at a time, and whose per-container shape drives the rest of
+this module:
 
 - Only containers that are *running* and that something is actually watching are
   fetched. Docker answers for a stopped container with zeroes, and a request per
@@ -21,12 +26,14 @@ That per-container shape is what drives every decision in this module:
   are the only state this module keeps. Docker reports cumulative counters
   rather than a percentage, and the client asks for them one-shot instead of
   having Docker take its own second sample per request (see
-  ``async_get_docker_container_stats``). The figure is therefore averaged over
-  the scan interval rather than over one second, which is both cheaper and
-  steadier.
-- No derived figure is cached or carried forward. A CPU reading that failed to
-  refresh is not worth keeping: unlike an icon or a web link, a stale value here
-  is indistinguishable from a live one and would be read as current.
+  ``async_get_docker_container_stats``). The figure follows Docker's own
+  convention, where one fully-busy core reads as 100%, so it runs higher than
+  the machine-relative figure MOS reports for the same container.
+
+No derived figure is cached or carried forward on either path. A CPU reading
+that failed to refresh is not worth keeping: unlike an icon or a web link, a
+stale value here is indistinguishable from a live one and would be read as
+current.
 
 Nothing in here re-raises an API failure. A container that cannot be measured
 reports no figures for that poll; the rest of the poll, including that
@@ -197,6 +204,40 @@ def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | No
     used = max(usage - (reclaimable or 0), 0)
     percent = round(used / limit * 100, 2) if limit else None
     return used, limit, percent
+
+
+def performance_stats(entry: dict[str, Any], memory_total: int | None) -> dict[str, Any] | None:
+    """
+    Read the four figures out of a MOS ``performance`` block.
+
+    MOS reports CPU against the whole machine, so the figure never exceeds 100%
+    and reads on the same scale as the LXC and VM sensors beside it. Memory is
+    reported as bytes with no limit, so the percentage is taken against the
+    host's installed RAM - the denominator MOS uses for its own
+    ``system/load`` breakdown, and the one Docker reports for any container that
+    sets no limit of its own.
+
+    Args:
+        entry: One container or stack payload, which may carry ``performance``.
+        memory_total: Installed RAM in bytes, from ``system/load``.
+
+    Returns:
+        The ``DOCKER_STATS_FIELDS``, or ``None`` when this entry carries no
+        figures - a server too old for the parameter, or a guest that is not
+        running.
+
+    """
+    performance = entry.get("performance")
+    if not isinstance(performance, dict):
+        return None
+
+    used = (performance.get("memory") or {}).get("bytes")
+    return {
+        "stats_cpu_percent": (performance.get("cpu") or {}).get("usage"),
+        "stats_memory_bytes": used,
+        "stats_memory_limit_bytes": memory_total,
+        "stats_memory_percent": (round(used / memory_total * 100, 2) if used is not None and memory_total else None),
+    }
 
 
 def parse_stats(payload: dict[str, Any], previous: CpuSample | None = None) -> dict[str, Any]:

@@ -647,6 +647,13 @@ class MOSApiClient:
         keyed by container (``name``, ``autostart``) and includes the
         installed vs. available image version/digest for update tracking.
 
+        ``performance=true`` adds each container's CPU and memory to its entry,
+        which is what makes per-container usage free: without it the figures
+        cost one Engine request per container. A server too old for the
+        parameter ignores it and answers with no ``performance`` key at all, so
+        the caller decides per entry rather than per version. The key is
+        ``null`` for a container that is not running.
+
         Returns:
             The parsed ``docker/mos/containers`` payload.
 
@@ -656,7 +663,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._get("docker/mos/containers", base_url=self._root_base_url)
+        return await self._get("docker/mos/containers?performance=true", base_url=self._root_base_url)
 
     async def async_get_compose_stacks(self) -> list[dict[str, Any]]:
         """
@@ -672,6 +679,11 @@ class MOSApiClient:
         list itself (``iconUrl``, ``webui``), so there is no per-stack template
         fetch to go with this one.
 
+        ``performance=true`` adds a ``performance`` block already summed over the
+        stack's services, on the same terms as
+        ``async_get_docker_containers``: absent entirely on a server too old for
+        the parameter, ``null`` for a stack that is not running.
+
         Returns:
             The parsed ``docker/mos/compose/stacks`` payload.
 
@@ -681,7 +693,7 @@ class MOSApiClient:
             MOSApiClientError: For other API errors.
 
         """
-        return await self._get("docker/mos/compose/stacks", base_url=self._root_base_url)
+        return await self._get("docker/mos/compose/stacks?performance=true", base_url=self._root_base_url)
 
     async def async_get_docker_groups(self) -> list[dict[str, Any]]:
         """

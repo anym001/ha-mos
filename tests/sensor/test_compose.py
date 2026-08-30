@@ -9,6 +9,7 @@ from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
+    from typing import Any
     from unittest.mock import AsyncMock
 
     from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -219,3 +220,51 @@ async def test_disabling_a_stacks_stats_sensors_stops_measuring_it(
     await hass.async_block_till_done()
 
     mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_stack_stats_come_from_the_stack_list_when_mos_reports_them(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_compose_stacks: list[dict[str, Any]],
+    mock_system_load: dict[str, Any],
+) -> None:
+    """A stack carrying ``performance`` costs no per-service request.
+
+    MOS sums the stack itself, so neither the member list nor the engine list is
+    needed to arrive at the figure.
+    """
+    total = mock_system_load["memory"]["total"]
+    mock_client.async_get_compose_stacks.return_value = [
+        {**stack, "performance": {"cpu": {"usage": 4.5, "unit": "%"}, "memory": {"bytes": total // 4}}}
+        if stack["name"] == "hatest"
+        else stack
+        for stack in mock_compose_stacks
+    ]
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "4.5"
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent").state == "25.0"
+    mock_client.async_get_docker_container_stats.assert_not_awaited()
+
+
+async def test_a_stack_without_performance_still_sums_its_members(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_compose_stacks: list[dict[str, Any]],
+) -> None:
+    """A server that reports no stack figure falls back to measuring each running service."""
+    mock_client.async_get_compose_stacks.return_value = [
+        {**stack, "performance": None} for stack in mock_compose_stacks
+    ]
+    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_COMPOSE_STATS: True})
+    await hass.async_block_till_done()
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    measured = {call.args[0] for call in mock_client.async_get_docker_container_stats.await_args_list}
+    assert measured == {"compose_hatest-alpha-1", "compose_hatest-beta-1"}

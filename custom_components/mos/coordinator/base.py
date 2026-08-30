@@ -65,7 +65,12 @@ from custom_components.mos.coordinator.compose import (
     resolve_stack_web_ui_url,
     stats_targets,
 )
-from custom_components.mos.coordinator.docker_stats import NO_DOCKER_STATS, DockerStatsCollector, DockerStatsContext
+from custom_components.mos.coordinator.docker_stats import (
+    NO_DOCKER_STATS,
+    DockerStatsCollector,
+    DockerStatsContext,
+    performance_stats,
+)
 from custom_components.mos.coordinator.docker_templates import DockerTemplateCache, resolve_icon, resolve_web_ui_url
 from custom_components.mos.coordinator.guest_icons import GuestIconCache
 from custom_components.mos.entity_utils import has_read_access, has_write_access
@@ -1420,11 +1425,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 (self.data or {}).get("docker_containers") or [],
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
-        data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
+        memory_total = ((data.get("system_load") or {}).get("memory") or {}).get("total")
+        data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"], memory_total)
         data["compose_stacks"] = await self._async_add_compose_stack_data(
             data["compose_stacks"],
             data.pop("docker_groups", None),
             engine_containers,
+            memory_total,
         )
         data["lxc_containers"] = await self._guest_icon_cache.async_add_lxc_icons(data["lxc_containers"])
         data["vm_machines"] = await self._guest_icon_cache.async_add_vm_icons(data["vm_machines"])
@@ -1456,26 +1463,34 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             self._docker_stats = DockerStatsCollector(self.config_entry.runtime_data.client)
         return self._docker_stats
 
-    async def _async_add_docker_stats(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def _async_add_docker_stats(
+        self,
+        containers: list[dict[str, Any]],
+        memory_total: int | None,
+    ) -> list[dict[str, Any]]:
         """
         Stamp each Docker container with its live CPU and memory figures.
 
-        Which containers are measured is decided by the sensors themselves rather
-        than by an option: every Docker stats sensor registers a
-        ``DockerStatsContext`` when it is added, so this asks the engine only
-        about containers something is currently displaying. A user who disabled
-        the sensors for a container - or who never switched the category on, in
-        which case the sensors do not exist - costs no requests at all. This is
-        the "only fetch data for active entities" this coordinator has always
-        claimed to do, finally with a caller that needs it.
+        The figures normally arrive with the container list itself, in the
+        ``performance`` block ``async_get_docker_containers`` asks for, and cost
+        nothing extra. A server too old to answer that falls back to the Engine
+        proxy, which charges one request per container - so there, which
+        containers are measured is decided by the sensors themselves: every
+        Docker stats sensor registers a ``DockerStatsContext`` when it is added,
+        and a container nothing is displaying is never asked about.
 
-        Runs last, after the engine merge and the template pass, because it needs
-        the merged ``state`` to skip stopped containers.
+        Runs last, after the engine merge and the template pass, because the
+        fallback needs the merged ``state`` to skip stopped containers.
 
-        Note that the very first poll of a config entry measures nothing: it runs
-        inside ``async_config_entry_first_refresh()``, before any entity has been
-        added, so no context exists yet. The sensors therefore read unknown for
-        one cycle after a start or reload, and fill in on the next.
+        On the fallback path the very first poll of a config entry measures
+        nothing: it runs inside ``async_config_entry_first_refresh()``, before
+        any entity has been added, so no context exists yet. The sensors read
+        unknown for one cycle after a start or reload and fill in on the next.
+
+        Args:
+            containers: The merged container payloads.
+            memory_total: Installed RAM in bytes, the denominator for the memory
+                percentage.
 
         Returns:
             The containers, each with the ``DOCKER_STATS_FIELDS`` added (all
@@ -1485,22 +1500,26 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         if not containers:
             return containers
 
-        wanted = {context.name for context in self.async_contexts() if isinstance(context, DockerStatsContext)}
-        if not wanted:
-            return [{**container, **NO_DOCKER_STATS} for container in containers]
-
-        collected = await self._stats_collector.async_collect(containers, wanted)
+        measured = {
+            name: stats
+            for container in containers
+            if (name := container.get("name")) and (stats := performance_stats(container, memory_total)) is not None
+        }
+        unmeasured = [container for container in containers if container.get("name") not in measured]
+        if unmeasured:
+            wanted = {context.name for context in self.async_contexts() if isinstance(context, DockerStatsContext)}
+            if wanted:
+                measured |= await self._stats_collector.async_collect(unmeasured, wanted)
         # Unmeasured containers are blanked rather than left at their previous
         # values: a frozen CPU reading is indistinguishable from a live one.
-        return [
-            {**container, **collected.get(container.get("name") or "", NO_DOCKER_STATS)} for container in containers
-        ]
+        return [{**container, **measured.get(container.get("name") or "", NO_DOCKER_STATS)} for container in containers]
 
     async def _async_add_compose_stack_data(
         self,
         stacks: list[dict[str, Any]],
         groups: list[dict[str, Any]] | None,
         engine_containers: list[dict[str, Any]] | None,
+        memory_total: int | None,
     ) -> list[dict[str, Any]]:
         """
         Stamp each Compose stack with its group and engine data, icon URL and web link.
@@ -1540,7 +1559,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             stacks = carry_forward_engine_state(stacks, previous)
 
-        stacks = await self._async_add_compose_stats(stacks, engine_containers)
+        stacks = await self._async_add_compose_stats(stacks, engine_containers, memory_total)
 
         host = self.config_entry.data.get(CONF_HOST)
         decorated: list[dict[str, Any]] = []
@@ -1559,36 +1578,59 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self,
         stacks: list[dict[str, Any]],
         engine_containers: list[dict[str, Any]] | None,
+        memory_total: int | None,
     ) -> list[dict[str, Any]]:
         """
         Stamp each Compose stack with the CPU and memory its services are using.
 
-        Which stacks are measured is decided by the sensors themselves, exactly
-        as it is for the Docker containers: every stack stats sensor registers a
-        ``ComposeStatsContext``, so a stack nobody is displaying costs nothing.
-        The bill is steeper here - one request per *running service*, not per
-        device - which is why the option that creates these sensors is separate
-        from the Docker one and off by default.
+        A stack normally arrives with its own ``performance`` block, already
+        summed over its services by MOS, and costs nothing extra. A server too
+        old to answer that falls back to measuring each running member through
+        the Engine proxy and summing here - one request per *running service*,
+        not per device, which is why the option that creates these sensors is
+        separate from the Docker one and off by default.
 
-        Without the engine list there is no way to tell which services are up,
-        and measuring a stopped one would report zeroes as though it were idle.
-        The figures are blanked for that poll rather than carried forward, on the
-        same reasoning as ``_async_add_docker_stats``.
+        The fallback needs the engine list to tell which services are up;
+        measuring a stopped one would report zeroes as though it were idle.
+        Without it the figures are blanked for that poll rather than carried
+        forward, on the same reasoning as ``_async_add_docker_stats``.
+
+        Args:
+            stacks: The stack payloads, already merged with their group and
+                engine data.
+            engine_containers: The raw Docker Engine list, or ``None`` when it
+                could not be fetched this poll.
+            memory_total: Installed RAM in bytes, the denominator for the memory
+                percentage.
 
         Returns:
             The stacks, each with the ``DOCKER_STATS_FIELDS`` added (all ``None``
             for a stack that was not measured).
 
         """
-        wanted = {context.name for context in self.async_contexts() if isinstance(context, ComposeStatsContext)}
-        if not wanted or engine_containers is None:
-            return [{**stack, **NO_DOCKER_STATS} for stack in stacks]
+        from_performance = {
+            name: stats
+            for stack in stacks
+            if (name := stack.get("name")) and (stats := performance_stats(stack, memory_total)) is not None
+        }
+        remaining = [stack for stack in stacks if stack.get("name") not in from_performance]
 
-        targets = stats_targets(stacks, engine_containers, wanted)
-        measured = await self._stats_collector.async_measure(
-            [member for members in targets.values() for member in members]
-        )
-        return merge_stats(stacks, targets, measured)
+        summed: list[dict[str, Any]] = []
+        if remaining:
+            wanted = {context.name for context in self.async_contexts() if isinstance(context, ComposeStatsContext)}
+            if wanted and engine_containers is not None:
+                targets = stats_targets(remaining, engine_containers, wanted)
+                measured = await self._stats_collector.async_measure(
+                    [member for members in targets.values() for member in members]
+                )
+                summed = merge_stats(remaining, targets, measured)
+        by_name = {stack.get("name"): stack for stack in summed}
+        return [
+            {**stack, **from_performance[name]}
+            if (name := stack.get("name")) in from_performance
+            else by_name.get(name, {**stack, **NO_DOCKER_STATS})
+            for stack in stacks
+        ]
 
     async def _async_add_docker_template_data(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """

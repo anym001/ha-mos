@@ -348,6 +348,46 @@ is reported only when every measured member reports the same memory limit.
 
 ---
 
+### Container Usage Is Read From MOS, on the Machine-Relative Scale
+
+**Date:** 2026-08-30
+
+**Context:** MOS answers `/docker/mos/containers` and `/docker/mos/compose/stacks` with a `performance` block when
+asked with `?performance=true`, carrying CPU and memory for each container and each stack. The alternative source,
+the Docker Engine stats endpoint, charges one request per running container and reports on Docker's own scale, where
+one fully-busy core is 100% and a four-core host tops out at 400%. MOS reports against the whole machine, so its
+figure for the same container is smaller by the core count, and it sends no memory limit at all.
+
+**Decision:** Prefer the `performance` block wherever a payload carries one, take its CPU figure unmodified, and take
+the memory percentage against `system/load` → `memory.total`. The Engine path stays as the fallback for a server
+whose API predates the parameter, selected per payload rather than by version.
+
+**Rationale:**
+
+- Docker CPU now reads on the same scale as the LXC and VM sensors beside it on the same device page, which take
+  MOS's figure already. The integration reported two different scales before, which is not defensible once both are
+  visible in one dashboard.
+- Scaling MOS's figure back up by the core count would preserve the old values, but it encodes a guess about a
+  formula the integration does not own; a change on the MOS side would silently distort every reading.
+- Host RAM is the denominator MOS itself uses — the `memory.breakdown` percentages in `system/load` are host-relative
+  — and it is what Docker reports as the limit for any container that sets none. For those containers the percentage
+  is unchanged.
+- An old server degrades on its own: the parameter is ignored rather than rejected, and the absent block selects the
+  fallback per container, so no minimum MOS version has to be declared.
+
+**Consequences:**
+
+- Docker and Compose CPU values drop by the host's core count at the upgrade, and recorded history has a step in it.
+- A container with its own `--memory` limit reports a smaller percentage than before, because the limit is no longer
+  the denominator. Recovering "percent of its own budget" needs `memory.limit` in the `performance` block and belongs
+  in a separate sensor rather than in this one.
+- Two sources have to be kept working for as long as the fallback exists, and `DOCKER_STATS_FIELDS` is the seam
+  between them.
+- `enable_docker_stats` and `enable_compose_stats` no longer guard any request cost on a current server. They still
+  decide whether the sensors exist, which is now their only job.
+
+---
+
 ## Future Considerations
 
 ### State Restoration
