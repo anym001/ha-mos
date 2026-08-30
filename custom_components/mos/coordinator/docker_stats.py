@@ -12,15 +12,21 @@ That per-container shape is what drives every decision in this module:
 - Only containers that are *running* and that something is actually watching are
   fetched. Docker answers for a stopped container with zeroes, and a request per
   container per poll is not worth spending on a sensor nobody enabled.
-- The fetches run concurrently. Sequentially - the shape
-  ``DockerTemplateCache`` gets away with, because it is a no-op on almost every
-  poll - fifty containers would take about fifty seconds, since each stats call
-  blocks for roughly a second while Docker takes its second sample. Through the
-  client's rate limiter the same fifty take about ten, at exactly the same
-  requests-per-second the limiter allows anything else.
-- Nothing is cached or carried forward. A CPU reading that failed to refresh is
-  not worth keeping: unlike an icon or a web link, a stale value here is
-  indistinguishable from a live one and would be read as current.
+- The fetches run concurrently, paced by the client's rate limiter rather than
+  by anything here. Sequentially - the shape ``DockerTemplateCache`` gets away
+  with, because it is a no-op on almost every poll - the pacing would apply
+  twice over and a poll would spend as long again waiting between requests as it
+  does issuing them.
+- The CPU percentage is a delta across polls, so the previous poll's counters
+  are the only state this module keeps. Docker reports cumulative counters
+  rather than a percentage, and the client asks for them one-shot instead of
+  having Docker take its own second sample per request (see
+  ``async_get_docker_container_stats``). The figure is therefore averaged over
+  the scan interval rather than over one second, which is both cheaper and
+  steadier.
+- No derived figure is cached or carried forward. A CPU reading that failed to
+  refresh is not worth keeping: unlike an icon or a web link, a stale value here
+  is indistinguishable from a live one and would be read as current.
 
 Nothing in here re-raises an API failure. A container that cannot be measured
 reports no figures for that poll; the rest of the poll, including that
@@ -32,10 +38,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
+import time
 from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.api import MOSApiClientError
-from custom_components.mos.const import LOGGER
+from custom_components.mos.const import LOGGER, MAX_SCAN_INTERVAL
 
 if TYPE_CHECKING:
     from custom_components.mos.api import MOSApiClient
@@ -76,45 +83,80 @@ DOCKER_STATS_FIELDS = (
 # forward.
 NO_DOCKER_STATS: dict[str, Any] = dict.fromkeys(DOCKER_STATS_FIELDS)
 
+# How long an unmeasured container keeps its CPU counters, in seconds. Two full
+# scan intervals at the slowest polling the options flow allows, so a container
+# that is still being measured can never lose them; see
+# ``DockerStatsCollector._prune_cpu_samples``.
+CPU_SAMPLE_TTL = 2 * MAX_SCAN_INTERVAL
 
-def _cpu_percent(payload: dict[str, Any]) -> float | None:
+
+@dataclass(frozen=True)
+class CpuSample:
     """
-    Derive CPU usage in percent from the two samples in a stats payload.
+    One reading of the cumulative CPU counters a percentage is derived from.
 
-    Docker does not report a percentage; it reports cumulative counters, and the
-    figure ``docker stats`` shows is computed from how far the container's own
-    counter moved against how far the whole machine's did over the same
-    interval. Multiplying by the CPU count restores the familiar scale where one
-    fully-busy core reads as 100% and a container using two cores reads as 200%.
+    Attributes:
+        usage: Nanoseconds of CPU time the container has consumed in total.
+        system: Nanoseconds of CPU time the whole machine has consumed in total.
+        cpus: How many cores were online when the reading was taken.
+
+    """
+
+    usage: int
+    system: int
+    cpus: int
+
+
+def cpu_sample(payload: dict[str, Any]) -> CpuSample | None:
+    """
+    Extract the cumulative CPU counters from a raw stats payload.
 
     Returns:
-        The percentage, or ``None`` when the payload cannot support one - a
-        container so freshly started that both samples are the same instant, or
-        an engine that reported no counters at all. ``None`` rather than ``0.0``
-        on purpose: a zero would be indistinguishable from a genuinely idle
-        container.
+        The sample, or ``None`` when the engine reported no counters or no core
+        count - neither of which a percentage can be derived without.
 
     """
     cpu_stats = payload.get("cpu_stats") or {}
-    previous = payload.get("precpu_stats") or {}
     usage = (cpu_stats.get("cpu_usage") or {}).get("total_usage")
-    previous_usage = (previous.get("cpu_usage") or {}).get("total_usage")
     system = cpu_stats.get("system_cpu_usage")
-    previous_system = previous.get("system_cpu_usage")
-    if usage is None or previous_usage is None or system is None or previous_system is None:
-        return None
-
-    cpu_delta = usage - previous_usage
-    system_delta = system - previous_system
-    if system_delta <= 0 or cpu_delta < 0:
-        return None
-
     # ``online_cpus`` is absent on older engines, where the per-CPU breakdown is
     # the only way to count them.
     cpus = cpu_stats.get("online_cpus") or len((cpu_stats.get("cpu_usage") or {}).get("percpu_usage") or [])
-    if not cpus:
+    if usage is None or system is None or not cpus:
         return None
-    return round(cpu_delta / system_delta * cpus * 100, 2)
+    return CpuSample(usage=usage, system=system, cpus=cpus)
+
+
+def _cpu_percent(current: CpuSample | None, previous: CpuSample | None) -> float | None:
+    """
+    Derive CPU usage in percent from two readings of the cumulative counters.
+
+    Docker does not report a percentage; it reports counters, and the figure
+    ``docker stats`` shows is computed from how far the container's own counter
+    moved against how far the whole machine's did over the same interval.
+    Multiplying by the CPU count restores the familiar scale where one fully-busy
+    core reads as 100% and a container using two cores reads as 200%.
+
+    A counter that moved backwards means the container was recreated and started
+    counting again, so the two readings do not span one interval and no figure
+    can be derived from them.
+
+    Returns:
+        The percentage, or ``None`` when the two readings cannot support one - a
+        container measured for the first time, one whose counters reset, or two
+        readings the machine counter did not advance between. ``None`` rather
+        than ``0.0`` on purpose: a zero would be indistinguishable from a
+        genuinely idle container.
+
+    """
+    if current is None or previous is None:
+        return None
+
+    cpu_delta = current.usage - previous.usage
+    system_delta = current.system - previous.system
+    if system_delta <= 0 or cpu_delta < 0:
+        return None
+    return round(cpu_delta / system_delta * current.cpus * 100, 2)
 
 
 def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | None]:
@@ -157,9 +199,15 @@ def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | No
     return used, limit, percent
 
 
-def parse_stats(payload: dict[str, Any]) -> dict[str, Any]:
+def parse_stats(payload: dict[str, Any], previous: CpuSample | None = None) -> dict[str, Any]:
     """
     Reduce a raw Docker stats payload to the fields the sensors read.
+
+    Args:
+        payload: The raw stats payload for one container.
+        previous: The same container's counters as of the previous poll, against
+            which the CPU percentage is measured. Without one the memory figures
+            are still reported and the CPU percentage is ``None``.
 
     Returns:
         The ``DOCKER_STATS_FIELDS``, each either a number or ``None``.
@@ -167,7 +215,7 @@ def parse_stats(payload: dict[str, Any]) -> dict[str, Any]:
     """
     used, limit, percent = _memory(payload)
     return {
-        "stats_cpu_percent": _cpu_percent(payload),
+        "stats_cpu_percent": _cpu_percent(cpu_sample(payload), previous),
         "stats_memory_bytes": used,
         "stats_memory_limit_bytes": limit,
         "stats_memory_percent": percent,
@@ -178,13 +226,22 @@ class DockerStatsCollector:
     """
     Fetches live usage for the running containers something is watching.
 
-    Holds no state between polls - there is nothing worth caching, since every
-    figure it produces is stale the moment the next poll starts.
+    The one thing it keeps between polls is each container's CPU counters, which
+    the next poll measures its own against. One collector serves both the Docker
+    containers and the Compose stack members, so a container reached from either
+    side is measured against its own previous reading.
+
+    Attributes:
+        _client: The API client the stats are fetched through.
+        _cpu_samples: Each measured container's last counters and when they were
+            taken, keyed by container name.
+
     """
 
     def __init__(self, client: MOSApiClient) -> None:
         """Initialize the collector bound to an API client."""
         self._client = client
+        self._cpu_samples: dict[str, tuple[CpuSample, float]] = {}
 
     async def async_collect(self, containers: list[dict[str, Any]], wanted: set[str]) -> dict[str, dict[str, Any]]:
         """
@@ -212,6 +269,10 @@ class DockerStatsCollector:
         no MOS payload to carry a ``state``, so their caller is the one that
         knows which of them are running.
 
+        A container measured for the first time reports its memory but no CPU
+        percentage, since there is no earlier reading to measure against. It
+        fills in on the next poll.
+
         Returns:
             Parsed stats keyed by container name, with any whose request failed
             simply absent.
@@ -229,6 +290,7 @@ class DockerStatsCollector:
             return_exceptions=True,
         )
 
+        now = time.monotonic()
         collected: dict[str, dict[str, Any]] = {}
         for name, result in zip(targets, results, strict=True):
             if isinstance(result, MOSApiClientError):
@@ -239,5 +301,26 @@ class DockerStatsCollector:
                 # anything else.
                 raise result
             elif isinstance(result, dict):
-                collected[name] = parse_stats(result)
+                stored = self._cpu_samples.get(name)
+                collected[name] = parse_stats(result, stored[0] if stored else None)
+                if (sample := cpu_sample(result)) is not None:
+                    self._cpu_samples[name] = (sample, now)
+        self._prune_cpu_samples(now)
         return collected
+
+    def _prune_cpu_samples(self, now: float) -> None:
+        """
+        Drop the counters of containers that have stopped being measured.
+
+        Purely a bound on memory: a container that is deleted, renamed or simply
+        switched off would otherwise keep its entry for as long as Home Assistant
+        runs. Nothing about the figures depends on this, because a delta stays
+        correct however far apart its two readings are - it just describes a
+        longer interval.
+
+        The window is two full scan intervals at the longest interval the options
+        flow allows, so a container that is still being polled can never lose its
+        counters no matter how the user has configured the integration.
+        """
+        cutoff = now - CPU_SAMPLE_TTL
+        self._cpu_samples = {name: entry for name, entry in self._cpu_samples.items() if entry[1] >= cutoff}

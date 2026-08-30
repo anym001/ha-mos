@@ -119,11 +119,13 @@ async def test_stats_sensors_report_the_containers_usage(
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
 ) -> None:
-    """With the option on, a running container reports CPU and memory after the first poll.
+    """With the option on, a running container reports memory, then CPU a poll later.
 
-    The refresh is explicit because the very first poll runs before any entity
-    exists: with no context registered yet, nothing was measured. That one blank
-    cycle is expected behaviour, not a bug - see ``_async_add_docker_stats``.
+    The refreshes are explicit because the very first poll runs before any entity
+    exists: with no context registered yet, nothing is measured. The poll after
+    that measures the container and establishes its CPU baseline, and the one
+    after that is the first to derive a percentage - see
+    ``_async_add_docker_stats`` and ``DockerStatsCollector``.
     """
     hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
     await hass.async_block_till_done()
@@ -133,10 +135,15 @@ async def test_stats_sensors_report_the_containers_usage(
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "25.0"
     assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent").state == "12.5"
     # Reported in bytes, displayed in mebibytes: 67108864 B is 64 MiB.
     assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == "64.0"
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == STATE_UNKNOWN
+
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "25.0"
 
 
 async def test_stopped_container_reports_no_usage(
