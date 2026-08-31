@@ -348,7 +348,7 @@ is reported only when every measured member reports the same memory limit.
 
 ---
 
-### Container Usage Is Read From MOS, on the Machine-Relative Scale
+### Container Usage Is Read From MOS, and Reported as CPU and Bytes Only
 
 **Date:** 2026-08-30
 
@@ -358,9 +358,9 @@ the Docker Engine stats endpoint, charges one request per running container and 
 one fully-busy core is 100% and a four-core host tops out at 400%. MOS reports against the whole machine, so its
 figure for the same container is smaller by the core count, and it sends no memory limit at all.
 
-**Decision:** Prefer the `performance` block wherever a payload carries one, take its CPU figure unmodified, and take
-the memory percentage against `system/load` → `memory.total`. The Engine path stays as the fallback for a server
-whose API predates the parameter, selected per payload rather than by version.
+**Decision:** Prefer the `performance` block wherever a payload carries one and take its CPU figure unmodified. Report
+memory as bytes only, with no percentage and no limit. The Engine path stays as the fallback for a server whose API
+predates the parameter, selected per payload rather than by version.
 
 **Rationale:**
 
@@ -369,18 +369,23 @@ whose API predates the parameter, selected per payload rather than by version.
   visible in one dashboard.
 - Scaling MOS's figure back up by the core count would preserve the old values, but it encodes a guess about a
   formula the integration does not own; a change on the MOS side would silently distort every reading.
-- Host RAM is the denominator MOS itself uses — the `memory.breakdown` percentages in `system/load` are host-relative
-  — and it is what Docker reports as the limit for any container that sets none. For those containers the percentage
-  is unchanged.
+- A memory percentage needs a budget to divide by, and MOS reports none for any kind. Host RAM is the only denominator
+  available, and against it every container on a NAS with room to spare reads as a fraction of a percent — a flat line
+  that says less than the byte figure beside it. Portainer and Proxmox both ship a percentage, but both divide by the
+  budget of the guest itself and expose that limit as its own sensor; neither shape is reachable here.
+- Home Assistant ships the same reading for Supervisor add-ons, which are Docker containers, and disables it by default
+  (`hassio/sensor.py`). A figure whose own source turns it off is a weak reason to keep an entity alive.
 - An old server degrades on its own: the parameter is ignored rather than rejected, and the absent block selects the
   fallback per container, so no minimum MOS version has to be declared.
 
 **Consequences:**
 
 - Docker and Compose CPU values drop by the host's core count at the upgrade, and recorded history has a step in it.
-- A container with its own `--memory` limit reports a smaller percentage than before, because the limit is no longer
-  the denominator. Recovering "percent of its own budget" needs `memory.limit` in the `performance` block and belongs
-  in a separate sensor rather than in this one.
+- The `memory_percent` sensors are gone from Docker and Compose, along with their history.
+  `async_remove_retired_entities` deletes the registry rows, without which Home Assistant would keep publishing them
+  as unavailable forever.
+- Should MOS ever report a per-guest memory limit, the sensor comes back against that limit rather than against host
+  RAM, and all four kinds can carry it.
 - Two sources have to be kept working for as long as the fallback exists, and `DOCKER_STATS_FIELDS` is the seam
   between them.
 - `enable_docker_stats` and `enable_compose_stats` no longer guard any request cost on a current server. They still

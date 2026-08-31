@@ -161,18 +161,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = 
         needs_stats=True,
         extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
-    # Reads unknown, rather than wrong, for a stack whose services are limited
-    # differently from one another - there is no single budget to take a
-    # percentage of then (see ``_sum_stats``).
-    MOSComposeStackSensorEntityDescription(
-        key="memory_percent",
-        translation_key="compose_memory_percent",
-        native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda stack: stack.get("stats_memory_percent"),
-        needs_stats=True,
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
-    ),
 )
 
 

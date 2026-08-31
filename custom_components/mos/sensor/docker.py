@@ -159,19 +159,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
         needs_stats=True,
         extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
-    # No LXC or VM counterpart, because MOS reports no memory limit for either -
-    # there would be nothing to take a percentage of. Docker reports one in the
-    # same payload, and "this container is at 95% of its limit" is the reading
-    # that precedes an OOM kill.
-    MOSDockerContainerSensorEntityDescription(
-        key="memory_percent",
-        translation_key="docker_memory_percent",
-        native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda container: container.get("stats_memory_percent"),
-        needs_stats=True,
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
-    ),
 )
 
 

@@ -40,7 +40,7 @@ from .const import (
 )
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
-from .entity_utils import async_setup_area_inheritance
+from .entity_utils import async_remove_retired_entities, async_setup_area_inheritance
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -132,6 +132,9 @@ async def async_setup_entry(
     # Before the platforms, so a device created during their setup is already
     # covered by it rather than being the one that slipped through.
     async_setup_area_inheritance(hass, entry)
+    # Also before the platforms: a retired entity that is still registered would
+    # otherwise be republished as unavailable the moment its device is created.
+    async_remove_retired_entities(hass, entry.entry_id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
