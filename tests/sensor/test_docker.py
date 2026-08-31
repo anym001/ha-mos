@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.mos.const import DOMAIN
+from custom_components.mos.api import MOSApiClientCommunicationError
+from custom_components.mos.const import DOMAIN, RESOURCE_STALE_GRACE_PERIOD, RESOURCE_STALE_MIN_FAILURES
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -245,3 +247,34 @@ async def test_a_container_without_performance_still_falls_back_to_the_engine(
     await hass.async_block_till_done()
 
     assert "PushBits" in _measured(mock_client)
+
+
+async def test_a_stale_engine_list_stops_the_fallback_measuring(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    advance_clock: Callable[[float], None],
+) -> None:
+    """A running state too old to trust ends the fallback instead of being measured against.
+
+    Docker answers for a stopped container with zeroes, so a container that
+    stopped while the proxy was down would be reported as idle rather than as
+    absent.
+    """
+    coordinator = setup_integration.runtime_data.coordinator
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert "PushBits" in _measured(mock_client)
+
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientCommunicationError("timeout")
+    for _ in range(RESOURCE_STALE_MIN_FAILURES):
+        advance_clock(RESOURCE_STALE_GRACE_PERIOD.total_seconds())
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert coordinator.stale_resources == frozenset({"docker_engine_containers"})
+
+    mock_client.async_get_docker_container_stats.reset_mock()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert _measured(mock_client) == set()
