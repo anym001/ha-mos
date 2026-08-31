@@ -72,9 +72,7 @@
           "enable_services": "Dienste aktivieren",
           "enable_lxc": "LXC-Container aktivieren",
           "enable_docker": "Docker-Container aktivieren",
-          "enable_docker_stats": "Docker-Auslastung aktivieren",
           "enable_compose": "Compose-Stacks aktivieren",
-          "enable_compose_stats": "Compose-Auslastung aktivieren",
           "enable_vm": "VMs aktivieren",
           "enable_sensors": "Hardware-Sensoren aktivieren",
           "enable_nut": "USV aktivieren"
@@ -86,9 +84,7 @@
           "enable_services": "Entitäten für Systemdienste anlegen (Docker, VM, SSH, ...).",
           "enable_lxc": "Entitäten für jeden LXC-Container anlegen.",
           "enable_docker": "Entitäten für jeden Docker-Container anlegen.",
-          "enable_docker_stats": "CPU- und Speicher-Sensoren für jeden Docker-Container anlegen. Kostet pro laufendem Container eine zusätzliche Abfrage je Poll - bei vielen Containern besser ausgeschaltet lassen.",
           "enable_compose": "Entitäten für jeden Docker-Compose-Stack anlegen. Ein Stack ist ein Gerät für alle seine Services; seine Container tauchen nicht einzeln unter den Docker-Containern auf.",
-          "enable_compose_stats": "CPU- und Speicher-Sensoren für jeden Compose-Stack anlegen, summiert über seine Services. Kostet pro laufendem Service eine zusätzliche Abfrage je Poll - wenige große Stacks kosten also mehr als viele kleine.",
           "enable_vm": "Entitäten für jede VM anlegen.",
           "enable_sensors": "Entitäten für Hardware-Messwerte anlegen (Lüfter, Temperaturen, Spannungen, ...).",
           "enable_nut": "Entitäten für die USV anlegen, die MOS über Network UPS Tools überwacht."

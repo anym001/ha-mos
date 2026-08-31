@@ -778,9 +778,9 @@ class MOSApiClient:
         Calls ``GET /docker/containers/{name}/stats?stream=false&one-shot=true``,
         proxied straight through to Docker's own stats endpoint. There is no
         collection form of it - Docker reports usage one container at a time -
-        so a caller that wants figures for N containers pays N requests. That is
-        why the feature this backs is opt-in; see
-        ``DEFAULT_ENABLE_DOCKER_STATS``.
+        so a caller that wants figures for N containers pays N requests. Only
+        reached on a server whose API cannot report usage with the container
+        list; see ``async_get_docker_containers``.
 
         ``one-shot=true`` makes Docker answer from the counters it already has,
         in about ten milliseconds. Without it Docker takes a second sample

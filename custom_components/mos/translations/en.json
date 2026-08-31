@@ -72,9 +72,7 @@
           "enable_services": "Enable services",
           "enable_lxc": "Enable LXC containers",
           "enable_docker": "Enable Docker containers",
-          "enable_docker_stats": "Enable Docker container stats",
           "enable_compose": "Enable Compose stacks",
-          "enable_compose_stats": "Enable Compose stack stats",
           "enable_vm": "Enable VMs",
           "enable_sensors": "Enable hardware sensors",
           "enable_nut": "Enable UPS"
@@ -86,9 +84,7 @@
           "enable_services": "Create entities for system services (Docker, VM, SSH, ...).",
           "enable_lxc": "Create entities for each LXC container.",
           "enable_docker": "Create entities for each Docker container.",
-          "enable_docker_stats": "Add CPU and memory sensors to each Docker container. Costs one extra request per running container on every poll, so leave it off if you run many containers.",
           "enable_compose": "Create entities for each Docker Compose stack. A stack is one device covering all of its services; its member containers do not appear individually under Docker containers.",
-          "enable_compose_stats": "Add CPU and memory sensors to each Compose stack, summed over its services. Costs one extra request per running service on every poll, so a few large stacks cost more than many small ones.",
           "enable_vm": "Create entities for each VM.",
           "enable_sensors": "Create entities for hardware readings (fans, temperatures, voltages, ...).",
           "enable_nut": "Create entities for the UPS MOS monitors via Network UPS Tools."
