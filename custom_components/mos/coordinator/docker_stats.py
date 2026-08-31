@@ -81,8 +81,6 @@ class DockerStatsContext:
 DOCKER_STATS_FIELDS = (
     "stats_cpu_percent",
     "stats_memory_bytes",
-    "stats_memory_limit_bytes",
-    "stats_memory_percent",
 )
 
 # Blanks for a container that was not measured this poll. Deliberately not the
@@ -166,9 +164,9 @@ def _cpu_percent(current: CpuSample | None, previous: CpuSample | None) -> float
     return round(cpu_delta / system_delta * current.cpus * 100, 2)
 
 
-def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | None]:
+def _memory(payload: dict[str, Any]) -> int | None:
     """
-    Derive used bytes, the limit, and the percentage between them.
+    Derive the bytes a container is actually holding.
 
     ``memory_stats.usage`` counts page cache the kernel is holding on the
     container's behalf and would drop under pressure, so reporting it raw makes
@@ -176,21 +174,14 @@ def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | No
     part is what ``docker stats`` shows, and the field it lives in was renamed
     across cgroup versions - hence the fallback chain.
 
-    Note that a container with no memory limit of its own is reported by Docker
-    as limited to the host's entire RAM. The percentage is then "of the whole
-    NAS", not "of this container's budget"; that is Docker's own convention and
-    is left as-is rather than second-guessed here.
-
     Returns:
-        ``(used_bytes, limit_bytes, percent)``, any of which may be ``None`` when
-        the engine did not report the underlying field.
+        The bytes in use, or ``None`` when the engine reported no usage at all.
 
     """
     memory_stats = payload.get("memory_stats") or {}
     usage = memory_stats.get("usage")
-    limit = memory_stats.get("limit") or None
     if usage is None:
-        return None, limit, None
+        return None
 
     detail = memory_stats.get("stats") or {}
     # cgroup v2 calls it inactive_file; cgroup v1 reports total_inactive_file for
@@ -201,25 +192,18 @@ def _memory(payload: dict[str, Any]) -> tuple[int | None, int | None, float | No
     if reclaimable is None:
         reclaimable = detail.get("cache")
 
-    used = max(usage - (reclaimable or 0), 0)
-    percent = round(used / limit * 100, 2) if limit else None
-    return used, limit, percent
+    return max(usage - (reclaimable or 0), 0)
 
 
-def performance_stats(entry: dict[str, Any], memory_total: int | None) -> dict[str, Any] | None:
+def performance_stats(entry: dict[str, Any]) -> dict[str, Any] | None:
     """
-    Read the four figures out of a MOS ``performance`` block.
+    Read the figures out of a MOS ``performance`` block.
 
     MOS reports CPU against the whole machine, so the figure never exceeds 100%
-    and reads on the same scale as the LXC and VM sensors beside it. Memory is
-    reported as bytes with no limit, so the percentage is taken against the
-    host's installed RAM - the denominator MOS uses for its own
-    ``system/load`` breakdown, and the one Docker reports for any container that
-    sets no limit of its own.
+    and reads on the same scale as the LXC and VM sensors beside it.
 
     Args:
         entry: One container or stack payload, which may carry ``performance``.
-        memory_total: Installed RAM in bytes, from ``system/load``.
 
     Returns:
         The ``DOCKER_STATS_FIELDS``, or ``None`` when this entry carries no
@@ -231,12 +215,9 @@ def performance_stats(entry: dict[str, Any], memory_total: int | None) -> dict[s
     if not isinstance(performance, dict):
         return None
 
-    used = (performance.get("memory") or {}).get("bytes")
     return {
         "stats_cpu_percent": (performance.get("cpu") or {}).get("usage"),
-        "stats_memory_bytes": used,
-        "stats_memory_limit_bytes": memory_total,
-        "stats_memory_percent": (round(used / memory_total * 100, 2) if used is not None and memory_total else None),
+        "stats_memory_bytes": (performance.get("memory") or {}).get("bytes"),
     }
 
 
@@ -247,19 +228,16 @@ def parse_stats(payload: dict[str, Any], previous: CpuSample | None = None) -> d
     Args:
         payload: The raw stats payload for one container.
         previous: The same container's counters as of the previous poll, against
-            which the CPU percentage is measured. Without one the memory figures
-            are still reported and the CPU percentage is ``None``.
+            which the CPU percentage is measured. Without one the memory figure
+            is still reported and the CPU percentage is ``None``.
 
     Returns:
         The ``DOCKER_STATS_FIELDS``, each either a number or ``None``.
 
     """
-    used, limit, percent = _memory(payload)
     return {
         "stats_cpu_percent": _cpu_percent(cpu_sample(payload), previous),
-        "stats_memory_bytes": used,
-        "stats_memory_limit_bytes": limit,
-        "stats_memory_percent": percent,
+        "stats_memory_bytes": _memory(payload),
     }
 
 

@@ -11,8 +11,10 @@ from .nut_status import (
     nut_status_flags,
 )
 from .permissions import has_read_access, has_write_access
+from .retired_entities import async_remove_retired_entities
 
 __all__ = [
+    "async_remove_retired_entities",
     "async_setup_area_inheritance",
     "async_setup_dynamic_entities",
     "async_setup_ups_entities",

@@ -194,13 +194,11 @@ def test_engine_fields_survive_a_failed_proxy_request() -> None:
     assert carried[0]["running"] is False
 
 
-def _stats(cpu: float | None, used: int | None, limit: int | None = GIBIBYTE) -> dict[str, Any]:
+def _stats(cpu: float | None, used: int | None) -> dict[str, Any]:
     """Build one container's parsed stats as ``parse_stats`` returns them."""
     return {
         "stats_cpu_percent": cpu,
         "stats_memory_bytes": used,
-        "stats_memory_limit_bytes": limit,
-        "stats_memory_percent": None,
     }
 
 
@@ -240,22 +238,6 @@ def test_figures_are_summed_over_the_services() -> None:
 
     assert merged["stats_cpu_percent"] == 40.5
     assert merged["stats_memory_bytes"] == 300_000_000
-    assert merged["stats_memory_percent"] == 27.94
-
-
-def test_services_limited_differently_have_no_shared_budget() -> None:
-    """There is no denominator to divide by then, and inventing one reads as authoritative."""
-    targets = {"hatest": ["compose_hatest-alpha-1", "compose_hatest-beta-1"]}
-    measured = {
-        "compose_hatest-alpha-1": _stats(25.0, 200_000_000, limit=GIBIBYTE),
-        "compose_hatest-beta-1": _stats(15.5, 100_000_000, limit=536_870_912),
-    }
-
-    merged = merge_stats([_stack()], targets, measured)[0]
-
-    assert merged["stats_memory_bytes"] == 300_000_000
-    assert merged["stats_memory_limit_bytes"] is None
-    assert merged["stats_memory_percent"] is None
 
 
 def test_a_service_that_could_not_be_measured_is_left_out_of_the_sum() -> None:
@@ -275,4 +257,3 @@ def test_an_unmeasured_stack_reads_blank_rather_than_zero() -> None:
 
     assert merged["stats_cpu_percent"] is None
     assert merged["stats_memory_bytes"] is None
-    assert merged["stats_memory_percent"] is None

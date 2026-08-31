@@ -227,16 +227,8 @@ def _sum_stats(members: list[dict[str, Any]]) -> dict[str, Any]:
     """
     Add up the per-container figures into one set for the whole stack.
 
-    CPU and used bytes simply add: both are absolute amounts on the same host,
-    and a stack using two fully-busy cores reading as 200% matches what its
-    containers report individually.
-
-    The percentage is the one that cannot always be formed. It needs a single
-    budget to divide by, and members only share one when they are all limited
-    the same way - which is the usual case, since an unconstrained container is
-    reported by Docker as limited to the host's entire RAM. Where the members
-    disagree there is no such budget, and inventing a denominator would produce
-    a figure that looks authoritative and means nothing.
+    Both figures simply add: they are absolute amounts on the same host, so a
+    stack costs the sum of what its containers report individually.
 
     Returns:
         The ``DOCKER_STATS_FIELDS``, each a number or ``None``.
@@ -244,15 +236,10 @@ def _sum_stats(members: list[dict[str, Any]]) -> dict[str, Any]:
     """
     cpu = [value for member in members if (value := member.get("stats_cpu_percent")) is not None]
     used = [value for member in members if (value := member.get("stats_memory_bytes")) is not None]
-    limits = {value for member in members if (value := member.get("stats_memory_limit_bytes")) is not None}
 
-    total_used = sum(used) if used else None
-    limit = limits.pop() if len(limits) == 1 else None
     return {
         "stats_cpu_percent": round(sum(cpu), 2) if cpu else None,
-        "stats_memory_bytes": total_used,
-        "stats_memory_limit_bytes": limit,
-        "stats_memory_percent": round(total_used / limit * 100, 2) if total_used is not None and limit else None,
+        "stats_memory_bytes": sum(used) if used else None,
     }
 
 

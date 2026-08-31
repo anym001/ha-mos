@@ -52,16 +52,14 @@ def _earlier(usage: int = 1_000_000_000, system: int = 36_000_000_000, cpus: int
 
 
 def test_parses_a_full_payload(mock_docker_stats: dict[str, Any]) -> None:
-    """A payload with an earlier reading to measure against yields all four figures.
+    """A payload with an earlier reading to measure against yields both figures.
 
     The fixture is 0.5s of CPU against 4s of machine time on 2 CPUs, and 96 MiB
-    of usage minus 32 MiB of reclaimable cache against a 512 MiB limit.
+    of usage minus 32 MiB of reclaimable cache.
     """
     assert parse_stats(mock_docker_stats, _earlier()) == {
         "stats_cpu_percent": 25.0,
         "stats_memory_bytes": 67_108_864,
-        "stats_memory_limit_bytes": 536_870_912,
-        "stats_memory_percent": 12.5,
     }
 
 
@@ -134,14 +132,9 @@ def test_subtracts_reclaimable_cache_under_either_cgroup_version(
     assert parse_stats(payload)["stats_memory_bytes"] == expected
 
 
-def test_reports_no_memory_percent_without_a_limit(mock_docker_stats: dict[str, Any]) -> None:
-    """Without a limit there is nothing to take a percentage of."""
-    payload = {**mock_docker_stats, "memory_stats": {**mock_docker_stats["memory_stats"], "limit": 0}}
-
-    parsed = parse_stats(payload)
-
-    assert parsed["stats_memory_limit_bytes"] is None
-    assert parsed["stats_memory_percent"] is None
+def test_reports_no_memory_without_a_usage_figure() -> None:
+    """An engine that reported no memory block yields None rather than raising."""
+    assert parse_stats({})["stats_memory_bytes"] is None
 
 
 async def test_measures_only_running_and_wanted_containers(mock_client: AsyncMock) -> None:
@@ -290,8 +283,6 @@ def test_context_distinguishes_containers_by_type() -> None:
 
 # --- performance blocks, the figures MOS reports with the list itself ---
 
-HOST_RAM = 10_434_109_440
-
 
 def _performance(cpu: float = 2.13, memory: int = 104_857_600) -> dict[str, Any]:
     """Return a MOS ``performance`` block in the shape the API answers with."""
@@ -301,15 +292,13 @@ def _performance(cpu: float = 2.13, memory: int = 104_857_600) -> dict[str, Any]
     }
 
 
-def test_reads_the_four_figures_from_a_performance_block() -> None:
-    """CPU is taken as reported and memory is measured against installed RAM."""
+def test_reads_the_figures_from_a_performance_block() -> None:
+    """Both figures are taken exactly as MOS reports them."""
     entry = {"name": "PushBits", "performance": _performance()}
 
-    assert performance_stats(entry, HOST_RAM) == {
+    assert performance_stats(entry) == {
         "stats_cpu_percent": 2.13,
         "stats_memory_bytes": 104_857_600,
-        "stats_memory_limit_bytes": HOST_RAM,
-        "stats_memory_percent": 1.0,
     }
 
 
@@ -322,13 +311,4 @@ def test_reads_the_four_figures_from_a_performance_block() -> None:
 )
 def test_reports_nothing_without_a_performance_block(entry: dict[str, Any], reason: str) -> None:
     """Both "no figures" shapes yield None so the caller can fall back or blank."""
-    assert performance_stats(entry, HOST_RAM) is None, reason
-
-
-def test_reports_no_memory_percent_without_a_host_total() -> None:
-    """A poll whose system load failed has no denominator, but the bytes still stand."""
-    parsed = performance_stats({"performance": _performance()}, None)
-
-    assert parsed is not None
-    assert parsed["stats_memory_bytes"] == 104_857_600
-    assert parsed["stats_memory_percent"] is None
+    assert performance_stats(entry) is None, reason

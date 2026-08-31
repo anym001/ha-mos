@@ -316,9 +316,6 @@
       "docker_memory_usage": {
         "name": "Speicherauslastung"
       },
-      "docker_memory_percent": {
-        "name": "Speicher in Prozent"
-      },
       "compose_state": {
         "name": "Status",
         "state": {
@@ -337,9 +334,6 @@
       },
       "compose_memory_usage": {
         "name": "Speicherauslastung"
-      },
-      "compose_memory_percent": {
-        "name": "Speicher in Prozent"
       },
       "vm_state": {
         "name": "Zustand",

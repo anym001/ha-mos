@@ -1425,13 +1425,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 (self.data or {}).get("docker_containers") or [],
             )
         data["docker_containers"] = await self._async_add_docker_template_data(data["docker_containers"])
-        memory_total = ((data.get("system_load") or {}).get("memory") or {}).get("total")
-        data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"], memory_total)
+        data["docker_containers"] = await self._async_add_docker_stats(data["docker_containers"])
         data["compose_stacks"] = await self._async_add_compose_stack_data(
             data["compose_stacks"],
             data.pop("docker_groups", None),
             engine_containers,
-            memory_total,
         )
         data["lxc_containers"] = await self._guest_icon_cache.async_add_lxc_icons(data["lxc_containers"])
         data["vm_machines"] = await self._guest_icon_cache.async_add_vm_icons(data["vm_machines"])
@@ -1463,11 +1461,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             self._docker_stats = DockerStatsCollector(self.config_entry.runtime_data.client)
         return self._docker_stats
 
-    async def _async_add_docker_stats(
-        self,
-        containers: list[dict[str, Any]],
-        memory_total: int | None,
-    ) -> list[dict[str, Any]]:
+    async def _async_add_docker_stats(self, containers: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Stamp each Docker container with its live CPU and memory figures.
 
@@ -1489,8 +1483,6 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
 
         Args:
             containers: The merged container payloads.
-            memory_total: Installed RAM in bytes, the denominator for the memory
-                percentage.
 
         Returns:
             The containers, each with the ``DOCKER_STATS_FIELDS`` added (all
@@ -1503,7 +1495,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         measured = {
             name: stats
             for container in containers
-            if (name := container.get("name")) and (stats := performance_stats(container, memory_total)) is not None
+            if (name := container.get("name")) and (stats := performance_stats(container)) is not None
         }
         unmeasured = [container for container in containers if container.get("name") not in measured]
         if unmeasured:
@@ -1519,7 +1511,6 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         stacks: list[dict[str, Any]],
         groups: list[dict[str, Any]] | None,
         engine_containers: list[dict[str, Any]] | None,
-        memory_total: int | None,
     ) -> list[dict[str, Any]]:
         """
         Stamp each Compose stack with its group and engine data, icon URL and web link.
@@ -1559,7 +1550,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             stacks = carry_forward_engine_state(stacks, previous)
 
-        stacks = await self._async_add_compose_stats(stacks, engine_containers, memory_total)
+        stacks = await self._async_add_compose_stats(stacks, engine_containers)
 
         host = self.config_entry.data.get(CONF_HOST)
         decorated: list[dict[str, Any]] = []
@@ -1578,7 +1569,6 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         self,
         stacks: list[dict[str, Any]],
         engine_containers: list[dict[str, Any]] | None,
-        memory_total: int | None,
     ) -> list[dict[str, Any]]:
         """
         Stamp each Compose stack with the CPU and memory its services are using.
@@ -1600,8 +1590,6 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
                 engine data.
             engine_containers: The raw Docker Engine list, or ``None`` when it
                 could not be fetched this poll.
-            memory_total: Installed RAM in bytes, the denominator for the memory
-                percentage.
 
         Returns:
             The stacks, each with the ``DOCKER_STATS_FIELDS`` added (all ``None``
@@ -1611,7 +1599,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         from_performance = {
             name: stats
             for stack in stacks
-            if (name := stack.get("name")) and (stats := performance_stats(stack, memory_total)) is not None
+            if (name := stack.get("name")) and (stats := performance_stats(stack)) is not None
         }
         remaining = [stack for stack in stacks if stack.get("name") not in from_performance]
 

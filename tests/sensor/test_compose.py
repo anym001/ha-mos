@@ -146,7 +146,6 @@ async def test_stats_sensors_are_absent_unless_the_option_is_on(
     """The option is off by default, so no stats sensor exists and no service is measured."""
     assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage") is None
     assert hass.states.get("sensor.sirius_compose_hatest_memory_usage") is None
-    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent") is None
     mock_client.async_get_docker_container_stats.assert_not_awaited()
 
 
@@ -170,9 +169,8 @@ async def test_stats_sensors_sum_the_running_services(
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    # Both services answer with the same payload: 64 MiB of a 512 MiB limit each.
+    # Both services answer with the same payload: 64 MiB each.
     assert hass.states.get("sensor.sirius_compose_hatest_memory_usage").state == "128.0"
-    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent").state == "25.0"
     assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == STATE_UNKNOWN
 
     await setup_integration.runtime_data.coordinator.async_refresh()
@@ -208,7 +206,7 @@ async def test_disabling_a_stacks_stats_sensors_stops_measuring_it(
     await hass.async_block_till_done()
 
     registry = er.async_get(hass)
-    for key in ("cpu_usage", "memory_usage", "memory_percent"):
+    for key in ("cpu_usage", "memory_usage"):
         registry.async_update_entity(
             f"sensor.sirius_compose_hatest_{key}",
             disabled_by=er.RegistryEntryDisabler.USER,
@@ -227,16 +225,14 @@ async def test_stack_stats_come_from_the_stack_list_when_mos_reports_them(
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
     mock_compose_stacks: list[dict[str, Any]],
-    mock_system_load: dict[str, Any],
 ) -> None:
     """A stack carrying ``performance`` costs no per-service request.
 
     MOS sums the stack itself, so neither the member list nor the engine list is
     needed to arrive at the figure.
     """
-    total = mock_system_load["memory"]["total"]
     mock_client.async_get_compose_stacks.return_value = [
-        {**stack, "performance": {"cpu": {"usage": 4.5, "unit": "%"}, "memory": {"bytes": total // 4}}}
+        {**stack, "performance": {"cpu": {"usage": 4.5, "unit": "%"}, "memory": {"bytes": 268_435_456}}}
         if stack["name"] == "hatest"
         else stack
         for stack in mock_compose_stacks
@@ -247,7 +243,8 @@ async def test_stack_stats_come_from_the_stack_list_when_mos_reports_them(
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "4.5"
-    assert hass.states.get("sensor.sirius_compose_hatest_memory_percent").state == "25.0"
+    # Reported in bytes, displayed in mebibytes: 268435456 B is 256 MiB.
+    assert hass.states.get("sensor.sirius_compose_hatest_memory_usage").state == "256.0"
     mock_client.async_get_docker_container_stats.assert_not_awaited()
 
 

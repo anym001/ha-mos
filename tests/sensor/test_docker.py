@@ -111,7 +111,6 @@ async def test_stats_sensors_are_absent_unless_the_option_is_on(
     """The stats option is off by default, so no stats sensor exists and nothing is measured."""
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage") is None
     assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage") is None
-    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent") is None
     mock_client.async_get_docker_container_stats.assert_not_awaited()
 
 
@@ -136,7 +135,6 @@ async def test_stats_sensors_report_the_containers_usage(
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent").state == "12.5"
     # Reported in bytes, displayed in mebibytes: 67108864 B is 64 MiB.
     assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == "64.0"
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == STATE_UNKNOWN
@@ -176,7 +174,7 @@ async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
     await hass.async_block_till_done()
 
     registry = er.async_get(hass)
-    for key in ("cpu_usage", "memory_usage", "memory_percent"):
+    for key in ("cpu_usage", "memory_usage"):
         registry.async_update_entity(
             f"sensor.sirius_docker_pushbits_{key}",
             disabled_by=er.RegistryEntryDisabler.USER,
@@ -210,16 +208,14 @@ async def test_stats_come_from_the_container_list_when_mos_reports_them(
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
     mock_docker_containers: list[dict[str, Any]],
-    mock_system_load: dict[str, Any],
 ) -> None:
     """A container carrying ``performance`` is never asked about separately.
 
     The figures are there on the first measuring poll, with no baseline cycle,
     because MOS reports a percentage rather than counters to difference.
     """
-    total = mock_system_load["memory"]["total"]
     mock_client.async_get_docker_containers.return_value = [
-        {**container, "performance": {"cpu": {"usage": 2.13, "unit": "%"}, "memory": {"bytes": total // 100}}}
+        {**container, "performance": {"cpu": {"usage": 2.13, "unit": "%"}, "memory": {"bytes": 104_857_600}}}
         if container["name"] == "PushBits"
         else container
         for container in mock_docker_containers
@@ -230,7 +226,8 @@ async def test_stats_come_from_the_container_list_when_mos_reports_them(
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "2.13"
-    assert hass.states.get("sensor.sirius_docker_pushbits_memory_percent").state == "1.0"
+    # Reported in bytes, displayed in mebibytes: 104857600 B is 100 MiB.
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == "100.0"
     mock_client.async_get_docker_container_stats.assert_not_awaited()
 
 
