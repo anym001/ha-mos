@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import DOMAIN, MOSDeviceKind
+from custom_components.mos.api import MOSApiClientCommunicationError
+from custom_components.mos.const import DOMAIN, RESOURCE_STALE_GRACE_PERIOD, RESOURCE_STALE_MIN_FAILURES, MOSDeviceKind
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import Any
     from unittest.mock import AsyncMock
 
@@ -264,3 +266,35 @@ async def test_a_stack_without_performance_still_sums_its_members(
     await hass.async_block_till_done()
 
     assert _measured(mock_client) == {"compose_hatest-alpha-1", "compose_hatest-beta-1"}
+
+
+async def test_a_stale_engine_list_stops_the_fallback_measuring(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    advance_clock: Callable[[float], None],
+) -> None:
+    """A dead engine proxy leaves the stack figures blank rather than partly summed.
+
+    The raw member list is never carried forward, so the fallback has nothing to
+    decide which services are up and gives up rather than measuring a service
+    that may since have stopped - which would answer with zeroes and drag the
+    sum down as if it were idle rather than absent.
+    """
+    coordinator = setup_integration.runtime_data.coordinator
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert _measured(mock_client)
+
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientCommunicationError("timeout")
+    for _ in range(RESOURCE_STALE_MIN_FAILURES):
+        advance_clock(RESOURCE_STALE_GRACE_PERIOD.total_seconds())
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert coordinator.stale_resources == frozenset({"docker_engine_containers"})
+
+    mock_client.async_get_docker_container_stats.reset_mock()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert _measured(mock_client) == set()

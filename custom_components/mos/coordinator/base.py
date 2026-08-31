@@ -1474,7 +1474,11 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         and a container nothing is displaying is never asked about.
 
         Runs last, after the engine merge and the template pass, because the
-        fallback needs the merged ``state`` to skip stopped containers.
+        fallback needs the merged ``state`` to skip stopped containers. Once
+        that state is stale the fallback measures nothing at all: Docker answers
+        for a stopped container with zeroes, so measuring against a running
+        state that is no longer current reports an idle container rather than an
+        absent one.
 
         On the fallback path the very first poll of a config entry measures
         nothing: it runs inside ``async_config_entry_first_refresh()``, before
@@ -1498,7 +1502,7 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
             if (name := container.get("name")) and (stats := performance_stats(container)) is not None
         }
         unmeasured = [container for container in containers if container.get("name") not in measured]
-        if unmeasured:
+        if unmeasured and "docker_engine_containers" not in self.stale_resources:
             wanted = {context.name for context in self.async_contexts() if isinstance(context, DockerStatsContext)}
             if wanted:
                 measured |= await self._stats_collector.async_collect(unmeasured, wanted)
@@ -1577,13 +1581,13 @@ class MOSDataUpdateCoordinator(DataUpdateCoordinator):
         summed over its services by MOS, and costs nothing extra. A server too
         old to answer that falls back to measuring each running member through
         the Engine proxy and summing here - one request per *running service*,
-        not per device, which is why the option that creates these sensors is
-        separate from the Docker one and off by default.
+        not per device.
 
         The fallback needs the engine list to tell which services are up;
-        measuring a stopped one would report zeroes as though it were idle.
-        Without it the figures are blanked for that poll rather than carried
-        forward, on the same reasoning as ``_async_add_docker_stats``.
+        measuring a stopped one would report zeroes as though it were idle. The
+        raw list is never carried forward, so a poll that could not fetch it
+        blanks the figures instead, on the same reasoning as
+        ``_async_add_docker_stats``.
 
         Args:
             stacks: The stack payloads, already merged with their group and
