@@ -278,3 +278,29 @@ async def test_a_stale_engine_list_stops_the_fallback_measuring(
     await hass.async_block_till_done()
 
     assert _measured(mock_client) == set()
+
+
+async def test_usage_from_the_container_list_survives_a_dead_engine_proxy(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict[str, Any]],
+    advance_clock: Callable[[float], None],
+) -> None:
+    """Figures MOS reported itself are not hidden by a proxy that never supplied them."""
+    mock_client.async_get_docker_containers.return_value = [
+        {**container, "performance": {"cpu": {"usage": 2.13, "unit": "%"}, "memory": {"bytes": 104_857_600}}}
+        if container["name"] == "PushBits"
+        else container
+        for container in mock_docker_containers
+    ]
+    mock_client.async_get_docker_engine_containers.side_effect = MOSApiClientCommunicationError("timeout")
+
+    coordinator = setup_integration.runtime_data.coordinator
+    for _ in range(RESOURCE_STALE_MIN_FAILURES):
+        advance_clock(RESOURCE_STALE_GRACE_PERIOD.total_seconds())
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert coordinator.stale_resources == frozenset({"docker_engine_containers"})
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "2.13"
