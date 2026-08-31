@@ -166,15 +166,13 @@ async def test_docker_switch_follows_the_engine_proxy_but_its_sensors_do_not(
         for entity in er.async_entries_for_device(entity_reg, docker_device.id)
     }
     # Split by which resource actually feeds the entity, not by platform: the
-    # state and health sensors read the proxy just like the switch does, and the
-    # usage sensors declare it too, because the fallback path needs the merged
-    # running state to decide which containers to measure.
+    # state and health sensors read the proxy just like the switch does, while
+    # the usage sensors read whatever the container list reported and blank
+    # themselves when there is nothing to report.
     engine_backed = {
         "switch.sirius_docker_pushbits_power",
         "sensor.sirius_docker_pushbits_state",
         "binary_sensor.sirius_docker_pushbits_health",
-        "sensor.sirius_docker_pushbits_cpu_usage",
-        "sensor.sirius_docker_pushbits_memory_usage",
     }
     assert engine_backed <= states.keys()
     list_backed = states.keys() - engine_backed

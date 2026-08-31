@@ -132,14 +132,12 @@ ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
     ),
 )
 
-# Only created when the Compose stats option is on, and each one costs a request
-# per running service per poll for as long as it stays enabled.
+# A separate tuple because these carry ``needs_stats``, which registers the
+# coordinator context deciding which stacks the Engine fallback measures.
 #
 # The keys, device classes and state classes mirror the Docker container stats
 # down to the suggested unit, so a dashboard covering both reads the same fields
-# from a stack as from a container. Every one of them needs the engine list on
-# top of the stack list: it is what says which services are running, and an
-# unmeasured service contributes nothing to the sum.
+# from a stack as from a container.
 STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = (
     MOSComposeStackSensorEntityDescription(
         key="cpu_usage",
@@ -148,7 +146,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = 
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda stack: stack.get("stats_cpu_percent"),
         needs_stats=True,
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
     MOSComposeStackSensorEntityDescription(
         key="memory_usage",
@@ -159,7 +156,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = 
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda stack: stack.get("stats_memory_bytes"),
         needs_stats=True,
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
 )
 

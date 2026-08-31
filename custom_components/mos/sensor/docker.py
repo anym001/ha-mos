@@ -123,8 +123,8 @@ ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...] = (
     ),
 )
 
-# Only created when the Docker stats option is on, and each one costs a request
-# per poll for as long as it stays enabled - hence the separate tuple.
+# A separate tuple because these carry ``needs_stats``, which registers the
+# coordinator context deciding which containers the Engine fallback measures.
 #
 # ``cpu_usage`` and ``memory_usage`` deliberately mirror their LXC and VM
 # counterparts down to the key, device class and state class (see
@@ -139,9 +139,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda container: container.get("stats_cpu_percent"),
         needs_stats=True,
-        # Stopped containers are not measured at all, and whether a container is
-        # running is only known from the engine proxy.
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
     MOSDockerContainerSensorEntityDescription(
         key="memory_usage",
@@ -152,7 +149,6 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda container: container.get("stats_memory_bytes"),
         needs_stats=True,
-        extra_resource_keys=frozenset({"docker_engine_containers"}),
     ),
 )
 
