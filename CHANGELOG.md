@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.0](https://github.com/anym001/ha-mos/compare/v0.2.6...v0.3.0) (2026-08-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **config-flow:** sensors to opt out.
+* **sensor:** instead.
+* since host RAM is now the denominator.
+
+### Features
+
+* **config-flow:** drop the two container stats options ([cbceb9a](https://github.com/anym001/ha-mos/commit/cbceb9a70a90275b02df26b1899475c9aefcf6cc))
+* read container and stack usage from the MOS payload ([f6a4419](https://github.com/anym001/ha-mos/commit/f6a44192f4887ec505f77951049296f11ab68ba5))
+* **sensor:** drop the container and stack memory percentage ([095be8a](https://github.com/anym001/ha-mos/commit/095be8acc1941a0bbd200a90f48d60d6572ccee5))
+
+
+### Bug Fixes
+
+* **coordinator:** stop measuring against a stale engine state ([7442f0f](https://github.com/anym001/ha-mos/commit/7442f0f3586e644b720fdf316c84b8f7f74cb5ec))
+* **sensor:** keep container usage readable while the proxy is down ([b618faa](https://github.com/anym001/ha-mos/commit/b618faa2f28293b4e85c6e8ef33b5482982aa9b4))
+* **translations:** clarify compose stack container reporting ([5a1abd2](https://github.com/anym001/ha-mos/commit/5a1abd2de86d23cfcaeb931ebfce0a6cce288f99))
+
+
+### Performance
+
+* **api:** raise the in-flight request cap to 15 ([8788054](https://github.com/anym001/ha-mos/commit/8788054875bcc46f309b6d2fface41bc32d94ecd))
+* **coordinator:** derive container CPU from counters across polls ([3b08dbf](https://github.com/anym001/ha-mos/commit/3b08dbfbf6316c2769cb4b03f25551313df7e208))
+
 ## [0.2.6](https://github.com/anym001/ha-mos/compare/v0.2.5...v0.2.6) (2026-08-29)
 
 
