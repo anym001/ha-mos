@@ -14,10 +14,10 @@ so their live state, health and images are had for no extra request. The
 container group MOS auto-creates per stack carries ``update_available``, which
 nothing else reports.
 
-Live CPU and memory are the exception that costs something. Docker measures one
-container at a time, so a stack's figures are the sum over its running members -
-one request per service per poll, which is why the option behind them is off by
-default and separate from the Docker one.
+Live CPU and memory normally arrive with the stack list itself, already summed
+by MOS. Only a server too old to report them falls back to the Docker Engine,
+which measures one container at a time: a stack's figures are then the sum over
+its running members, at one request per service per poll.
 """
 
 from __future__ import annotations

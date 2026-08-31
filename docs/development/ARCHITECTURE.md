@@ -73,11 +73,10 @@ updates to all entities. It is organized as a package with separate modules for 
   so this costs no request. Also resolves the stack's web link, which — unlike a
   container's — needs no template fetch, since the stack list carries it outright.
   A stack carries no version sensor: MOS tracks images per container, so a stack
-  of several has no installed/latest pair. Its CPU and memory are summed over
-  the member containers Docker measures one at a time, which costs one request
-  per running service per poll and sits behind `enable_compose_stats` — separate
-  from the Docker option, because the bill scales with the size of a stack
-  rather than with the number of devices. Its switch acts on the whole stack,
+  of several has no installed/latest pair. Its CPU and memory come with the
+  stack list, already summed by MOS; only a server too old to report them falls
+  back to summing over the member containers Docker measures one at a time, at
+  one request per running service per poll. Its switch acts on the whole stack,
   because MOS exposes no per-service start or stop
 - `docker_templates.py` - Caches each Docker container's MOS template, the only
   source for its icon and for the port mapping a stopped container's web link
