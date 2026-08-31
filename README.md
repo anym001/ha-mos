@@ -21,7 +21,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture; Docker containers also get a web link and image metadata, plus a health sensor
-- **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
+- **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, the CPU and memory its services use together, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -75,7 +75,8 @@ Click **Configure** on the integration to change these anytime — the integrati
 
 - **Update interval** — 30–3600 seconds between polls, 30 by default. Use the low end to track container/VM state closely; 5–30 minutes is plenty for slow-moving values like disk temperature or pool usage. Switches apply immediately, without waiting for the next poll.
 - **Categories** — disks, pools, services, LXC, Docker, Compose stacks, VMs, hardware sensors, UPS. Each toggles independently and is on by default; a disabled category isn't fetched at all. System info and health (CPU, memory, swap) are always on.
-- **Docker container stats** — off by default. Adds a CPU and memory sensor to each Docker container, at the cost of one extra request per poll for every running container with stats enabled — disable a container's stats sensors on its device page to stop those requests. With many containers, consider excluding these sensors from the [`recorder`](https://www.home-assistant.io/integrations/recorder/), since they change on every poll.
+
+Every container and stack carries a CPU and a memory sensor. They change on every poll, so with many containers consider excluding them from the [`recorder`](https://www.home-assistant.io/integrations/recorder/). On a MOS server old enough that usage does not come with the container list, each running container also costs one request per poll — disabling a container's two usage sensors on its device page stops those requests for it.
 
 ## Security
 

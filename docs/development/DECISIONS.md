@@ -427,6 +427,42 @@ rest.
 
 ---
 
+### Usage Sensors Do Not Follow the Docker Engine Proxy
+
+**Date:** 2026-08-31
+
+**Context:** The container and stack usage sensors declared `docker_engine_containers` in `extra_resource_keys`, so
+`entity/base.py` marked them unavailable whenever the proxy went stale. On the `performance` path that is simply
+false — the figures come from `/docker/mos/containers` and `/docker/mos/compose/stacks`, and the proxy contributes
+nothing. On the fallback path it was true, and it hid a defect rather than describing one: `DockerStatsCollector`
+picks its targets from `container["state"]`, which `_carry_forward_docker_engine_state` keeps serving while the proxy
+is down, and Docker answers for a container that has since stopped with zeroes.
+
+**Decision:** Skip the Engine fallback entirely while `docker_engine_containers` is stale, then drop the declaration
+from the four usage descriptions. `resource_keys` stays a static per-description declaration.
+
+**Rationale:**
+
+- Keyed on staleness rather than on a single failed poll: one aborted poll already carries the state forward and is
+  not worth blanking over, and the 15-minute guard is the same threshold the sensors used before.
+- The alternative — stamping each figure with its source and computing availability per poll — moves availability out
+  of the entity descriptions and into coordinator data, for a path that only runs on servers predating the
+  `performance` parameter.
+- The state, health and counter entities keep the declaration. Those read the proxy on both paths.
+- Verified end to end against a live server behind a proxy that failed only `GET /api/v1/docker/containers/json`:
+  after the guard elapsed the usage sensors kept reporting on the `performance` path, and on the fallback path the
+  collector issued no further requests.
+
+**Consequences:**
+
+- During a proxy outage the fallback path reports `unknown` rather than `unavailable` — "not measured" rather than
+  "cannot be measured", the same state every other unmeasured container produces.
+- A Compose stack blanks as soon as the proxy fails rather than when it goes stale: the raw engine list is never
+  carried forward, so `_async_add_compose_stats` has nothing to pick members from. No guard of its own is needed,
+  and adding one would be dead code.
+
+---
+
 ## Future Considerations
 
 ### State Restoration
