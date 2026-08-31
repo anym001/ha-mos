@@ -33,12 +33,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from custom_components.mos.const import (
-    CONF_ENABLE_DOCKER_STATS,
-    DEFAULT_ENABLE_DOCKER_STATS,
-    DOCKER_IMAGE_LABEL_ATTRIBUTES,
-    MOSDeviceKind,
-)
+from custom_components.mos.const import DOCKER_IMAGE_LABEL_ATTRIBUTES, MOSDeviceKind
 from custom_components.mos.coordinator.docker_stats import DockerStatsContext
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
@@ -247,10 +242,7 @@ def build_docker_container_sensors(coordinator: MOSDataUpdateCoordinator, name: 
     # and the device registry sees no conflict.
     container = _find_container(coordinator, name) or {}
     device_configuration_url = container.get("web_ui_url")
-    descriptions = ENTITY_DESCRIPTIONS
-    if coordinator.config_entry.options.get(CONF_ENABLE_DOCKER_STATS, DEFAULT_ENABLE_DOCKER_STATS):
-        descriptions += STATS_ENTITY_DESCRIPTIONS
     return [
         MOSDockerContainerSensor(coordinator, description, name, entry_id, device_configuration_url)
-        for description in descriptions
+        for description in (*ENTITY_DESCRIPTIONS, *STATS_ENTITY_DESCRIPTIONS)
     ]

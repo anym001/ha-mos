@@ -25,7 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from custom_components.mos.const import CONF_ENABLE_COMPOSE_STATS, DEFAULT_ENABLE_COMPOSE_STATS, MOSDeviceKind
+from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.coordinator.compose import ComposeStatsContext
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
@@ -242,10 +242,7 @@ def build_compose_stack_sensors(coordinator: MOSDataUpdateCoordinator, name: str
     entry_id = coordinator.config_entry.entry_id
     stack = _find_stack(coordinator, name) or {}
     device_configuration_url = stack.get("web_ui_url")
-    descriptions = ENTITY_DESCRIPTIONS
-    if coordinator.config_entry.options.get(CONF_ENABLE_COMPOSE_STATS, DEFAULT_ENABLE_COMPOSE_STATS):
-        descriptions += STATS_ENTITY_DESCRIPTIONS
     return [
         MOSComposeStackSensor(coordinator, description, name, entry_id, device_configuration_url)
-        for description in descriptions
+        for description in (*ENTITY_DESCRIPTIONS, *STATS_ENTITY_DESCRIPTIONS)
     ]

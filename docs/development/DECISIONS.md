@@ -393,6 +393,40 @@ predates the parameter, selected per payload rather than by version.
 
 ---
 
+### Container and Stack Usage Sensors Come With Their Category
+
+**Date:** 2026-08-30
+
+Supersedes _Compose Stack Usage Has Its Own Option and Its Own Sum_ in the part about the option; the summing it
+describes is still what the fallback path does.
+
+**Context:** `enable_docker_stats` and `enable_compose_stats` existed because usage cost one request per running
+container, which is the only cost in this integration that scales with how much of the resource there is. Signing a
+user up for that silently was the thing the options prevented. On a current server the figures arrive with the
+container and stack lists and cost nothing; on an older one the request is paced and one-shot, so a hundred containers
+add about fifteen seconds to a poll instead of a hundred.
+
+**Decision:** Remove both options. The usage sensors are created whenever their category is, alongside state and the
+rest.
+
+**Rationale:**
+
+- An option that guards a cost which no longer exists is a question the user cannot answer usefully, and every
+  category would otherwise need one on the same reasoning.
+- The per-entity control is the one that still does something: disabling a container's usage sensors drops it from
+  the fallback poll through `DockerStatsContext`. That is finer-grained than the option ever was and needs no setting.
+- The fallback path is bounded now. It was not when the options were introduced.
+
+**Consequences:**
+
+- Users who had the options off get the sensors, and on an older server the per-container requests that come with
+  them.
+- Two entities per container and per stack now exist by default, which is a larger recorder footprint on a host with
+  many containers.
+- The stored option values stay in `entry.options` and are ignored; nothing reads them.
+
+---
+
 ## Future Considerations
 
 ### State Restoration

@@ -7,10 +7,15 @@ from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.mos.const import CONF_ENABLE_DOCKER_STATS, DOMAIN
+from custom_components.mos.const import DOMAIN
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+
+def _measured(mock_client: AsyncMock) -> set[str]:
+    """Return the container names the Engine stats endpoint was asked about."""
+    return {call.args[0] for call in mock_client.async_get_docker_container_stats.await_args_list}
 
 
 async def test_docker_container_sensor_values(
@@ -103,14 +108,18 @@ async def test_docker_container_removed_from_api_removes_its_sensors(
     assert registry.async_get("sensor.sirius_docker_nginx_installed_version") is None
 
 
-async def test_stats_sensors_are_absent_unless_the_option_is_on(
+async def test_stats_sensors_come_with_the_container(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
     mock_client: AsyncMock,
 ) -> None:
-    """The stats option is off by default, so no stats sensor exists and nothing is measured."""
-    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage") is None
-    assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage") is None
+    """Every container carries its usage sensors; there is no separate option for them.
+
+    They read unknown until a poll has measured the container, which the first
+    one cannot do - it runs before any entity exists to ask for it.
+    """
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == STATE_UNKNOWN
+    assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == STATE_UNKNOWN
     mock_client.async_get_docker_container_stats.assert_not_awaited()
 
 
@@ -127,9 +136,6 @@ async def test_stats_sensors_report_the_containers_usage(
     after that is the first to derive a percentage - see
     ``_async_add_docker_stats`` and ``DockerStatsCollector``.
     """
-    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
-    await hass.async_block_till_done()
-
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == STATE_UNKNOWN
 
     await setup_integration.runtime_data.coordinator.async_refresh()
@@ -151,13 +157,11 @@ async def test_stopped_container_reports_no_usage(
     mock_client: AsyncMock,
 ) -> None:
     """A stopped container is never measured, so its sensors stay blank rather than reading zero."""
-    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
-    await hass.async_block_till_done()
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.sirius_docker_nginx_cpu_usage").state == STATE_UNKNOWN
-    mock_client.async_get_docker_container_stats.assert_awaited_once_with("PushBits")
+    assert _measured(mock_client) & {"PushBits", "nginx"} == {"PushBits"}
 
 
 async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
@@ -170,9 +174,6 @@ async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
     This is the whole point of the coordinator context: a request per container
     is only worth paying while something is displaying the result.
     """
-    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
-    await hass.async_block_till_done()
-
     registry = er.async_get(hass)
     for key in ("cpu_usage", "memory_usage"):
         registry.async_update_entity(
@@ -185,7 +186,7 @@ async def test_disabling_a_containers_stats_sensors_stops_measuring_it(
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    mock_client.async_get_docker_container_stats.assert_not_awaited()
+    assert "PushBits" not in _measured(mock_client)
 
 
 async def test_the_server_hosted_docker_icon_wins_over_the_template_cdn(
@@ -220,15 +221,13 @@ async def test_stats_come_from_the_container_list_when_mos_reports_them(
         else container
         for container in mock_docker_containers
     ]
-    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
-    await hass.async_block_till_done()
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "2.13"
     # Reported in bytes, displayed in mebibytes: 104857600 B is 100 MiB.
     assert hass.states.get("sensor.sirius_docker_pushbits_memory_usage").state == "100.0"
-    mock_client.async_get_docker_container_stats.assert_not_awaited()
+    assert "PushBits" not in _measured(mock_client)
 
 
 async def test_a_container_without_performance_still_falls_back_to_the_engine(
@@ -242,9 +241,7 @@ async def test_a_container_without_performance_still_falls_back_to_the_engine(
         {**container, "performance": None} if container["name"] == "PushBits" else container
         for container in mock_docker_containers
     ]
-    hass.config_entries.async_update_entry(setup_integration, options={CONF_ENABLE_DOCKER_STATS: True})
-    await hass.async_block_till_done()
     await setup_integration.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
 
-    mock_client.async_get_docker_container_stats.assert_awaited_once_with("PushBits")
+    assert "PushBits" in _measured(mock_client)

@@ -308,9 +308,7 @@ CONF_ENABLE_POOLS = "enable_pools"
 CONF_ENABLE_SERVICES = "enable_services"
 CONF_ENABLE_LXC = "enable_lxc"
 CONF_ENABLE_DOCKER = "enable_docker"
-CONF_ENABLE_DOCKER_STATS = "enable_docker_stats"
 CONF_ENABLE_COMPOSE = "enable_compose"
-CONF_ENABLE_COMPOSE_STATS = "enable_compose_stats"
 CONF_ENABLE_VM = "enable_vm"
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_ENABLE_NUT = "enable_nut"
@@ -319,25 +317,7 @@ DEFAULT_ENABLE_POOLS = True
 DEFAULT_ENABLE_SERVICES = True
 DEFAULT_ENABLE_LXC = True
 DEFAULT_ENABLE_DOCKER = True
-# The only category that defaults to off, because it is the only one whose cost
-# scales with how much of it there is. Every other resource is one request per
-# poll no matter how many disks, pools or containers it covers; container stats
-# are one request *per container*, since Docker reports usage one container at a
-# time (see ``async_get_docker_container_stats``). On a server with fifty
-# containers that turns a ten-request poll into a sixty-request one, stretches
-# the poll from about a second to about ten, and adds a sensor per container
-# that writes to the recorder on every cycle.
-#
-# None of that is wrong to pay for - it is just not a cost to sign someone up
-# for silently. Switching it on creates the entities; which containers are
-# actually polled then follows from which of those entities the user leaves
-# enabled (see ``DockerStatsContext``).
-DEFAULT_ENABLE_DOCKER_STATS = False
 DEFAULT_ENABLE_COMPOSE = True
-# Off for the same reason as its Docker counterpart, only more so: a stack is
-# measured through its member containers, so one stack costs one request per
-# running service on every poll rather than one per device.
-DEFAULT_ENABLE_COMPOSE_STATS = False
 DEFAULT_ENABLE_VM = True
 DEFAULT_ENABLE_SENSORS = True
 DEFAULT_ENABLE_NUT = True
