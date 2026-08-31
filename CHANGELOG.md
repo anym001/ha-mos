@@ -5,9 +5,9 @@
 
 ### ⚠ BREAKING CHANGES
 
-* **config-flow:** sensors to opt out.
-* **sensor:** instead.
-* since host RAM is now the denominator.
+* **config-flow:** The "Enable Docker container stats" and "Enable Compose stack stats" options are gone from the options flow. An installation that had them switched off now gets the CPU and memory sensors for every container and stack, and on a MOS server too old to report usage with the container list, the per-container requests that come with them. Disable the individual sensors to opt out.
+* **sensor:** The Docker and Compose memory percentage sensors are removed, and their recorded history goes with them. Automations and dashboard cards referencing `sensor.<host>_docker_<name>_memory_percent` or `sensor.<host>_compose_<name>_memory_percent` must use the memory usage sensor instead.
+* Docker and Compose CPU sensors report against the whole machine rather than per core, matching the LXC and VM sensors, so their values drop by the host's core count and recorded history has a step in it.
 
 ### Features
 
