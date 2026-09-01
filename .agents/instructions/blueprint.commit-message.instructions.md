@@ -77,9 +77,5 @@ feat!: redesign config entry data structure
 - Update coordinator and config flow to use new structure
 
 BREAKING CHANGE: existing config entries must be re-created after upgrading
-from v1.x — no automatic migration provided
+  from v1.x — no automatic migration provided
 ```
-
-**Wrap the footer flush left.** Release-please reads an indented continuation line as a footer of its own and keeps
-only the last one, so a description indented under `BREAKING CHANGE:` reaches the changelog as a sentence fragment.
-The rest of the body still takes its bullets.
