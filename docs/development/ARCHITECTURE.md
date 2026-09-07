@@ -140,9 +140,10 @@ have internet access.
 Entities register the URL their icon lives at when they publish
 `entity_picture`; the view serves only registered URLs, so a request cannot
 choose where the proxy connects to. Fetched icons are cached in memory per
-config entry and the browser is told to cache them for the same hour. See the
-decision log entry _Guest Artwork Is Served Through Home Assistant, Not Fetched
-by the Browser_.
+config entry, the browser is told to cache them for the same hour, and an
+`ETag` lets it revalidate with a `304` rather than downloading them again. See
+the decision log entry _Guest Artwork Is Served Through Home Assistant, Not
+Fetched by the Browser_.
 
 ### API Client
 

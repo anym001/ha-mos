@@ -30,13 +30,14 @@ is a picture.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from hashlib import sha256
 from http import HTTPStatus
 import time
 from typing import TYPE_CHECKING
 
 import aiohttp
-from aiohttp import web
+from aiohttp import hdrs, web
 
 from custom_components.mos.const import (
     DEFAULT_TIMEOUT,
@@ -58,6 +59,31 @@ if TYPE_CHECKING:
     from custom_components.mos.api import MOSApiClient
 
 _CACHE_CONTROL = f"private, max-age={int(ICON_PROXY_HIT_TTL_SECONDS)}"
+
+
+@dataclass(frozen=True, slots=True)
+class Icon:
+    """One piece of artwork, as it is served."""
+
+    body: bytes
+    content_type: str
+    etag: str
+
+    @classmethod
+    def from_response(cls, body: bytes, content_type: str) -> Icon:
+        """
+        Build an icon, tagging it with a validator derived from its bytes.
+
+        The tag is what lets a browser revalidate instead of downloading again:
+        the proxy path is derived from the *source URL*, so it stays the same
+        when the artwork behind it is replaced, and the bytes are the only thing
+        that can say whether what the browser holds is still current.
+
+        Returns:
+            The icon, ready to serve.
+
+        """
+        return cls(body=body, content_type=content_type, etag=f'"{sha256(body).hexdigest()[:32]}"')
 
 
 def _token(url: str) -> str:
@@ -95,8 +121,8 @@ class MOSIconProxy:
         self._client = client
         # token -> the URL it stands for
         self._sources: dict[str, str] = {}
-        # token -> (the icon and its content type or None, when it was fetched)
-        self._cache: dict[str, tuple[tuple[bytes, str] | None, float]] = {}
+        # token -> (the icon or None if the source did not serve one, when it was fetched)
+        self._cache: dict[str, tuple[Icon | None, float]] = {}
 
     @callback
     def async_url(self, source: str | None) -> str | None:
@@ -120,17 +146,17 @@ class MOSIconProxy:
         self._sources[token] = source
         return ICON_PROXY_URL.format(entry_id=self._entry_id, token=token)
 
-    async def async_icon(self, token: str) -> tuple[bytes, str] | None:
+    async def async_icon(self, token: str) -> Icon | None:
         """
-        Return an icon's bytes and content type, fetching it if the cache has none.
+        Return an icon, fetching it if the cache has none.
 
         A failure is cached too, for a fraction of the time a success is: an
         icon that is briefly unreachable should come back on its own, but not at
         the cost of one upstream request per dashboard that has the page open.
 
         Returns:
-            The icon and its content type, or ``None`` when there is no such
-            token or the source did not answer with one.
+            The icon, or ``None`` when there is no such token or the source did
+            not answer with one.
 
         """
         source = self._sources.get(token)
@@ -151,7 +177,7 @@ class MOSIconProxy:
             del self._cache[next(iter(self._cache))]
         return icon
 
-    async def _async_fetch(self, source: str) -> tuple[bytes, str] | None:
+    async def _async_fetch(self, source: str) -> Icon | None:
         """
         Fetch one icon from wherever it lives.
 
@@ -164,12 +190,13 @@ class MOSIconProxy:
         certificate, not a licence to skip verification for a third party.
 
         Returns:
-            The icon and its content type, or ``None``.
+            The icon, or ``None``.
 
         """
         root = f"{self._client.root_url}/"
         if source.startswith(root):
-            return await self._client.async_fetch_static_asset(source.removeprefix(root))
+            asset = await self._client.async_fetch_static_asset(source.removeprefix(root))
+            return Icon.from_response(*asset) if asset else None
 
         try:
             async with (
@@ -179,10 +206,27 @@ class MOSIconProxy:
                 if response.status != HTTPStatus.OK or not (response.content_type or "").startswith("image/"):
                     return None
                 body = await response.content.read(ICON_PROXY_MAX_BYTES + 1)
-                return None if len(body) > ICON_PROXY_MAX_BYTES else (body, response.content_type)
+                if len(body) > ICON_PROXY_MAX_BYTES:
+                    return None
+                return Icon.from_response(body, response.content_type)
         except (TimeoutError, aiohttp.ClientError) as exception:
             LOGGER.debug("Could not fetch the icon at %s: %s", source, exception)
             return None
+
+
+def _holds(if_none_match: str | None, etag: str) -> bool:
+    """
+    Whether the caller says it already has this exact icon.
+
+    Returns:
+        ``True`` for ``*`` or for a tag matching this one, weak or strong: the
+        two forms mean the same thing for a whole file served as it is.
+
+    """
+    if not if_none_match:
+        return False
+    candidates = {candidate.strip().removeprefix("W/") for candidate in if_none_match.split(",")}
+    return "*" in candidates or etag in candidates
 
 
 class MOSIconProxyView(HomeAssistantView):
@@ -196,12 +240,17 @@ class MOSIconProxyView(HomeAssistantView):
         """
         Serve one icon.
 
+        A browser that already holds the bytes gets 304 rather than them again.
+        Icons outlive the hour they are cached for, so the alternative to
+        revalidating cheaply is not "no requests" but re-downloading every icon
+        on the dashboard once an hour.
+
         Returns:
-            The image, or 404 - for an entry that is not this integration's or
-            not loaded, for a token no entity has published, and for a source
-            that did not answer with an image. All four are the same answer on
-            purpose: an unauthenticated caller learns nothing from which of them
-            it was.
+            The image, 304 if the caller already has it, or 404 - for an entry
+            that is not this integration's or not loaded, for a token no entity
+            has published, and for a source that did not answer with an image.
+            Those are the same answer on purpose: an unauthenticated caller
+            learns nothing from which of them it was.
 
         """
         hass = request.app[KEY_HASS]
@@ -213,8 +262,10 @@ class MOSIconProxyView(HomeAssistantView):
         if icon is None:
             return web.Response(status=HTTPStatus.NOT_FOUND)
 
-        body, content_type = icon
-        return web.Response(body=body, content_type=content_type, headers={"Cache-Control": _CACHE_CONTROL})
+        headers = {hdrs.CACHE_CONTROL: _CACHE_CONTROL, hdrs.ETAG: icon.etag}
+        if _holds(request.headers.get(hdrs.IF_NONE_MATCH), icon.etag):
+            return web.Response(status=HTTPStatus.NOT_MODIFIED, headers=headers)
+        return web.Response(body=icon.body, content_type=icon.content_type, headers=headers)
 
 
 @callback
