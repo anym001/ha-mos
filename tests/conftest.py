@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.mos import icon_proxy
 from custom_components.mos.api import MOSApiClient, MOSApiClientNotFoundError
 from custom_components.mos.const import CONF_API_TOKEN, DOMAIN
 import custom_components.mos.coordinator.base as coordinator_base
@@ -51,13 +52,14 @@ def advance_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], None]:
     integration.
 
     Drives both of the coordinator's time-based guards - the auth-failure grace
-    period and the per-resource staleness threshold - so those tests stay
-    independent of the scan interval and of the constants' exact values. A
-    callable is handed back (rather than the clock object) so test modules need
-    no cross-module import.
+    period and the per-resource staleness threshold - plus the icon proxy's
+    cache expiry, so those tests stay independent of the scan interval and of
+    the constants' exact values. A callable is handed back (rather than the
+    clock object) so test modules need no cross-module import.
     """
     clock = _FakeClock()
     monkeypatch.setattr(coordinator_base, "time", clock)
+    monkeypatch.setattr(icon_proxy, "time", clock)
     return clock.advance
 
 

@@ -19,6 +19,7 @@ from custom_components.mos.api.client import (
     MOSApiClientRateLimitError,
     _RateLimiter,
 )
+from custom_components.mos.const import ICON_PROXY_MAX_BYTES
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -701,3 +702,60 @@ async def test_other_endpoints_keep_the_mimetype_check(
         "application/json",
         "application/json",
     ]
+
+
+async def test_a_static_asset_is_fetched_without_a_token(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """The icon directories are plain static files outside /api/v1, and the proxy serves them on."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/docker_icons/Plex.png",
+        content=b"png-bytes",
+        headers={"Content-Type": "image/png"},
+    )
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_fetch_static_asset("docker_icons/Plex.png") == (b"png-bytes", "image/png")
+    assert "Authorization" not in (aioclient_mock.mock_calls[0][3] or {})
+
+
+async def test_a_static_asset_that_is_not_an_image_is_refused(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """What a reverse proxy answers with must never be served as a guest's picture."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/docker_icons/Plex.png",
+        text="<html>Sign in</html>",
+        headers={"Content-Type": "text/html"},
+    )
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_fetch_static_asset("docker_icons/Plex.png") is None
+
+
+async def test_a_static_asset_larger_than_an_icon_is_refused(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """The fetch serves a request nobody authenticated, so it does not read an arbitrary body into memory."""
+    aioclient_mock.get(
+        "http://10.0.1.30:80/docker_icons/Plex.png",
+        content=b"x" * (ICON_PROXY_MAX_BYTES + 1),
+        headers={"Content-Type": "image/png"},
+    )
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_fetch_static_asset("docker_icons/Plex.png") is None
+
+
+async def test_a_missing_static_asset_is_not_an_error(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A guest with no artwork answers 404, which is an answer rather than a failure."""
+    aioclient_mock.get("http://10.0.1.30:80/docker_icons/Plex.png", status=404)
+    client = MOSApiClient(host="10.0.1.30", token="secret-token", session=async_get_clientsession(hass))
+
+    assert await client.async_fetch_static_asset("docker_icons/Plex.png") is None

@@ -502,6 +502,11 @@ changes. `manifest.json` gains `"dependencies": ["http"]`.
   at `ICON_PROXY_MAX_BYTES`, and a response that does not call itself an image is dropped - a reverse proxy's login
   page must never be served under a picture URL.
 - Registration happens in `entity_picture`, which is a dict write; nothing is fetched until a browser asks.
+- The response carries an `ETag` derived from the bytes and answers `304` to `If-None-Match`, so the hour the browser
+  is told to cache for costs a header exchange to renew rather than every icon on the dashboard. A longer `max-age`
+  was the alternative and is worse: the proxy path is derived from the _source URL_, so replacing the artwork behind
+  it cannot change the URL, and a day-long `max-age` would leave every client that saw the old icon showing it for a
+  day with no way to correct it. An hour bounds that, and the tag keeps the renewal cheap.
 
 **Consequences:**
 
