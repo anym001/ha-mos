@@ -45,6 +45,7 @@ async def test_stack_state_sensor_maps_the_running_flag(
 async def test_stack_state_sensor_carries_the_card_attributes(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
+    icon_proxy_url: Callable[[str], str],
 ) -> None:
     """One entity carries everything a dashboard row needs, so a card needs no templating."""
     state = hass.states.get("sensor.sirius_compose_hatest_state")
@@ -53,8 +54,8 @@ async def test_stack_state_sensor_carries_the_card_attributes(
     assert state.attributes["web_ui_url"] == "http://10.0.1.30:18099"
     assert state.attributes["services"] == ["alpha", "beta"]
     assert state.attributes["containers"] == ["compose_hatest-alpha-1", "compose_hatest-beta-1"]
-    assert (
-        state.attributes["entity_picture"] == "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/docker.png"
+    assert state.attributes["entity_picture"] == icon_proxy_url(
+        "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/docker.png"
     )
 
 
@@ -111,6 +112,7 @@ async def test_the_server_hosted_icon_wins_over_the_stacks_cdn_url(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     setup_integration: MockConfigEntry,
+    icon_proxy_url: Callable[[str], str],
 ) -> None:
     """Same picture either way, but the local mirror also loads on a browser with no internet access."""
     mock_client.async_static_asset_exists.return_value = True
@@ -119,7 +121,7 @@ async def test_the_server_hosted_icon_wins_over_the_stacks_cdn_url(
 
     state = hass.states.get("sensor.sirius_compose_hatest_state")
     assert state is not None
-    assert state.attributes["entity_picture"] == "http://10.0.1.30:80/docker_icons/compose/hatest.png"
+    assert state.attributes["entity_picture"] == icon_proxy_url("http://10.0.1.30:80/docker_icons/compose/hatest.png")
 
 
 async def test_each_stack_gets_its_own_device_marked_as_a_stack(

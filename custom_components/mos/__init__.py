@@ -41,6 +41,7 @@ from .const import (
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
 from .entity_utils import async_remove_retired_entities, async_setup_area_inheritance
+from .icon_proxy import MOSIconProxy, async_register_icon_proxy_view
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -124,7 +125,12 @@ async def async_setup_entry(
         client=client,
         integration=async_get_loaded_integration(hass, entry.domain),
         coordinator=coordinator,
+        icon_proxy=MOSIconProxy(hass, entry.entry_id, client),
     )
+
+    # Before the first refresh, so the pictures the entities publish on their
+    # first state write already have a route to be served from.
+    async_register_icon_proxy_view(hass)
 
     # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
     await coordinator.async_config_entry_first_refresh()

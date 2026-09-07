@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.mos.api import MOSApiClient, MOSApiClientNotFoundError
 from custom_components.mos.const import CONF_API_TOKEN, DOMAIN
 import custom_components.mos.coordinator.base as coordinator_base
+from custom_components.mos.icon_proxy import MOSIconProxy
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT, CONF_SSL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
 
@@ -847,6 +848,15 @@ def mock_client(
     client._root_base_url = "http://10.0.1.30:80/api/v1"
     client._token = "test-token"
     return client
+
+
+@pytest.fixture
+def icon_proxy_url(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: AsyncMock
+) -> Callable[[str], str | None]:
+    """Return what an entity publishes as its picture for an icon living at a given URL."""
+    proxy = MOSIconProxy(hass, mock_config_entry.entry_id, mock_client)
+    return proxy.async_url
 
 
 @pytest.fixture

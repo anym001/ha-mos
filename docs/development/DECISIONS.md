@@ -463,6 +463,62 @@ from the four usage descriptions. `resource_keys` stays a static per-description
 
 ---
 
+### Guest Artwork Is Served Through Home Assistant, Not Fetched by the Browser
+
+**Date:** 2026-09-07
+
+**Context:** Both icon sources this integration resolves - the files on the MOS server's own web root (see
+"Server-Hosted Guest Icons, Confirmed with a HEAD Probe" above) and the CDN URL in a container's MOS template (see
+"Docker Template Metadata Rides on the Container State Sensor") - were published as absolute URLs on
+`entity_picture`, which makes the browser rendering the dashboard the thing that has to reach them. That holds on the
+local network and nowhere else: the MOS host is addressed by a LAN name or address that resolves to nothing from a
+phone on mobile data, and it is addressed over plain `http`, which a browser showing a dashboard served over `https`
+(Nabu Casa, any reverse proxy) blocks as mixed content. Reported from the field: Docker icons appear at home and are
+blank everywhere else.
+
+**Decision:** Add `icon_proxy.py`. Every entity that publishes a picture registers the URL the icon actually lives at
+with a per-config-entry `MOSIconProxy` and publishes `/api/mos/icon/<entry id>/<token>` instead, where `token` is a
+truncated SHA-256 of that URL. A `HomeAssistantView` serves that path: it looks the token up in the entry's proxy,
+fetches the icon - through the API client for the server's own web root, through a verifying session for a CDN URL -
+caches it in memory, and answers with the bytes. Coordinator data keeps the real URL; only what reaches the frontend
+changes. `manifest.json` gains `"dependencies": ["http"]`.
+
+**Rationale:**
+
+- It is the only option that works for every way a dashboard is reached, including the two that are not the local
+  network. Making the MOS server reachable from outside solves it only by exposing a NAS, and a VPN does not solve
+  the mixed-content half at all.
+- The proxy fetches **only** URLs an entity registered. A path that named its own target would be an open proxy into
+  the network Home Assistant sits on, reachable without authentication - which is what the token being derived from
+  the source URL rather than parsed out of the request prevents.
+- The route carries no authentication because a browser sends none for an `<img>`: the config entry id in the path is
+  what makes it unguessable. Signed paths (`async_sign_path`, what camera and media player artwork use) were the
+  alternative and were dropped - they expire, so `entity_picture` would have to be rewritten on a timer, which writes
+  a changed attribute into the recorder on every poll and defeats browser caching for a picture that never changes.
+- Proxying the CDN icons too, rather than only the ones that are unreachable, means no dashboard viewer's browser
+  contacts GitHub or jsDelivr any more, and icons appear on clients with no internet access at all. The cost is one
+  request per icon per hour from Home Assistant.
+- The fetch enforces two limits, because it happens on behalf of a request nobody authenticated: the body is capped
+  at `ICON_PROXY_MAX_BYTES`, and a response that does not call itself an image is dropped - a reverse proxy's login
+  page must never be served under a picture URL.
+- Registration happens in `entity_picture`, which is a dict write; nothing is fetched until a browser asks.
+
+**Consequences:**
+
+- `entity_picture` is now a Home Assistant path rather than the icon's own URL. Anything templating on that attribute
+  to reach the source directly sees a different value; the picture itself is unchanged.
+- Home Assistant now makes the requests the browsers used to make, so it needs to reach the CDN for a container whose
+  only icon is a template URL. It already had to reach the MOS server.
+- The view is registered once per Home Assistant, not per config entry, and is never unregistered - Home Assistant
+  has no API for that. A request naming an entry that is unloaded, gone, or another integration's answers 404, as
+  does one naming a token no entity has published.
+- Setting up the `http` component in the test suite trips `NotAppKeyWarning` from Home Assistant's own
+  `app["hass"]` line, which `filterwarnings = ["error"]` turns fatal, so `pyproject.toml` ignores that one warning.
+- The icons are cached in memory per entry and bounded by `ICON_PROXY_MAX_CACHED`; the source URLs behind the tokens
+  are not evicted, since dropping one would blank a picture on a page that is still open.
+
+---
+
 ## Future Considerations
 
 ### State Restoration

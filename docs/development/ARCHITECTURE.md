@@ -17,6 +17,7 @@ custom_components/mos/
 │   └── guest_icons.py       # Server-hosted icon resolution for LXC, Docker, Compose and VM guests
 ├── data.py                  # Runtime data classes and type definitions
 ├── diagnostics.py           # Diagnostic data for troubleshooting
+├── icon_proxy.py            # Serves guest artwork from Home Assistant's own origin
 ├── manifest.json            # Integration metadata
 ├── api/                     # External API communication
 │   ├── __init__.py          # Exception hierarchy and exports
@@ -88,7 +89,8 @@ updates to all entities. It is organized as a package with separate modules for 
   Docker containers, Compose stacks, LXC
   containers and VMs, confirming each candidate with a HEAD before it reaches
   the frontend. Caches both which file a guest points at and whether that file
-  exists, so the steady state issues no requests
+  exists, so the steady state issues no requests. What reaches the frontend is
+  not this URL but a path served by `icon_proxy.py`
 
 **Core functionality:**
 
@@ -125,6 +127,22 @@ The coordinator is structured as a package rather than a single file to support 
 - **Easy extension**: New features (caching, metrics, webhooks) can be added as new modules
 - **Maintainability**: Each module stays focused on a single concern
 - **Testability**: Each module can be tested independently
+
+### Icon Proxy
+
+`icon_proxy.py` publishes guest artwork under `/api/mos/icon/<entry id>/<token>`
+and fetches it on the browser's behalf. Neither source a dashboard would
+otherwise load directly is reachable from outside the local network: the MOS
+server answers on a LAN address over plain `http`, which a dashboard served over
+`https` blocks as mixed content, and a template's CDN URL needs the viewer to
+have internet access.
+
+Entities register the URL their icon lives at when they publish
+`entity_picture`; the view serves only registered URLs, so a request cannot
+choose where the proxy connects to. Fetched icons are cached in memory per
+config entry and the browser is told to cache them for the same hour. See the
+decision log entry _Guest Artwork Is Served Through Home Assistant, Not Fetched
+by the Browser_.
 
 ### API Client
 

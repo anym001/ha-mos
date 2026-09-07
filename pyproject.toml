@@ -51,6 +51,12 @@ filterwarnings = [
     "error",
     # Ignore specific warnings from third-party libraries as needed
     # "ignore:.*custom_components.* is using deprecated.*:DeprecationWarning",
+    #
+    # Setting up the http component - which this integration depends on for the
+    # icon proxy view - warns because Home Assistant still writes app["hass"]
+    # for backwards compatibility. It is core's own line, not ours to fix, and
+    # as an error it makes every test that loads the integration fail.
+    "ignore::aiohttp.web_exceptions.NotAppKeyWarning",
 ]
 
 [tool.coverage.run]

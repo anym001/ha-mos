@@ -214,9 +214,9 @@ class MOSDockerContainerSensor(SensorEntity, MOSEntity):
         """
         Return the container's icon URL, so cards show it without templating.
 
-        The URL points wherever the MOS template does, which is normally a
-        public CDN - it is loaded by the browser rendering the dashboard, not by
-        Home Assistant, and stays blank if that browser has no internet access.
+        Whether the icon lives on the MOS server or on the public CDN the
+        container's MOS template names, the URL published here addresses Home
+        Assistant, which fetches it (see ``icon_proxy.py``).
 
         Returns:
             The icon URL, or ``None`` when the container has no usable one.
@@ -227,7 +227,7 @@ class MOSDockerContainerSensor(SensorEntity, MOSEntity):
         container = _find_container(self.coordinator, self._container_name)
         if container is None:
             return None
-        return self.entity_description.picture_fn(container)
+        return self._proxied_picture(self.entity_description.picture_fn(container))
 
 
 def build_docker_container_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSDockerContainerSensor]:
