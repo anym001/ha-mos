@@ -123,10 +123,10 @@ class MOSLxcContainerSensor(SensorEntity, MOSEntity):
         """
         Return the container's icon URL, so cards show it without templating.
 
-        The URL points at the MOS server's own web root and is loaded by the
-        browser rendering the dashboard, not by Home Assistant. It is only ever
-        set once the server has confirmed the file exists (see
-        ``coordinator/guest_icons.py``).
+        The icon lives on the MOS server's own web root and is only pointed at
+        once the server has confirmed the file exists (see
+        ``coordinator/guest_icons.py``); the URL published here addresses Home
+        Assistant, which fetches it (see ``icon_proxy.py``).
 
         Returns:
             The icon URL, or ``None`` when the container has no usable one.
@@ -137,7 +137,7 @@ class MOSLxcContainerSensor(SensorEntity, MOSEntity):
         container = _find_container(self.coordinator, self._container_name)
         if container is None:
             return None
-        return self.entity_description.picture_fn(container)
+        return self._proxied_picture(self.entity_description.picture_fn(container))
 
 
 def build_lxc_container_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSLxcContainerSensor]:

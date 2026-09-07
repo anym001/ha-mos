@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -90,6 +91,7 @@ async def test_lxc_state_sensor_carries_the_server_hosted_icon(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     setup_integration: MockConfigEntry,
+    icon_proxy_url: Callable[[str], str],
 ) -> None:
     """MOS serves its own artwork, so a card shows the container's icon without templating.
 
@@ -102,11 +104,11 @@ async def test_lxc_state_sensor_carries_the_server_hosted_icon(
 
     stock = hass.states.get("sensor.sirius_lxc_database_state")
     assert stock is not None
-    assert stock.attributes["entity_picture"] == "http://10.0.1.30:80/os_icons/debian.png"
+    assert stock.attributes["entity_picture"] == icon_proxy_url("http://10.0.1.30:80/os_icons/debian.png")
 
     custom = hass.states.get("sensor.sirius_lxc_webserver_state")
     assert custom is not None
-    assert custom.attributes["entity_picture"] == "http://10.0.1.30:80/lxc_custom/webserver.png"
+    assert custom.attributes["entity_picture"] == icon_proxy_url("http://10.0.1.30:80/lxc_custom/webserver.png")
 
 
 async def test_lxc_state_sensor_has_no_picture_when_the_server_hosts_none(

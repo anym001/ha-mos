@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
     from .api import MOSApiClient
     from .coordinator import MOSDataUpdateCoordinator
+    from .icon_proxy import MOSIconProxy
 
 
 type MOSConfigEntry = ConfigEntry[MOSData]
@@ -30,11 +31,16 @@ class MOSData:
 
     Stored as entry.runtime_data after successful setup.
     Provides typed access to the API client and coordinator instances.
+
+    The icon proxy is reached from two directions: entities register the
+    artwork they publish with it, and the HTTP view serving that artwork looks
+    it up here by entry id (see ``icon_proxy.py``).
     """
 
     client: MOSApiClient
     coordinator: MOSDataUpdateCoordinator
     integration: Integration
+    icon_proxy: MOSIconProxy
 
 
 @dataclass(frozen=True, kw_only=True)

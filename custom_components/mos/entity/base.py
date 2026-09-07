@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from custom_components.mos.const import ATTRIBUTION, DEFAULT_SSL, DEVICE_KIND_MODEL_NAMES, MOSDeviceKind
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -71,6 +72,25 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
         misleading. Recovers on its own as soon as the resource answers again.
         """
         return super().available and not (self.resource_keys & self.coordinator.stale_resources)
+
+    @callback
+    def _proxied_picture(self, source: str | None) -> str | None:
+        """
+        Turn an icon's own URL into one the browser showing it can actually reach.
+
+        Guest artwork lives on the MOS server, or on the CDN a container's MOS
+        template points at. Neither is reachable from a phone away from home, so
+        the URL published as ``entity_picture`` addresses Home Assistant instead
+        and it fetches the picture (see ``icon_proxy.py``).
+
+        Args:
+            source: The absolute URL the icon lives at.
+
+        Returns:
+            The URL to publish, or ``None`` when there is no icon.
+
+        """
+        return self.coordinator.config_entry.runtime_data.icon_proxy.async_url(source)
 
     def __init__(
         self,

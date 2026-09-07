@@ -166,6 +166,31 @@ AUTH_FAILURE_MIN_FAILURES = 3
 # which would restart the grace period on every retry and never escalate.
 AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 
+# The route the icon proxy serves guest artwork on, and the ``hass.data`` key
+# recording that its view has been registered. The view is global to Home
+# Assistant while the proxies behind it are per config entry, so registration
+# has to happen exactly once no matter how many entries are set up.
+ICON_PROXY_URL = "/api/mos/icon/{entry_id}/{token}"
+ICON_PROXY_VIEW_REGISTERED = f"{DOMAIN}_icon_proxy_view"
+
+# The largest response the icon proxy reads into memory. Icons are a few dozen
+# kilobytes; anything past this is not artwork, and the request that triggered
+# the fetch is unauthenticated.
+ICON_PROXY_MAX_BYTES = 2 * 1024 * 1024
+
+# How long a fetched icon is reused before the source is asked again, and how
+# long a failure is remembered. Both are shorter than they could be: the point
+# of the proxy is that a browser can load the icon at all, and the browser is
+# told to cache it for the same hour, so the cost of asking again is one
+# request per icon per hour, not per dashboard view.
+ICON_PROXY_HIT_TTL_SECONDS = 3600.0
+ICON_PROXY_MISS_TTL_SECONDS = 300.0
+
+# How many fetched icons are held per config entry. A server with more distinct
+# icons than this still serves all of them; the oldest simply cost a fetch
+# again when they are next asked for.
+ICON_PROXY_MAX_CACHED = 128
+
 # How long an optional resource may fail *continuously* before its entities stop
 # claiming to be available and go "unavailable" instead.
 #

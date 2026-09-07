@@ -25,8 +25,12 @@ requests.
 
 Preferring these over the icon URL in a container's MOS template (see
 ``docker_templates.resolve_icon``) is deliberate: the template points at a public
-CDN, which a dashboard on a network without internet access cannot load, while
-this one is served by the same host the dashboard is already talking to.
+CDN, contacted by whoever renders the dashboard, while this one comes from the
+host the integration is already talking to.
+
+The URLs resolved here are absolute and address the MOS server directly, which
+is what the ``entity_picture`` proxy in ``icon_proxy.py`` turns into something a
+browser outside the local network can load.
 """
 
 from __future__ import annotations

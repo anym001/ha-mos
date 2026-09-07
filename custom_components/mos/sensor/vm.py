@@ -114,9 +114,10 @@ class MOSVmMachineSensor(SensorEntity, MOSEntity):
         """
         Return the VM's icon URL, so cards show it without templating.
 
-        Same source and same guarantee as the LXC counterpart: a URL on the MOS
-        server's own web root, set only once the server confirmed the file is
-        there (see ``coordinator/guest_icons.py``).
+        Same source and same guarantee as the LXC counterpart: a file on the MOS
+        server's own web root, pointed at only once the server confirmed it is
+        there (see ``coordinator/guest_icons.py``) and served to the browser by
+        Home Assistant (see ``icon_proxy.py``).
 
         Returns:
             The icon URL, or ``None`` when the VM has no usable one.
@@ -127,7 +128,7 @@ class MOSVmMachineSensor(SensorEntity, MOSEntity):
         machine = _find_machine(self.coordinator, self._machine_name)
         if machine is None:
             return None
-        return self.entity_description.picture_fn(machine)
+        return self._proxied_picture(self.entity_description.picture_fn(machine))
 
 
 def build_vm_machine_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSVmMachineSensor]:

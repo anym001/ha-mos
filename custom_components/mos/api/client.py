@@ -32,6 +32,7 @@ from custom_components.mos.const import (
     DEFAULT_PORT_HTTP,
     DEFAULT_PORT_HTTPS,
     DEFAULT_TIMEOUT,
+    ICON_PROXY_MAX_BYTES,
     LOGGER,
 )
 
@@ -1038,6 +1039,43 @@ class MOSApiClient:
                 return response.status == HTTPStatus.OK
         except TimeoutError, aiohttp.ClientError:
             return False
+
+    async def async_fetch_static_asset(self, path: str) -> tuple[bytes, str] | None:
+        """
+        Fetch a static file from under the server's web root.
+
+        The counterpart to ``async_static_asset_exists``, for the icon proxy
+        (see ``icon_proxy.py``), which hands these files to browsers that cannot
+        reach this server themselves. Same terms as the probe: no token, no
+        redirects, and any failure reported as "no icon" rather than raised.
+
+        Two limits apply because the fetch happens on behalf of a request Home
+        Assistant did not authenticate. The body is read to
+        ``ICON_PROXY_MAX_BYTES`` and dropped if there is more, so a server
+        answering with something that is not an icon cannot be read into memory
+        in full; and a response that does not call itself an image is dropped
+        too, since the one thing that must never reach the browser under a
+        picture URL is a login page.
+
+        Args:
+            path: The path below the web root, e.g. ``docker_icons/Plex.png``.
+
+        Returns:
+            The file's bytes and its content type, or ``None``.
+
+        """
+        try:
+            async with (
+                self._rate_limiter,
+                asyncio.timeout(DEFAULT_TIMEOUT),
+                self._session.get(f"{self._root_url}/{path}", allow_redirects=False) as response,
+            ):
+                if response.status != HTTPStatus.OK or not (response.content_type or "").startswith("image/"):
+                    return None
+                body = await response.content.read(ICON_PROXY_MAX_BYTES + 1)
+                return None if len(body) > ICON_PROXY_MAX_BYTES else (body, response.content_type)
+        except TimeoutError, aiohttp.ClientError:
+            return None
 
     async def _get(
         self,

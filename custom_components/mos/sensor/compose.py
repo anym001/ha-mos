@@ -221,6 +221,9 @@ class MOSComposeStackSensor(SensorEntity, MOSEntity):
         """
         Return the stack's icon URL, so cards show it without templating.
 
+        Same as the Docker counterpart: the URL published here addresses Home
+        Assistant, which fetches the icon itself (see ``icon_proxy.py``).
+
         Returns:
             The icon URL, or ``None`` when the stack has no usable one.
 
@@ -230,7 +233,7 @@ class MOSComposeStackSensor(SensorEntity, MOSEntity):
         stack = _find_stack(self.coordinator, self._stack_name)
         if stack is None:
             return None
-        return self.entity_description.picture_fn(stack)
+        return self._proxied_picture(self.entity_description.picture_fn(stack))
 
 
 def build_compose_stack_sensors(coordinator: MOSDataUpdateCoordinator, name: str) -> list[MOSComposeStackSensor]:

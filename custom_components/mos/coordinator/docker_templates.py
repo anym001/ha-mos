@@ -155,10 +155,10 @@ def resolve_icon(template: dict[str, Any] | None) -> str | None:
     """
     Return the template's icon URL if it is one a browser can load.
 
-    The URLs MOS ships point at public CDNs (GitHub raw, jsDelivr), so they are
-    fetched by the browser showing the dashboard rather than by Home Assistant.
-    Anything that is not plain http(s) is dropped rather than handed to the
-    frontend as an entity picture.
+    The URLs MOS ships point at public CDNs (GitHub raw, jsDelivr). Anything that
+    is not plain http(s) is dropped rather than handed on, since what reaches the
+    frontend is not this URL but a proxy path Home Assistant fetches it through
+    (see ``icon_proxy.py``).
 
     Returns:
         The icon URL, or ``None`` when the template has none usable.

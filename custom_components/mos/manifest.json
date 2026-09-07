@@ -5,6 +5,9 @@
     "@anym001"
   ],
   "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/anym001/ha-mos",
   "integration_type": "hub",
   "iot_class": "local_polling",

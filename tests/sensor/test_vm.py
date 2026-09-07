@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -77,6 +78,7 @@ async def test_vm_state_sensor_carries_the_server_hosted_icon(
     hass: HomeAssistant,
     mock_client: AsyncMock,
     setup_integration: MockConfigEntry,
+    icon_proxy_url: Callable[[str], str],
 ) -> None:
     """The VM half of the LXC behaviour, read off ``customIcon``/``icon`` instead."""
     mock_client.async_static_asset_exists.return_value = True
@@ -85,8 +87,8 @@ async def test_vm_state_sensor_carries_the_server_hosted_icon(
 
     stock = hass.states.get("sensor.sirius_vm_test_state")
     assert stock is not None
-    assert stock.attributes["entity_picture"] == "http://10.0.1.30:80/os_icons/debian.png"
+    assert stock.attributes["entity_picture"] == icon_proxy_url("http://10.0.1.30:80/os_icons/debian.png")
 
     custom = hass.states.get("sensor.sirius_vm_legacy_state")
     assert custom is not None
-    assert custom.attributes["entity_picture"] == "http://10.0.1.30:80/lxc_custom/Legacy.png"
+    assert custom.attributes["entity_picture"] == icon_proxy_url("http://10.0.1.30:80/lxc_custom/Legacy.png")
