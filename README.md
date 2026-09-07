@@ -20,7 +20,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
 - **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
-- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture; Docker containers also get a web link and image metadata, plus a health sensor
+- **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture — served through Home Assistant, so it shows on any dashboard, not only one opened on the local network; Docker containers also get a web link and image metadata, plus a health sensor
 - **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, the CPU and memory its services use together, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
@@ -97,6 +97,11 @@ A row can be missing on an older server: a resource only appears in this list on
 
 Everything else stays at `none` — `auth`, `iscsi`, `users`, `shares`, `cron`, `terminal`. `auth` included: MOS lets a token read its own permission scope whatever its `auth` level says. Entities are only created for what the token can read, so a narrow token costs nothing beyond the categories you left out; `mos` or `system` at `none` leaves nothing to show at all.
 
+**Icons are served by Home Assistant, not fetched by your browser.** The picture on a container, stack, LXC guest or VM points at `/api/mos/icon/<config entry id>/<token>` on your Home Assistant, which fetches the artwork from MOS (or, for a container whose only icon is the one in its MOS template, from a public CDN) and caches it. Two consequences worth knowing:
+
+- The route carries **no authentication** — a browser sends none when it loads an `<img>`. The config entry id in the path is a random 32-character identifier and is what keeps the URL unguessable; anyone who has the full URL can load that one picture without logging in. Nothing else is reachable through it: the proxy only ever fetches URLs the integration itself published, so the path cannot be pointed at anything on your network.
+- No dashboard viewer's browser contacts GitHub or jsDelivr for a container icon any more. Home Assistant makes those requests instead — once per icon per hour — which also means the icons appear on a client with no internet access at all.
+
 **Prefer HTTPS.** Plain HTTP is the default, and it sends the API token in clear text with every poll. Turn on **Use HTTPS** during setup or later via **⋮** → **Reconfigure**, and leave **Verify TLS certificate** on unless the server presents a self-signed certificate.
 
 **Diagnostics are redacted, but not anonymous.** Removed: the API token, hostname, API URLs, disk serials/UUIDs, IP/MAC addresses (including a Docker container's published interface), resolved container web links and icon URLs, and the token's own ID/name.
@@ -112,6 +117,8 @@ Kept, because connection problems can't be diagnosed without them: container/VM/
 **Reauthentication prompt.** Appears once the server has rejected the token for at least five minutes _and_ on three consecutive polls — enter a new token under **Settings** → **Devices & Services**. Both conditions have to hold, so neither a brief rejection during a server reboot nor a couple of unlucky polls on a long update interval costs you a valid token. This holds while the integration is starting up too: it retries setup rather than asking for a token straight away.
 
 **Some entities are missing.** Most likely the API token is scoped and cannot read that category. The integration skips what the token isn't allowed to read and keeps everything else working, and logs a warning naming the affected categories. Grant the token read access in the MOS web UI under **User Settings → Admin API Tokens**, then reload the integration. A missing permission never causes a reauthentication prompt — a new token with the same scope wouldn't change anything.
+
+**A container or guest has no icon.** Either MOS hosts no artwork for it — normal for a container created outside MOS, and the integration checks before pointing at a file, so a missing icon stays invisible rather than showing as a broken image — or Home Assistant could not fetch it. Since Home Assistant fetches every icon itself, a container whose only icon is the CDN URL in its MOS template needs Home Assistant to reach that CDN; the ones MOS hosts itself keep working regardless. Debug logging names the URL that failed.
 
 **Debug logging.**
 
