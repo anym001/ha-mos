@@ -35,6 +35,7 @@ from custom_components.mos.const import (
     ICON_PROXY_MAX_BYTES,
     LOGGER,
 )
+from custom_components.mos.utils import async_read_capped_body
 
 
 class MOSApiClientError(Exception):
@@ -1072,8 +1073,8 @@ class MOSApiClient:
             ):
                 if response.status != HTTPStatus.OK or not (response.content_type or "").startswith("image/"):
                     return None
-                body = await response.content.read(ICON_PROXY_MAX_BYTES + 1)
-                return None if len(body) > ICON_PROXY_MAX_BYTES else (body, response.content_type)
+                body = await async_read_capped_body(response, ICON_PROXY_MAX_BYTES)
+                return None if body is None else (body, response.content_type)
         except TimeoutError, aiohttp.ClientError:
             return None
 

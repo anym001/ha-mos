@@ -50,6 +50,7 @@ from custom_components.mos.const import (
     ICON_PROXY_VIEW_REGISTERED,
     LOGGER,
 )
+from custom_components.mos.utils import async_read_capped_body
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -205,8 +206,8 @@ class MOSIconProxy:
             ):
                 if response.status != HTTPStatus.OK or not (response.content_type or "").startswith("image/"):
                     return None
-                body = await response.content.read(ICON_PROXY_MAX_BYTES + 1)
-                if len(body) > ICON_PROXY_MAX_BYTES:
+                body = await async_read_capped_body(response, ICON_PROXY_MAX_BYTES)
+                if body is None:
                     return None
                 return Icon.from_response(body, response.content_type)
         except (TimeoutError, aiohttp.ClientError) as exception:
