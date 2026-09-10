@@ -134,6 +134,15 @@
       "docker_latest_version": {
         "default": "mdi:docker"
       },
+      "docker_container_count": {
+        "default": "mdi:docker"
+      },
+      "docker_containers_running": {
+        "default": "mdi:play-circle"
+      },
+      "docker_updates_available": {
+        "default": "mdi:package-up"
+      },
       "hardware_fan": {
         "default": "mdi:fan"
       },

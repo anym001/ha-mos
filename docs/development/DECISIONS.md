@@ -522,6 +522,45 @@ changes. `manifest.json` gains `"dependencies": ["http"]`.
 - The icons are cached in memory per entry and bounded by `ICON_PROXY_MAX_CACHED`; the source URLs behind the tokens
   are not evicted, since dropping one would blank a picture on a page that is still open.
 
+### The Server-Wide Docker Counters Count MOS's Own Container List
+
+**Date:** 2026-09-10
+
+**Context:** A dashboard asking "how many containers do I have, how many run, how many need an update" could only get
+there by templating over every per-container entity. Two payloads could answer it: MOS's own
+`/docker/mos/containers`, which is what every Docker device here is built from, and the raw Docker Engine list
+(`/containers/json?all=true`), which is fetched anyway and covers every container on the host - Compose stack members
+and containers created outside MOS included.
+
+**Decision:** Aggregate MOS's container list into three sensors on the server device - `docker_container_count`,
+`docker_containers_running` and `docker_updates_available` - behind the existing `enable_docker` option. The running
+counter declares `docker_engine_containers` as an extra resource key; the other two do not.
+
+**Rationale:**
+
+- The counted set is exactly the set of container devices the user sees. A count that included Compose members would
+  disagree with the device list without any way to reconcile the two, and a stack already reports its own members
+  through `compose_container_count` and `compose_running_containers`.
+- `update_available` exists only in MOS's list. Counting containers from the engine list and updates from MOS's would
+  make two counters that cannot be compared with each other.
+- The engine list is merged into the container list and dropped every poll, so counting from it would mean deriving
+  and storing the figures in the coordinator - state that only these three sensors would ever read.
+- Only the running counter depends on the Docker Engine proxy. Letting it go unavailable when that resource goes
+  stale keeps a proxy outage from reading as containers having stopped, while the two counters that do not need it
+  keep answering.
+
+**Consequences:**
+
+- A server whose containers are mostly Compose services reports a small container count. The README says which set is
+  counted.
+- `update_available` counts only an explicit `True`. A container MOS could not check is counted as neither pending
+  nor current, which is a floor rather than an estimate.
+- `docker_container_count` carries no state class, so it produces no long-term statistics; the other two carry
+  `MEASUREMENT`, on the grounds that how many containers run and how many need an update are worth a history while
+  how many exist is a property of the setup.
+
+---
+
 ---
 
 ## Future Considerations
