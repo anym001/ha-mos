@@ -28,6 +28,7 @@ from custom_components.mos.entity_utils import async_setup_dynamic_entities, asy
 from .compose import build_compose_stack_sensors
 from .disks import build_disk_sensors
 from .docker import build_docker_container_sensors
+from .docker_summary import ENTITY_DESCRIPTIONS as DOCKER_SUMMARY_DESCRIPTIONS, MOSDockerSummarySensor
 from .hardware import build_hardware_sensors, sensor_key
 from .lxc import build_lxc_container_sensors
 from .nut import build_nut_sensors
@@ -96,6 +97,13 @@ async def async_setup_entry(
             device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_lxc_{name}"),
         )
     if entry.options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
+        async_add_entities(
+            MOSDockerSummarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in DOCKER_SUMMARY_DESCRIPTIONS
+        )
         async_setup_dynamic_entities(
             hass,
             entry,

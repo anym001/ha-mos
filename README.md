@@ -22,6 +22,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture — served through Home Assistant, so it shows on any dashboard, not only one opened on the local network; Docker containers also get a web link and image metadata, plus a health sensor
 - **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, the CPU and memory its services use together, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
+- **Docker at a glance** — three counters on the server device: how many MOS containers there are, how many of them run, and how many have an image update waiting, so a dashboard needs no template over every container. Compose stacks report their own members per stack instead.
 - **Hardware sensors** — fan speed/percentage, temperature and voltage readings, one entity per reading
 - **UPS** — on its own device: status, load, battery and voltage readings, plus one binary sensor per NUT status flag; created once a UPS answers, so a server without one gets none
 - **Token permissions respected** — every write action checks your API token's scope first
@@ -29,7 +30,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, hardware sensors, UPS readings
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, server-wide Docker counters, hardware sensors, UPS readings
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container and Compose stack health, Compose stack update/autostart, UPS power/battery flags
 - **`switch`** — LXC container, Docker container, Compose stack and VM power
 
