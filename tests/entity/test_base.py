@@ -89,8 +89,13 @@ async def test_stale_resource_marks_only_its_own_entities_unavailable(
     entity_reg = er.async_get(hass)
     entry_id = setup_integration.entry_id
 
-    # Both VMs in the fixture are backed by vm_machines, so both go with it.
-    vm_entity_ids: list[str] = []
+    # Both VMs in the fixture are backed by vm_machines, so both go with it -
+    # and so do the server-wide VM counters, which read the same list from the
+    # server device rather than from a VM's own (see sensor/summary.py).
+    vm_entity_ids: list[str] = [
+        "sensor.sirius_virtual_machines_total",
+        "sensor.sirius_virtual_machines_running",
+    ]
     for vm_name in ("Test", "Legacy"):
         vm_device = device_reg.async_get_device_by_identifier((DOMAIN, f"{entry_id}_vm_{vm_name}"), entry_id)
         assert vm_device is not None

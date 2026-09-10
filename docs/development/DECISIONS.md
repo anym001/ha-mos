@@ -522,44 +522,51 @@ changes. `manifest.json` gains `"dependencies": ["http"]`.
 - The icons are cached in memory per entry and bounded by `ICON_PROXY_MAX_CACHED`; the source URLs behind the tokens
   are not evicted, since dropping one would blank a picture on a page that is still open.
 
-### The Server-Wide Docker Counters Count MOS's Own Container List
+### Server-Wide Guest Counters Aggregate the Lists the Devices Are Built From
 
 **Date:** 2026-09-10
 
 **Context:** A dashboard asking "how many containers do I have, how many run, how many need an update" could only get
-there by templating over every per-container entity. Two payloads could answer it: MOS's own
+there by templating over every per-guest entity. For Docker, two payloads could answer it: MOS's own
 `/docker/mos/containers`, which is what every Docker device here is built from, and the raw Docker Engine list
 (`/containers/json?all=true`), which is fetched anyway and covers every container on the host - Compose stack members
 and containers created outside MOS included.
 
-**Decision:** Aggregate MOS's container list into three sensors on the server device - `docker_containers_total`,
-`docker_containers_running` and `docker_updates_available` - behind the existing `enable_docker` option. The running
-counter declares `docker_engine_containers` as an extra resource key; the other two do not.
+**Decision:** Aggregate each guest list the integration already holds into counters on the server device, each group
+behind the option that decides its guests get entities at all: `docker_containers_total` /
+`docker_containers_running` / `docker_updates_available`, `compose_stacks_total` / `compose_stacks_running` /
+`compose_updates_available`, `lxc_containers_total` / `lxc_containers_running`, and `vm_machines_total` /
+`vm_machines_running`. The Docker running counter declares `docker_engine_containers` as an extra resource key and
+the Compose update counter `docker_groups`; nothing else needs one.
 
 **Rationale:**
 
-- The counted set is exactly the set of container devices the user sees. A count that included Compose members would
-  disagree with the device list without any way to reconcile the two, and a stack already reports its own members
-  through `compose_container_count` and `compose_running_containers`.
-- `update_available` exists only in MOS's list. Counting containers from the engine list and updates from MOS's would
-  make two counters that cannot be compared with each other.
+- The counted set is exactly the set of devices the user sees. For Docker, a count that included Compose members
+  would disagree with the device list without any way to reconcile the two, and a stack already reports its own
+  members through `compose_container_count` and `compose_running_containers`.
+- `update_available` exists only in MOS's container list. Counting containers from the engine list and updates from
+  MOS's would make two counters that cannot be compared with each other.
 - The engine list is merged into the container list and dropped every poll, so counting from it would mean deriving
-  and storing the figures in the coordinator - state that only these three sensors would ever read.
-- Only the running counter depends on the Docker Engine proxy. Letting it go unavailable when that resource goes
-  stale keeps a proxy outage from reading as containers having stopped, while the two counters that do not need it
-  keep answering.
+  and storing the figures in the coordinator - state that only these sensors would ever read.
+- Only two counters depend on a resource other than the list they aggregate. Letting each go unavailable when that
+  resource goes stale keeps a proxy outage from reading as containers having stopped, and a failed group list from
+  reading as no stack needing an update, while every counter that does not need them keeps answering.
+- LXC and VM get no update counter. MOS tracks no image or template version for either, so there is no flag to
+  count - not an omission to fill in later.
 
 **Consequences:**
 
-- A server whose containers are mostly Compose services reports a small container count, with nothing on the
-  entity saying so. `sensor/docker_summary.py` states the scope for the next reader of the code.
-- `update_available` counts only an explicit `True`. A container MOS could not check is counted as neither pending
-  nor current, which is a floor rather than an estimate.
-- `docker_containers_total` carries no state class, so it produces no long-term statistics; the other two carry
-  `MEASUREMENT`, on the grounds that how many containers run and how many need an update are worth a history while
-  how many exist is a property of the setup.
-
----
+- A server whose containers are mostly Compose services reports a small Docker container count, with nothing on the
+  entity saying so. `sensor/summary.py` states the scope for the next reader of the code.
+- No counter answers "every container on the host". Adding one would put a second, larger number named "containers"
+  next to the first; the host-wide figure would have to replace this scope rather than sit beside it.
+- `update_available` counts only an explicit `True`. A guest MOS could not check is counted as neither pending nor
+  current, which is a floor rather than an estimate.
+- A stack counts as running on its own single flag, so a stack whose services disagree counts as running here - the
+  same reading its per-stack state sensor gives.
+- The totals carry no state class and so produce no long-term statistics; the running and update counters carry
+  `MEASUREMENT`, on the grounds that how many guests run and how many need an update are worth a history while how
+  many exist is a property of the setup.
 
 ---
 

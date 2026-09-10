@@ -315,6 +315,27 @@
       "docker_updates_available": {
         "name": "Docker updates available"
       },
+      "compose_stacks_total": {
+        "name": "Compose stacks total"
+      },
+      "compose_stacks_running": {
+        "name": "Compose stacks running"
+      },
+      "compose_updates_available": {
+        "name": "Compose updates available"
+      },
+      "lxc_containers_total": {
+        "name": "LXC containers total"
+      },
+      "lxc_containers_running": {
+        "name": "LXC containers running"
+      },
+      "vm_machines_total": {
+        "name": "Virtual machines total"
+      },
+      "vm_machines_running": {
+        "name": "Virtual machines running"
+      },
       "docker_cpu_usage": {
         "name": "CPU usage"
       },
