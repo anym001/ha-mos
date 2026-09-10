@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1](https://github.com/anym001/ha-mos/compare/v0.3.0...v0.3.1) (2026-09-10)
+
+
+### Features
+
+* **icon-proxy:** serve guest icons through home assistant ([eea1979](https://github.com/anym001/ha-mos/commit/eea1979dd4f29b1375fda07de7eee39f1253030d))
+* **sensor:** add server-wide counters for Compose, LXC and VMs ([cec488a](https://github.com/anym001/ha-mos/commit/cec488afbe563a5d0acf7dd6f285d6689fd4139b))
+* **sensor:** add server-wide Docker counters ([05398a9](https://github.com/anym001/ha-mos/commit/05398a9e9d1d0cba51838437b4f1556893cc4d09))
+
+
+### Bug Fixes
+
+* **icon-proxy:** read icon bodies past the first chunk ([6cfdaae](https://github.com/anym001/ha-mos/commit/6cfdaae668907ba1be95a7dde37e371b3dea0091))
+
 ## [0.3.0](https://github.com/anym001/ha-mos/compare/v0.2.6...v0.3.0) (2026-08-31)
 
 
