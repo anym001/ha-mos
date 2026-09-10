@@ -29,7 +29,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 Entities are spread across three platforms:
 
-- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, server-wide Docker counters, hardware sensors, UPS readings
+- **`sensor`** — system info and health, pool usage and space, disk power/temperature/model/size, LXC/Docker/VM resources and state, Compose stack state and container counts, server-wide counters per guest kind, hardware sensors, UPS readings
 - **`binary_sensor`** — service status, pool health and maintenance operations, disk SMART, container/VM state, Docker container and Compose stack health, Compose stack update/autostart, UPS power/battery flags
 - **`switch`** — LXC container, Docker container, Compose stack and VM power
 

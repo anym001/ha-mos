@@ -28,11 +28,17 @@ from custom_components.mos.entity_utils import async_setup_dynamic_entities, asy
 from .compose import build_compose_stack_sensors
 from .disks import build_disk_sensors
 from .docker import build_docker_container_sensors
-from .docker_summary import ENTITY_DESCRIPTIONS as DOCKER_SUMMARY_DESCRIPTIONS, MOSDockerSummarySensor
 from .hardware import build_hardware_sensors, sensor_key
 from .lxc import build_lxc_container_sensors
 from .nut import build_nut_sensors
 from .pools import build_pool_sensors
+from .summary import (
+    COMPOSE_ENTITY_DESCRIPTIONS as COMPOSE_SUMMARY_DESCRIPTIONS,
+    DOCKER_ENTITY_DESCRIPTIONS as DOCKER_SUMMARY_DESCRIPTIONS,
+    LXC_ENTITY_DESCRIPTIONS as LXC_SUMMARY_DESCRIPTIONS,
+    VM_ENTITY_DESCRIPTIONS as VM_SUMMARY_DESCRIPTIONS,
+    MOSSummarySensor,
+)
 from .system import ENTITY_DESCRIPTIONS as SYSTEM_DESCRIPTIONS, MOSSystemSensor
 from .system_health import ENTITY_DESCRIPTIONS as SYSTEM_HEALTH_DESCRIPTIONS, MOSSystemHealthSensor
 from .vm import build_vm_machine_sensors
@@ -87,6 +93,13 @@ async def async_setup_entry(
             device_identifiers_fn=lambda pool_id: (entry.domain, f"{entry.entry_id}_pool_{pool_id}"),
         )
     if entry.options.get(CONF_ENABLE_LXC, DEFAULT_ENABLE_LXC):
+        async_add_entities(
+            MOSSummarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in LXC_SUMMARY_DESCRIPTIONS
+        )
         async_setup_dynamic_entities(
             hass,
             entry,
@@ -98,7 +111,7 @@ async def async_setup_entry(
         )
     if entry.options.get(CONF_ENABLE_DOCKER, DEFAULT_ENABLE_DOCKER):
         async_add_entities(
-            MOSDockerSummarySensor(
+            MOSSummarySensor(
                 coordinator=entry.runtime_data.coordinator,
                 entity_description=entity_description,
             )
@@ -114,6 +127,13 @@ async def async_setup_entry(
             device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_docker_{name}"),
         )
     if entry.options.get(CONF_ENABLE_COMPOSE, DEFAULT_ENABLE_COMPOSE):
+        async_add_entities(
+            MOSSummarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in COMPOSE_SUMMARY_DESCRIPTIONS
+        )
         async_setup_dynamic_entities(
             hass,
             entry,
@@ -124,6 +144,13 @@ async def async_setup_entry(
             device_identifiers_fn=lambda name: (entry.domain, f"{entry.entry_id}_compose_{name}"),
         )
     if entry.options.get(CONF_ENABLE_VM, DEFAULT_ENABLE_VM):
+        async_add_entities(
+            MOSSummarySensor(
+                coordinator=entry.runtime_data.coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in VM_SUMMARY_DESCRIPTIONS
+        )
         async_setup_dynamic_entities(
             hass,
             entry,

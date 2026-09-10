@@ -143,6 +143,27 @@
       "docker_updates_available": {
         "default": "mdi:package-up"
       },
+      "compose_stacks_total": {
+        "default": "mdi:layers-outline"
+      },
+      "compose_stacks_running": {
+        "default": "mdi:play-circle"
+      },
+      "compose_updates_available": {
+        "default": "mdi:package-up"
+      },
+      "lxc_containers_total": {
+        "default": "mdi:cube-outline"
+      },
+      "lxc_containers_running": {
+        "default": "mdi:play-circle"
+      },
+      "vm_machines_total": {
+        "default": "mdi:server-outline"
+      },
+      "vm_machines_running": {
+        "default": "mdi:play-circle"
+      },
       "hardware_fan": {
         "default": "mdi:fan"
       },
