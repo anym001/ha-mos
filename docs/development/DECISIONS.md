@@ -532,7 +532,7 @@ there by templating over every per-container entity. Two payloads could answer i
 (`/containers/json?all=true`), which is fetched anyway and covers every container on the host - Compose stack members
 and containers created outside MOS included.
 
-**Decision:** Aggregate MOS's container list into three sensors on the server device - `docker_container_count`,
+**Decision:** Aggregate MOS's container list into three sensors on the server device - `docker_containers_total`,
 `docker_containers_running` and `docker_updates_available` - behind the existing `enable_docker` option. The running
 counter declares `docker_engine_containers` as an extra resource key; the other two do not.
 
@@ -551,11 +551,11 @@ counter declares `docker_engine_containers` as an extra resource key; the other 
 
 **Consequences:**
 
-- A server whose containers are mostly Compose services reports a small container count. The README says which set is
-  counted.
+- A server whose containers are mostly Compose services reports a small container count, with nothing on the
+  entity saying so. `sensor/docker_summary.py` states the scope for the next reader of the code.
 - `update_available` counts only an explicit `True`. A container MOS could not check is counted as neither pending
   nor current, which is a floor rather than an estimate.
-- `docker_container_count` carries no state class, so it produces no long-term statistics; the other two carry
+- `docker_containers_total` carries no state class, so it produces no long-term statistics; the other two carry
   `MEASUREMENT`, on the grounds that how many containers run and how many need an update are worth a history while
   how many exist is a property of the setup.
 

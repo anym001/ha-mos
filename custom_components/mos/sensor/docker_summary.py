@@ -42,8 +42,8 @@ ENTITY_DESCRIPTIONS: tuple[MOSDockerSummarySensorEntityDescription, ...] = (
     # it is noise in the recorder. The two counters below do change on their own
     # and are worth a history, so they carry one.
     MOSDockerSummarySensorEntityDescription(
-        key="docker_container_count",
-        translation_key="docker_container_count",
+        key="docker_containers_total",
+        translation_key="docker_containers_total",
         value_fn=len,
     ),
     MOSDockerSummarySensorEntityDescription(

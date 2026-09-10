@@ -134,7 +134,7 @@
       "docker_latest_version": {
         "default": "mdi:docker"
       },
-      "docker_container_count": {
+      "docker_containers_total": {
         "default": "mdi:docker"
       },
       "docker_containers_running": {
