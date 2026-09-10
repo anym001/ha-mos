@@ -306,8 +306,8 @@
       "docker_latest_version": {
         "name": "Neueste Version"
       },
-      "docker_container_count": {
-        "name": "Docker-Container"
+      "docker_containers_total": {
+        "name": "Docker-Container gesamt"
       },
       "docker_containers_running": {
         "name": "Laufende Docker-Container"

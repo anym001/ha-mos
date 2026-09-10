@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 SUMMARY_SENSORS = (
-    "sensor.sirius_docker_containers",
+    "sensor.sirius_docker_containers_total",
     "sensor.sirius_docker_containers_running",
     "sensor.sirius_docker_updates_available",
 )
@@ -32,7 +32,7 @@ async def test_counters_aggregate_the_container_list(
     setup_integration: MockConfigEntry,
 ) -> None:
     """The fixture has two containers, one of them running, one of them with an update waiting."""
-    assert hass.states.get("sensor.sirius_docker_containers").state == "2"
+    assert hass.states.get("sensor.sirius_docker_containers_total").state == "2"
     assert hass.states.get("sensor.sirius_docker_containers_running").state == "1"
     assert hass.states.get("sensor.sirius_docker_updates_available").state == "1"
 
@@ -76,7 +76,7 @@ async def test_only_the_changing_counters_carry_a_state_class(
     setup_integration: MockConfigEntry,
 ) -> None:
     """How many containers exist is a property of the setup; how many run or need an update is worth a history."""
-    assert ATTR_STATE_CLASS not in hass.states.get("sensor.sirius_docker_containers").attributes
+    assert ATTR_STATE_CLASS not in hass.states.get("sensor.sirius_docker_containers_total").attributes
 
     for entity_id in ("sensor.sirius_docker_containers_running", "sensor.sirius_docker_updates_available"):
         state = hass.states.get(entity_id)
@@ -99,7 +99,7 @@ async def test_a_stale_engine_list_only_takes_the_running_counter_down(
 
     assert coordinator.stale_resources == frozenset({"docker_engine_containers"})
     assert hass.states.get("sensor.sirius_docker_containers_running").state == STATE_UNAVAILABLE
-    assert hass.states.get("sensor.sirius_docker_containers").state == "2"
+    assert hass.states.get("sensor.sirius_docker_containers_total").state == "2"
     assert hass.states.get("sensor.sirius_docker_updates_available").state == "1"
 
 
