@@ -3,7 +3,7 @@ Keep a MOS server's container devices in the same area as the server itself.
 
 One MOS server produces a dozen devices - the server, its UPS, one per pool,
 disk, container and VM - and Home Assistant has no notion of one device
-inheriting anything from another. ``via_device`` links them for display only;
+inheriting anything from another. ``via_device_id`` links them for display only;
 the area is set per device or not at all. So assigning a room means picking the
 same room twelve times in the dialog Home Assistant shows after setup, and
 picking it again for every pool or container that appears later.

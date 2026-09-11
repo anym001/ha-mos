@@ -3,7 +3,7 @@
 VMs are a dynamic list (created/destroyed at runtime), so their entities are
 added/removed via ``async_setup_dynamic_entities`` rather than a static
 ENTITY_DESCRIPTIONS tuple. Each VM gets its own device (linked back to the
-main server device via ``via_device``), mirroring the LXC/Docker container
+main server device via ``via_device_id``), mirroring the LXC/Docker container
 pattern (see sensor/lxc.py).
 """
 

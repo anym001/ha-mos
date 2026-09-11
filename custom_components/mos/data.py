@@ -35,12 +35,17 @@ class MOSData:
     The icon proxy is reached from two directions: entities register the
     artwork they publish with it, and the HTTP view serving that artwork looks
     it up here by entry id (see ``icon_proxy.py``).
+
+    ``server_device_id`` is the registry id every container device links back to
+    as its via device. It is filled in during setup, once the server device is
+    registered and before any platform is forwarded.
     """
 
     client: MOSApiClient
     coordinator: MOSDataUpdateCoordinator
     integration: Integration
     icon_proxy: MOSIconProxy
+    server_device_id: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
