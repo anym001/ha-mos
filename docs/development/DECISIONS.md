@@ -601,6 +601,37 @@ as the `DeviceInfo` the server's own entities publish.
 - `AGENTS.md` no longer records a deviation from `blueprint.entities.instructions.md`; the rule there applies as
   written.
 
+### The Newest Home Assistant Is Watched in CI, Not Pinned
+
+**Date:** 2026-09-11
+
+**Context:** The `via_device` deprecation reached a user's log before it reached this repository, because both the
+test environment and the declared minimum are pinned to one release train. Raising the pin would have caught it, at
+the price of cutting off every user still on the older train — for a deprecation that breaks nothing there.
+
+**Decision:** Keep `hacs.json` and `requirements_test.txt` where they are, and add
+`.github/workflows/ha-latest-check.yml`: a scheduled job that installs the newest
+`pytest-homeassistant-custom-component`, runs the suite against it, and fails when the tests fail **or** when the log
+carries a deprecation naming this integration.
+
+**Rationale:**
+
+- A deprecation is logged, not raised, so the suite stays green while it accumulates. Scanning the log for the
+  integration's own domain is what turns it into a signal; asserting on the tests alone would not have caught this.
+- The job is scheduled and never runs on a pull request, so a new Home Assistant release cannot block a merge. It is
+  a report about the outside world, not a gate on the change in hand.
+- The minimum version in `hacs.json` is a statement about users, not about this repository's tooling. It moves when
+  the integration needs something a newer Home Assistant provides.
+
+**Consequences:**
+
+- A new Home Assistant release that deprecates something here turns the weekly run red, with the offending call sites
+  in the job summary. Nobody has to be running a newer Home Assistant to notice.
+- The job installs an unpinned dependency on purpose and is therefore not reproducible by design; a red run says what
+  changed upstream, not that this repository changed.
+- `script/ha-version-sync` still requires `hacs.json`, `requirements_test.txt` and `.devcontainer/.env` to name one
+  release train. The job sidesteps that by keeping its environment in a separate venv and naming no version at all.
+
 ---
 
 ## Future Considerations
