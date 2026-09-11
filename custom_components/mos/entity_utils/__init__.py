@@ -12,8 +12,10 @@ from .nut_status import (
 )
 from .permissions import has_read_access, has_write_access
 from .retired_entities import async_remove_retired_entities
+from .server_device import async_register_server_device, server_device_info
 
 __all__ = [
+    "async_register_server_device",
     "async_remove_retired_entities",
     "async_setup_area_inheritance",
     "async_setup_dynamic_entities",
@@ -25,4 +27,5 @@ __all__ = [
     "nut_device_hardware",
     "nut_payload",
     "nut_status_flags",
+    "server_device_info",
 ]

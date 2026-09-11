@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.mos.const import ATTRIBUTION, DEFAULT_SSL, DEVICE_KIND_MODEL_NAMES, MOSDeviceKind
+from custom_components.mos.const import ATTRIBUTION, DEVICE_KIND_MODEL_NAMES, MOSDeviceKind
 from custom_components.mos.coordinator import MOSDataUpdateCoordinator
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
+from custom_components.mos.entity_utils.server_device import server_device_info
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -120,7 +120,7 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
                 items that can be numerous and are individually
                 enabled/disabled via the standard HA device page rather than
                 cluttering the server device). The device is linked back to
-                the server device via ``via_device``, and its name is
+                the server device via ``via_device_id``, and its name is
                 prefixed with the server name so it stays unique/identifiable
                 across multiple configured MOS servers.
             device_kind: What the container device represents, written to its
@@ -182,18 +182,13 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             # both happen to run a container named "database"). A translated device gets
             # the same prefix from its ``server`` placeholder instead, and is named by
             # the device registry rather than here.
-            # ``via_device`` rather than the newer ``via_device_id``: the latter wants
-            # the server device's *registry id*, which does not exist yet here - the
-            # server device is created from its own entity's DeviceInfo, in the same
-            # setup pass that builds these container entities. Home Assistant resolves
-            # the identifier at registration and prefers a match in the same config
-            # entry, so the link is unambiguous for us and no deprecation warning is
-            # logged. Deprecated since 2026.8, removed in 2027.8 - see
-            # docs/development/DECISIONS.md before "fixing" this.
-            device_info = DeviceInfo(
-                identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")},
-                via_device=(entry.domain, entry.entry_id),
-            )
+            device_info = DeviceInfo(identifiers={(entry.domain, f"{entry.entry_id}_{device_key}")})
+            # Left out entirely when the server device is not registered yet: an
+            # explicit ``via_device_id=None`` means "no via device" and would
+            # detach a link an earlier run had already made.
+            server_device_id = entry.runtime_data.server_device_id
+            if server_device_id is not None:
+                device_info["via_device_id"] = server_device_id
             # Assigned rather than passed as **kwargs: unpacking a DeviceInfo into
             # the constructor erases the per-key types, leaving every field an
             # untyped object.
@@ -227,24 +222,4 @@ class MOSEntity(CoordinatorEntity[MOSDataUpdateCoordinator]):
             self._attr_device_info = device_info
             return
 
-        osinfo: dict = (coordinator.data or {}).get("osinfo", {})
-        mos: dict = osinfo.get("mos", {})
-
-        host = entry.data.get(CONF_HOST)
-        scheme = "https" if entry.data.get(CONF_SSL, DEFAULT_SSL) else "http"
-        port = entry.data.get(CONF_PORT)
-        configuration_url = f"{scheme}://{host}:{port}" if port else f"{scheme}://{host}"
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={
-                (
-                    entry.domain,
-                    entry.entry_id,
-                ),
-            },
-            name=entry.title or osinfo.get("hostname"),
-            manufacturer="MOS",
-            model=mos.get("version"),
-            sw_version=mos.get("build"),
-            configuration_url=configuration_url if host else None,
-        )
+        self._attr_device_info = server_device_info(entry, coordinator.data)

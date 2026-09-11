@@ -3,7 +3,7 @@
 Disks are a dynamic list (they can be plugged/unplugged at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
 static ENTITY_DESCRIPTIONS tuple. Each disk gets its own device (linked back
-to the main server device via ``via_device``), same as LXC/Docker/VM items
+to the main server device via ``via_device_id``), same as LXC/Docker/VM items
 (e.g. ``sensor.mos_server_disk_vda_power_status``).
 """
 

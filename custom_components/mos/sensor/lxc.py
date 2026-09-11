@@ -3,7 +3,7 @@
 Containers are a dynamic list (created/destroyed at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
 static ENTITY_DESCRIPTIONS tuple. Each container gets its own device (linked
-back to the main server device via ``via_device``), so it can be individually
+back to the main server device via ``via_device_id``), so it can be individually
 enabled/disabled from its device page instead of cluttering the server
 device's entity list (e.g. ``sensor.sirius_lxc_database_cpu_usage``; the
 server name and "lxc" category keep things unique across multiple servers

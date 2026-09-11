@@ -568,6 +568,39 @@ the Compose update counter `docker_groups`; nothing else needs one.
   `MEASUREMENT`, on the grounds that how many guests run and how many need an update are worth a history while how
   many exist is a property of the setup.
 
+### The Server Device Is Registered Before the Platforms, and Linked to by Id
+
+**Date:** 2026-09-11
+
+**Context:** Container devices hung off the server device with `via_device`, the identifier-based link. Home Assistant
+2026.8 deprecated it and 2026.9 logs a warning for every call that still passes it, naming
+`entity_utils/dynamic_entities.py` as the caller. `via_device_id` wants the server device's registry id, which no
+entity can know while the server device is itself only a `DeviceInfo` built in the same setup pass.
+
+**Decision:** Register the server device explicitly in `async_setup_entry`, before the platforms are forwarded, and
+keep its registry id in `runtime_data.server_device_id`. Container devices pass that id as `via_device_id`. The
+description of the server device lives in `entity_utils/server_device.py` and is used both for the registration and
+as the `DeviceInfo` the server's own entities publish.
+
+**Rationale:**
+
+- The id exists only after registration, so something has to register the device before entity construction. Setup is
+  the one place that runs before every platform.
+- One description used twice keeps the device the entities describe and the device the entry registers from drifting
+  apart.
+- `via_device` resolves an identifier that is unique only within a config entry, which is why it is deprecated. The id
+  is unambiguous, so the link no longer depends on Home Assistant preferring the right match.
+
+**Consequences:**
+
+- The server device exists as soon as the entry is set up, even before any entity is added. Area inheritance already
+  ran after the first refresh, so it sees the same device it always did.
+- `via_device_id` is validated: an unregistered id raises `DeviceInfoError` instead of silently leaving the device
+  unlinked. `MOSData.server_device_id` is `None` until setup fills it in, and a container device built without it is
+  registered with no via link rather than with a broken one.
+- `AGENTS.md` no longer records a deviation from `blueprint.entities.instructions.md`; the rule there applies as
+  written.
+
 ---
 
 ## Future Considerations

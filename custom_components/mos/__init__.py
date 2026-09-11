@@ -40,7 +40,7 @@ from .const import (
 )
 from .coordinator import MOSDataUpdateCoordinator
 from .data import MOSData
-from .entity_utils import async_remove_retired_entities, async_setup_area_inheritance
+from .entity_utils import async_register_server_device, async_remove_retired_entities, async_setup_area_inheritance
 from .icon_proxy import MOSIconProxy, async_register_icon_proxy_view
 
 if TYPE_CHECKING:
@@ -134,6 +134,10 @@ async def async_setup_entry(
 
     # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
     await coordinator.async_config_entry_first_refresh()
+
+    # Before the platforms, which link every container device back to this one by
+    # its registry id.
+    entry.runtime_data.server_device_id = async_register_server_device(hass, entry)
 
     # Before the platforms, so a device created during their setup is already
     # covered by it rather than being the one that slipped through.

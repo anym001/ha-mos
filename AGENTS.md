@@ -340,13 +340,9 @@ See `.agents/instructions/blueprint.coordinator.instructions.md` for details.
 
 See `.agents/instructions/blueprint.entities.instructions.md` for entity patterns.
 
-**Documented deviation — `via_device`:** that file says never to use `via_device`. This integration still does, in
-`entity/base.py`, and that is deliberate. The prescribed `via_device_id` needs the server device's registry id, which
-does not exist yet at the point container devices declare their `DeviceInfo`. Home Assistant resolves the identifier
-at registration and prefers a match within the same config entry, so the link is unambiguous here and logs no
-deprecation warning. `via_device` is removed in HA Core 2027.8; revisit before then. Do not "fix" this in passing —
-see `docs/development/DECISIONS.md`. Every other rule in that file, including the entry-scoped registry lookups,
-applies as written.
+**Server device:** `async_setup_entry` registers it (`entity_utils/server_device.py`) before forwarding the
+platforms, so container devices have a registry id to pass as `via_device_id`. It is in `runtime_data` as
+`server_device_id`.
 
 **Entity availability:**
 

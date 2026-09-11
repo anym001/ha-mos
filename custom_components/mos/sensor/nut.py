@@ -3,7 +3,7 @@
 MOS talks to the UPS through Network UPS Tools and hands back a parsed ``data``
 block next to the raw NUT variables; only the parsed block is used here, since
 the raw variable set differs per driver. The entities are a fixed set on their
-own UPS device (linked to the server device via ``via_device``) rather than a
+own UPS device (linked to the server device via ``via_device_id``) rather than a
 dynamic list: MOS reports at most one UPS, so unlike disks or containers there
 is never more than one such device to create or remove.
 

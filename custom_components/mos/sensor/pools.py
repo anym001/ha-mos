@@ -3,7 +3,7 @@
 Pools are a dynamic list (they can be created/deleted at runtime), so their
 entities are added/removed via ``async_setup_dynamic_entities`` rather than a
 static ENTITY_DESCRIPTIONS tuple. Each pool gets its own device (linked back
-to the main server device via ``via_device``), same as LXC/Docker/VM items
+to the main server device via ``via_device_id``), same as LXC/Docker/VM items
 (e.g. ``sensor.mos_server_pool_test1_usage``).
 """
 
