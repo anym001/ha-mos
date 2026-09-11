@@ -1,0 +1,95 @@
+name: HA Latest Check
+
+# Runs the test suite against the newest Home Assistant release instead of the
+# pinned one, so an API this integration relies on being deprecated is reported
+# here rather than in a user's log. Scheduled only: it never gates a pull
+# request, and the pins in hacs.json and requirements_test.txt stay untouched.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time, and never cancel one: a scheduled run is the only report.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  pytest-latest:
+    name: "pytest against the newest Home Assistant"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: read # checkout only; the job writes nothing
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Read-only job — no git operation after checkout needs the token.
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.9.3"
+
+      - name: Install the newest Home Assistant test harness
+        env:
+          # Unpinned on purpose: the newest release is what this job exists to try.
+          VIRTUAL_ENV: ${{ github.workspace }}/.venv-latest
+        run: |
+          uv venv "$VIRTUAL_ENV" --python 3.14
+          uv pip install pytest-homeassistant-custom-component
+
+      - name: Report the version under test
+        id: version
+        run: |
+          HA_UNDER_TEST=$(.venv-latest/bin/python -c "from homeassistant.const import __version__; print(__version__)")
+          echo "ha=${HA_UNDER_TEST}" >> "$GITHUB_OUTPUT"
+          echo "Testing against Home Assistant ${HA_UNDER_TEST}"
+
+      - name: Run the test suite
+        id: pytest
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          .venv-latest/bin/python -m pytest tests -q --log-cli-level=WARNING | tee pytest-latest.log
+
+      - name: Report deprecations and failures
+        env:
+          HA_UNDER_TEST: ${{ steps.version.outputs.ha }}
+          PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
+        run: |
+          DOMAIN=$(python3 -c "import glob, json; print(json.load(open(glob.glob('custom_components/*/manifest.json')[0]))['domain'])")
+          DEPRECATIONS=$(grep -F "custom integration '${DOMAIN}'" pytest-latest.log | sed 's/.*Detected/Detected/' | sort -u || true)
+
+          {
+            echo "## Home Assistant ${HA_UNDER_TEST}"
+            echo ""
+            echo "Test suite: ${PYTEST_OUTCOME}"
+            echo ""
+            if [ -n "$DEPRECATIONS" ]; then
+              echo "### Deprecated APIs still in use"
+              echo ""
+              echo '```text'
+              echo "$DEPRECATIONS"
+              echo '```'
+            else
+              echo "No deprecation reported for \`${DOMAIN}\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$DEPRECATIONS" ]; then
+            echo "::warning::${DOMAIN} calls APIs deprecated in Home Assistant ${HA_UNDER_TEST}"
+          fi
+          if [ "$PYTEST_OUTCOME" != "success" ] || [ -n "$DEPRECATIONS" ]; then
+            echo "Home Assistant ${HA_UNDER_TEST} needs attention — see the job summary." >&2
+            exit 1
+          fi
