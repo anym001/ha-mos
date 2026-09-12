@@ -29,42 +29,67 @@ def _find_pool(coordinator: MOSDataUpdateCoordinator, pool_id: str) -> dict[str,
     return next((pool for pool in pools if str(pool.get("id")) == pool_id), None)
 
 
-def _serials(devices: Any) -> list[str]:
+def _members(devices: Any) -> list[dict[str, Any]]:
     """
-    Collect the disk serials of one of a pool's member device lists, in slot order.
+    Flatten one of a pool's member device lists, in slot order.
+
+    One entry per device the pool reports, so a disk contributing two partitions
+    appears twice — each with its own slot and mount point. Entries without a
+    serial are dropped: without one there is no disk to point at.
 
     Returns:
-        The serials, deduplicated: several partitions of one disk can be members
-        of the same pool, and naming that disk twice says nothing.
+        The members, each with a stable set of keys so a template can index them.
 
     """
     if not isinstance(devices, list):
         return []
+    return [
+        {
+            "serial": serial,
+            "slot": device.get("slot"),
+            "device": device.get("device"),
+            "mount_point": device.get("mountPoint"),
+        }
+        for device in devices
+        if isinstance(device, dict) and (serial := (device.get("diskInfo") or {}).get("diskSerial"))
+    ]
+
+
+def _serials(members: list[dict[str, Any]]) -> list[str]:
+    """
+    Reduce a member list to the physical disks behind it.
+
+    Returns:
+        The serials, deduplicated: two partitions of one disk are one disk.
+
+    """
     serials: list[str] = []
-    for device in devices:
-        if not isinstance(device, dict):
-            continue
-        serial = (device.get("diskInfo") or {}).get("diskSerial")
-        if serial and serial not in serials:
-            serials.append(serial)
+    for member in members:
+        if member["serial"] not in serials:
+            serials.append(member["serial"])
     return serials
 
 
 def _member_attributes(pool: dict[str, Any]) -> dict[str, Any]:
     """
-    Collect the serials of the disks backing this pool, data and parity kept apart.
+    Describe the disks backing this pool, data and parity kept apart.
 
     ``diskSerial`` is the same value as a disk's own ``serial`` from ``/disks``,
-    which is what keys that disk's device. Exposing it is what lets a card
-    resolve a pool to the disk entities underneath it.
+    which is what keys that disk's device, so the serial lists are what let a
+    card resolve a pool to the disk entities underneath it. ``slot`` and
+    ``mount_point`` have no other source: ``/disks`` does not report either.
 
     Returns:
         The attributes to expose, with empty lists omitted.
 
     """
+    data = _members(pool.get("data_devices"))
+    parity = _members(pool.get("parity_devices"))
     attributes = {
-        "member_disk_serials": _serials(pool.get("data_devices")),
-        "parity_disk_serials": _serials(pool.get("parity_devices")),
+        "member_disk_serials": _serials(data),
+        "parity_disk_serials": _serials(parity),
+        "member_disks": data,
+        "parity_disks": parity,
     }
     return {key: value for key, value in attributes.items() if value}
 

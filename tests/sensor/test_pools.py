@@ -68,6 +68,38 @@ async def test_pool_usage_deduplicates_and_separates_parity(
     assert usage.attributes["parity_disk_serials"] == ["S1"]
 
 
+async def test_pool_usage_exposes_slot_device_and_mount_point(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The member list keeps one entry per device, with the fields /disks does not report."""
+    usage = hass.states.get("sensor.sirius_pool_test2_usage")
+    assert usage.attributes["member_disks"] == [
+        {"serial": "S2", "slot": 1, "device": "/dev/vdb1", "mount_point": "/mnt/Test2/disk1"},
+        {"serial": "S2", "slot": 2, "device": "/dev/vdb2", "mount_point": "/mnt/Test2/disk2"},
+    ]
+    assert usage.attributes["parity_disks"] == [
+        {"serial": "S1", "slot": 3, "device": "/dev/vda2", "mount_point": "/mnt/Test2/parity"},
+    ]
+
+
+async def test_pool_member_without_a_serial_is_dropped(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_pools: list[dict],
+) -> None:
+    """A device the API reports without a serial cannot be pointed at, so it is left out."""
+    pool = {**mock_pools[0], "data_devices": [*mock_pools[0]["data_devices"], {"slot": 9, "device": "/dev/vdz1"}]}
+    mock_client.async_get_pools.return_value = [pool]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    usage = hass.states.get("sensor.sirius_pool_test1_usage")
+    assert usage.attributes["member_disk_serials"] == ["S1"]
+    assert [member["serial"] for member in usage.attributes["member_disks"]] == ["S1"]
+
+
 async def test_pool_member_serials_match_the_disk_entities(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
@@ -96,8 +128,8 @@ async def test_pool_without_member_devices_has_no_serial_attributes(
     await hass.async_block_till_done()
 
     usage = hass.states.get("sensor.sirius_pool_test1_usage")
-    assert "member_disk_serials" not in usage.attributes
-    assert "parity_disk_serials" not in usage.attributes
+    for attribute in ("member_disk_serials", "parity_disk_serials", "member_disks", "parity_disks"):
+        assert attribute not in usage.attributes
 
 
 async def test_pool_removed_from_api_removes_its_sensors(
