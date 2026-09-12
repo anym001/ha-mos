@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2](https://github.com/anym001/ha-mos/compare/v0.3.1...v0.3.2) (2026-09-12)
+
+
+### Features
+
+* **sensor:** describe a pool's member disks, not just their serials ([3fffc03](https://github.com/anym001/ha-mos/commit/3fffc035ffee13f9514ec35642fe084ee5ed438f))
+* **sensor:** expose a pool's member disk serials ([9276610](https://github.com/anym001/ha-mos/commit/92766109d6c008889a854f11e32ec5aafa99c691)), closes [#117](https://github.com/anym001/ha-mos/issues/117)
+
+
+### Bug Fixes
+
+* **entity:** link container devices by via_device_id ([3fddc7d](https://github.com/anym001/ha-mos/commit/3fddc7d44d240e4b1fecb207b6d04f10441a5fec))
+
 ## [0.3.1](https://github.com/anym001/ha-mos/compare/v0.3.0...v0.3.1) (2026-09-10)
 
 
