@@ -144,6 +144,15 @@ def mock_pools() -> list[dict[str, Any]]:
                 "scrub_operation": False,
                 "balance_operation": False,
             },
+            "data_devices": [
+                {
+                    "slot": 1,
+                    "device": "/dev/vda1",
+                    "mountPoint": "/mnt/Test1",
+                    "diskInfo": {"diskName": "vda", "diskModel": "Samsung SSD 970", "diskSerial": "S1"},
+                },
+            ],
+            "parity_devices": [],
         },
         {
             "id": 2,
@@ -157,6 +166,30 @@ def mock_pools() -> list[dict[str, Any]]:
                 "health": "degraded",
                 "parity_operation": False,
             },
+            # Two partitions of one physical disk, so the member list has to
+            # deduplicate by serial rather than count device entries.
+            "data_devices": [
+                {
+                    "slot": 1,
+                    "device": "/dev/vdb1",
+                    "mountPoint": "/mnt/Test2/disk1",
+                    "diskInfo": {"diskName": "vdb", "diskModel": "Seagate ST4000", "diskSerial": "S2"},
+                },
+                {
+                    "slot": 2,
+                    "device": "/dev/vdb2",
+                    "mountPoint": "/mnt/Test2/disk2",
+                    "diskInfo": {"diskName": "vdb", "diskModel": "Seagate ST4000", "diskSerial": "S2"},
+                },
+            ],
+            "parity_devices": [
+                {
+                    "slot": 3,
+                    "device": "/dev/vda2",
+                    "mountPoint": "/mnt/Test2/parity",
+                    "diskInfo": {"diskName": "vda", "diskModel": "Samsung SSD 970", "diskSerial": "S1"},
+                },
+            ],
         },
     ]
 
