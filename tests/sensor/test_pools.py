@@ -6,8 +6,9 @@ from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.mos.const import DOMAIN
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 
 async def test_pool_sensor_values(
@@ -45,6 +46,58 @@ async def test_pool_type_value_and_is_not_diagnostic(
     registry = er.async_get(hass)
     entry = registry.async_get("sensor.sirius_pool_test1_type")
     assert entry.entity_category is None
+
+
+async def test_pool_usage_exposes_member_disk_serials(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The usage sensor carries the serials of the disks backing its pool."""
+    usage = hass.states.get("sensor.sirius_pool_test1_usage")
+    assert usage.attributes["member_disk_serials"] == ["S1"]
+    assert "parity_disk_serials" not in usage.attributes
+
+
+async def test_pool_usage_deduplicates_and_separates_parity(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Two partitions of one disk count once, and parity is kept apart from data."""
+    usage = hass.states.get("sensor.sirius_pool_test2_usage")
+    assert usage.attributes["member_disk_serials"] == ["S2"]
+    assert usage.attributes["parity_disk_serials"] == ["S1"]
+
+
+async def test_pool_member_serials_match_the_disk_entities(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The serials are the same join key the per-disk devices are identified by."""
+    registry = dr.async_get(hass)
+    usage = hass.states.get("sensor.sirius_pool_test2_usage")
+    for serial in usage.attributes["member_disk_serials"] + usage.attributes["parity_disk_serials"]:
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, f"{setup_integration.entry_id}_disk_{serial}"),
+            setup_integration.entry_id,
+        )
+        assert device is not None
+
+
+async def test_pool_without_member_devices_has_no_serial_attributes(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_pools: list[dict],
+) -> None:
+    """A pool payload without device lists yields no attributes rather than empty ones."""
+    bare = {key: value for key, value in mock_pools[0].items() if key not in ("data_devices", "parity_devices")}
+    mock_client.async_get_pools.return_value = [bare]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    usage = hass.states.get("sensor.sirius_pool_test1_usage")
+    assert "member_disk_serials" not in usage.attributes
+    assert "parity_disk_serials" not in usage.attributes
 
 
 async def test_pool_removed_from_api_removes_its_sensors(

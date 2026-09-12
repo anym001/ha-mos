@@ -29,11 +29,52 @@ def _find_pool(coordinator: MOSDataUpdateCoordinator, pool_id: str) -> dict[str,
     return next((pool for pool in pools if str(pool.get("id")) == pool_id), None)
 
 
+def _serials(devices: Any) -> list[str]:
+    """
+    Collect the disk serials of one of a pool's member device lists, in slot order.
+
+    Returns:
+        The serials, deduplicated: several partitions of one disk can be members
+        of the same pool, and naming that disk twice says nothing.
+
+    """
+    if not isinstance(devices, list):
+        return []
+    serials: list[str] = []
+    for device in devices:
+        if not isinstance(device, dict):
+            continue
+        serial = (device.get("diskInfo") or {}).get("diskSerial")
+        if serial and serial not in serials:
+            serials.append(serial)
+    return serials
+
+
+def _member_attributes(pool: dict[str, Any]) -> dict[str, Any]:
+    """
+    Collect the serials of the disks backing this pool, data and parity kept apart.
+
+    ``diskSerial`` is the same value as a disk's own ``serial`` from ``/disks``,
+    which is what keys that disk's device. Exposing it is what lets a card
+    resolve a pool to the disk entities underneath it.
+
+    Returns:
+        The attributes to expose, with empty lists omitted.
+
+    """
+    attributes = {
+        "member_disk_serials": _serials(pool.get("data_devices")),
+        "parity_disk_serials": _serials(pool.get("parity_devices")),
+    }
+    return {key: value for key, value in attributes.items() if value}
+
+
 @dataclass(frozen=True, kw_only=True)
 class MOSPoolSensorEntityDescription(SensorEntityDescription):
     """Describe a MOS pool sensor, including how to derive its value from a pool payload."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
+    attributes_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
@@ -43,6 +84,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSPoolSensorEntityDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda pool: (pool.get("status") or {}).get("usagePercent"),
+        attributes_fn=_member_attributes,
     ),
     MOSPoolSensorEntityDescription(
         key="free_space",
@@ -111,6 +153,22 @@ class MOSPoolSensor(SensorEntity, MOSEntity):
         if pool is None:
             return None
         return self.entity_description.value_fn(pool)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """
+        Return the descriptive attributes for this pool, if the sensor has any.
+
+        Returns:
+            The attributes, or ``None`` for sensors that define none.
+
+        """
+        if self.entity_description.attributes_fn is None:
+            return None
+        pool = _find_pool(self.coordinator, self._pool_id)
+        if pool is None:
+            return None
+        return self.entity_description.attributes_fn(pool)
 
 
 def build_pool_sensors(coordinator: MOSDataUpdateCoordinator, pool_id: str) -> list[MOSPoolSensor]:
