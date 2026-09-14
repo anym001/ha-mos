@@ -112,6 +112,18 @@ def mock_disks() -> list[dict[str, Any]]:
             "temperature": 32,
             "smartWarning": False,
             "preclearRunning": False,
+            "partitions": [
+                {
+                    "device": "/dev/vda1",
+                    "status": {
+                        "mounted": True,
+                        "totalSpace": 2_000_000_000,
+                        "usedSpace": 500_000_000,
+                        "freeSpace": 1_500_000_000,
+                        "health": "healthy",
+                    },
+                },
+            ],
         },
         {
             "serial": "S2",
@@ -123,6 +135,33 @@ def mock_disks() -> list[dict[str, Any]]:
             "temperature": 41,
             "smartWarning": True,
             "preclearRunning": True,
+            # Two mounted filesystems plus an unmounted one, so the space
+            # sensors have something to sum and something to skip. The disk is
+            # in standby: these figures do not depend on performance=true and
+            # are reported anyway.
+            "partitions": [
+                {
+                    "device": "/dev/vdb1",
+                    "status": {
+                        "mounted": True,
+                        "totalSpace": 4_000_000_000,
+                        "usedSpace": 1_000_000_000,
+                        "freeSpace": 3_000_000_000,
+                        "health": "healthy",
+                    },
+                },
+                {
+                    "device": "/dev/vdb2",
+                    "status": {
+                        "mounted": True,
+                        "totalSpace": 16_000_000_000,
+                        "usedSpace": 3_000_000_000,
+                        "freeSpace": 13_000_000_000,
+                        "health": "healthy",
+                    },
+                },
+                {"device": "/dev/vdb3", "status": {"mounted": False}},
+            ],
         },
     ]
 

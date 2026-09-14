@@ -209,6 +209,18 @@
       "disk_type": {
         "name": "Type"
       },
+      "disk_usage": {
+        "name": "Usage"
+      },
+      "disk_used_space": {
+        "name": "Used space"
+      },
+      "disk_free_space": {
+        "name": "Free space"
+      },
+      "disk_total_space": {
+        "name": "Total space"
+      },
       "cpu_load": {
         "name": "CPU load"
       },

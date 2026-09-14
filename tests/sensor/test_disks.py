@@ -94,6 +94,90 @@ async def test_disk_model_and_type_are_not_diagnostic(
     assert registry.async_get("sensor.sirius_disk_vda_type").entity_category is None
 
 
+async def test_disk_usage_values(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Each disk gets its own usage percentage, derived from its mounted partitions."""
+    assert float(hass.states.get("sensor.sirius_disk_vda_usage").state) == pytest.approx(25.0)
+    assert float(hass.states.get("sensor.sirius_disk_vdb_usage").state) == pytest.approx(20.0)
+
+
+async def test_disk_space_sensors_sum_the_mounted_partitions(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """A disk split across filesystems reports their sum, and skips the unmounted one."""
+    used = float(hass.states.get("sensor.sirius_disk_vdb_used_space").state)
+    free = float(hass.states.get("sensor.sirius_disk_vdb_free_space").state)
+    total = float(hass.states.get("sensor.sirius_disk_vdb_total_space").state)
+
+    assert used == pytest.approx(4.0)
+    assert free == pytest.approx(16.0)
+    assert total == pytest.approx(20.0)
+
+
+async def test_disk_usage_is_reported_while_the_disk_sleeps(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_disks: list[dict],
+) -> None:
+    """Space comes from the mounted filesystem, so a spun-down disk still reports it.
+
+    ``skipStandby=true`` leaves a standby disk without a temperature reading. The
+    partition figures do not depend on that parameter and must survive it.
+    """
+    mock_client.async_get_disks.return_value = [{**mock_disks[1], "temperature": None}]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_disk_vdb_temperature").state == "unknown"
+    assert float(hass.states.get("sensor.sirius_disk_vdb_usage").state) == pytest.approx(20.0)
+
+
+async def test_disk_without_mounted_partitions_reads_as_unknown(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_disks: list[dict],
+) -> None:
+    """An unformatted or fully unmounted disk has no usage to report, and stays usable."""
+    mock_client.async_get_disks.return_value = [{**mock_disks[0], "partitions": []}]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    for key in ("usage", "used_space", "free_space", "total_space"):
+        assert hass.states.get(f"sensor.sirius_disk_vda_{key}").state == "unknown"
+
+
+async def test_disk_partition_with_incomplete_figures_is_skipped(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_disks: list[dict],
+) -> None:
+    """A partition missing one of the three figures would total up to a wrong reading."""
+    partial = {"device": "/dev/vda2", "status": {"mounted": True, "usedSpace": 999_000_000}}
+    disk = {**mock_disks[0], "partitions": [*mock_disks[0]["partitions"], partial]}
+    mock_client.async_get_disks.return_value = [disk]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert float(hass.states.get("sensor.sirius_disk_vda_used_space").state) == pytest.approx(0.5)
+    assert float(hass.states.get("sensor.sirius_disk_vda_usage").state) == pytest.approx(25.0)
+
+
+async def test_disk_space_sensors_are_not_diagnostic(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Usage is primary information, unlike smart_warning."""
+    registry = er.async_get(hass)
+    for key in ("usage", "used_space", "free_space", "total_space"):
+        assert registry.async_get(f"sensor.sirius_disk_vda_{key}").entity_category is None
+
+
 async def test_disk_removed_from_api_removes_its_sensors(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
