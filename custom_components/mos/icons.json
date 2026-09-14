@@ -116,6 +116,18 @@
       "disk_type": {
         "default": "mdi:harddisk"
       },
+      "disk_usage": {
+        "default": "mdi:harddisk"
+      },
+      "disk_used_space": {
+        "default": "mdi:harddisk"
+      },
+      "disk_free_space": {
+        "default": "mdi:harddisk"
+      },
+      "disk_total_space": {
+        "default": "mdi:harddisk"
+      },
       "compose_container_count": {
         "default": "mdi:layers-outline"
       },

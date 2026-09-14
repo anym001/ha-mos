@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
-from homeassistant.const import UnitOfInformation, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfInformation, UnitOfTemperature
 from homeassistant.helpers.typing import StateType
 
 if TYPE_CHECKING:
@@ -61,6 +61,87 @@ def _power_status(disk: dict[str, Any]) -> StateType:
     return status if status in DISK_POWER_STATES else None
 
 
+# The space figures a partition reports, which MOS documents as the same shape a
+# pool's members carry. Unlike temperature they do not depend on
+# ``performance=true``, so a spun-down disk still reports them.
+_SPACE_FIELDS = ("totalSpace", "usedSpace", "freeSpace")
+
+
+def _partition_space(partition: Any) -> dict[str, int] | None:
+    """
+    Read one partition's space figures, if it has a complete set of them.
+
+    Returns:
+        The figures, or ``None`` for a partition that is unmounted or reports
+        only some of them - counting a partial set would total up to a quietly
+        wrong reading.
+
+    """
+    if not isinstance(partition, dict):
+        return None
+    status = partition.get("status") or {}
+    if not status.get("mounted"):
+        return None
+    space: dict[str, int] = {}
+    for field in _SPACE_FIELDS:
+        value = status.get(field)
+        if not isinstance(value, int) or isinstance(value, bool):
+            return None
+        space[field] = value
+    return space
+
+
+def _space(disk: dict[str, Any]) -> dict[str, int] | None:
+    """
+    Total the space reported by the disk's mounted partitions.
+
+    Summed rather than read from the first partition, because a disk split
+    across several filesystems holds the sum of them.
+
+    Returns:
+        The totals, or ``None`` when no partition contributed any.
+
+    """
+    totals: dict[str, int] = dict.fromkeys(_SPACE_FIELDS, 0)
+    measured = False
+    for partition in disk.get("partitions") or []:
+        space = _partition_space(partition)
+        if space is None:
+            continue
+        measured = True
+        for field, value in space.items():
+            totals[field] += value
+    return totals if measured else None
+
+
+def _usage(disk: dict[str, Any]) -> StateType:
+    """
+    Derive how full the disk is, across all of its mounted partitions.
+
+    Computed here rather than read from the payload: ``/disks`` reports the three
+    byte figures but no percentage, unlike a pool's members.
+
+    Returns:
+        The percentage, or ``None`` when nothing was measured.
+
+    """
+    space = _space(disk)
+    if space is None or not space["totalSpace"]:
+        return None
+    return round(space["usedSpace"] / space["totalSpace"] * 100, 1)
+
+
+def _space_field(field: str) -> Callable[[dict[str, Any]], StateType]:
+    """
+    Build the value function reading one summed space field.
+
+    Returns:
+        A value function for ``field``.
+
+    """
+    return lambda disk: (_space(disk) or {}).get(field)
+
+
 ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
     MOSDiskSensorEntityDescription(
         key="power_status",
@@ -95,6 +176,40 @@ ENTITY_DESCRIPTIONS: tuple[MOSDiskSensorEntityDescription, ...] = (
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda disk: disk.get("size"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="usage",
+        translation_key="disk_usage",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_usage,
+    ),
+    MOSDiskSensorEntityDescription(
+        key="free_space",
+        translation_key="disk_free_space",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_space_field("freeSpace"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="total_space",
+        translation_key="disk_total_space",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_space_field("totalSpace"),
+    ),
+    MOSDiskSensorEntityDescription(
+        key="used_space",
+        translation_key="disk_used_space",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_space_field("usedSpace"),
     ),
 )
 
