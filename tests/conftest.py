@@ -115,6 +115,7 @@ def mock_disks() -> list[dict[str, Any]]:
             "partitions": [
                 {
                     "device": "/dev/vda1",
+                    "mountpoint": "/mnt/disk1",
                     "status": {
                         "mounted": True,
                         "totalSpace": 2_000_000_000,
@@ -142,6 +143,7 @@ def mock_disks() -> list[dict[str, Any]]:
             "partitions": [
                 {
                     "device": "/dev/vdb1",
+                    "mountpoint": "/mnt/disk2",
                     "status": {
                         "mounted": True,
                         "totalSpace": 4_000_000_000,
@@ -152,6 +154,7 @@ def mock_disks() -> list[dict[str, Any]]:
                 },
                 {
                     "device": "/dev/vdb2",
+                    "mountpoint": "/mnt/disk3",
                     "status": {
                         "mounted": True,
                         "totalSpace": 16_000_000_000,

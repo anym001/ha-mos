@@ -67,7 +67,7 @@ def _power_status(disk: dict[str, Any]) -> StateType:
 _SPACE_FIELDS = ("totalSpace", "usedSpace", "freeSpace")
 
 
-def _partition_space(partition: Any) -> dict[str, int] | None:
+def _partition_space(partition: dict[str, Any]) -> dict[str, int] | None:
     """
     Read one partition's space figures, if it has a complete set of them.
 
@@ -77,8 +77,6 @@ def _partition_space(partition: Any) -> dict[str, int] | None:
         wrong reading.
 
     """
-    if not isinstance(partition, dict):
-        return None
     status = partition.get("status") or {}
     if not status.get("mounted"):
         return None
@@ -96,18 +94,29 @@ def _space(disk: dict[str, Any]) -> dict[str, int] | None:
     Total the space reported by the disk's mounted partitions.
 
     Summed rather than read from the first partition, because a disk split
-    across several filesystems holds the sum of them.
+    across several filesystems holds the sum of them. Each mount point counts
+    once: partitions sharing one belong to a single filesystem, which reports
+    its whole capacity through every one of them, so adding them would count
+    that capacity twice.
 
     Returns:
         The totals, or ``None`` when no partition contributed any.
 
     """
     totals: dict[str, int] = dict.fromkeys(_SPACE_FIELDS, 0)
+    counted: set[str] = set()
     measured = False
     for partition in disk.get("partitions") or []:
+        if not isinstance(partition, dict):
+            continue
         space = _partition_space(partition)
         if space is None:
             continue
+        mount_point = partition.get("mountpoint")
+        if isinstance(mount_point, str):
+            if mount_point in counted:
+                continue
+            counted.add(mount_point)
         measured = True
         for field, value in space.items():
             totals[field] += value

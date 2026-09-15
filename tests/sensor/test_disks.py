@@ -117,6 +117,33 @@ async def test_disk_space_sensors_sum_the_mounted_partitions(
     assert total == pytest.approx(20.0)
 
 
+async def test_partitions_sharing_a_mount_point_are_counted_once(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_disks: list[dict],
+) -> None:
+    """Two partitions of one btrfs filesystem each report its whole capacity.
+
+    MOS reports the filesystem's figures through every device that backs it, so
+    adding the two would double the disk's capacity and its usage.
+    """
+    shared = [
+        {**partition, "mountpoint": "/mnt/shared"}
+        for partition in mock_disks[1]["partitions"]
+        if partition["status"]["mounted"]
+    ]
+    for partition in shared:
+        partition["status"] = {**partition["status"], "totalSpace": 20_000_000_000, "usedSpace": 4_000_000_000}
+    mock_client.async_get_disks.return_value = [{**mock_disks[1], "partitions": shared}]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert float(hass.states.get("sensor.sirius_disk_vdb_total_space").state) == pytest.approx(20.0)
+    assert float(hass.states.get("sensor.sirius_disk_vdb_used_space").state) == pytest.approx(4.0)
+    assert float(hass.states.get("sensor.sirius_disk_vdb_usage").state) == pytest.approx(20.0)
+
+
 async def test_disk_usage_is_reported_while_the_disk_sleeps(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,
