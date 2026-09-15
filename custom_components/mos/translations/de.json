@@ -553,7 +553,7 @@
         "name": "Ein/Aus"
       },
       "compose_power": {
-        "name": "Power"
+        "name": "Ein/Aus"
       },
       "docker_power": {
         "name": "Ein/Aus"
