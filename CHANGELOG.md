@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3](https://github.com/anym001/ha-mos/compare/v0.3.2...v0.3.3) (2026-09-15)
+
+
+### Features
+
+* **sensor:** add usage and space sensors to every disk ([af0abfb](https://github.com/anym001/ha-mos/commit/af0abfb3b99c51e20a3e8bbdf453fae6966e5088)), closes [#119](https://github.com/anym001/ha-mos/issues/119)
+
+
+### Bug Fixes
+
+* **sensor:** count a disk's shared mount point once ([f92ac54](https://github.com/anym001/ha-mos/commit/f92ac54dab498d3abae83cf3eee0f57e14320f43))
+
 ## [0.3.2](https://github.com/anym001/ha-mos/compare/v0.3.1...v0.3.2) (2026-09-12)
 
 
