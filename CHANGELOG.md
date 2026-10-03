@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/anym001/ha-mos/compare/v0.3.3...v0.3.4) (2026-10-03)
+
+
+### Bug Fixes
+
+* **translations:** translate the Compose power switch into German ([202c762](https://github.com/anym001/ha-mos/commit/202c76209a0e9f2cd8d43060393407532796035b))
+
 ## [0.3.3](https://github.com/anym001/ha-mos/compare/v0.3.2...v0.3.3) (2026-09-15)
 
 
