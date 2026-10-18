@@ -41,6 +41,8 @@ Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get th
 
 The [MOS NAS Card](https://github.com/anym001/ha-mos-card) renders the devices this integration creates — Docker/LXC containers, VMs, disks, storage pools and the UPS — as a stack of tiles, and follows them as they come and go.
 
+It is in the HACS default store as well — search HACS for **MOS NAS Card**.
+
 ## Installation
 
 **MOS NAS** is in the HACS default store, so no custom repository is needed:
