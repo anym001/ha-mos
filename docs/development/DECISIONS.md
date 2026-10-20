@@ -661,8 +661,12 @@ as a Lovelace resource. The card's own HACS listing as a custom repository ends.
 - The bundle is minified, so its diff is unreadable in review; what a bundle change contains is reviewed in the card
   repository.
 - The card is loaded on every frontend page, whether a dashboard uses it or not.
-- An install that still has the card from HACS loads it twice. The card tolerates that from 0.2.5 on; the user still
-  has to remove the old copy and its resource.
+- An install that still has the card from HACS loads it twice. The bundled copy keeps the element, but an old copy
+  (0.2.4 or earlier) still throws and lists the card twice in the picker, so the user has to remove it; the repair
+  issue `separate_card_install` says so.
+- The card defines its elements only once Home Assistant's `home-assistant` element exists: loaded this way, the
+  bundle can run before the frontend swaps in its scoped custom element registry, and a definition in the native
+  registry is never found.
 
 ---
 

@@ -62,9 +62,10 @@ async def async_check_separate_card(hass: HomeAssistant) -> None:
     Raise a repair issue while a dashboard resource still loads its own copy of the card.
 
     That copy comes from the card's former HACS listing or a manual install. The
-    bundled card loads first and keeps the element, so nothing breaks, but the
-    user is left running two copies and updating one of them by hand. Checked at
-    every start, so removing the resource clears the issue on the next restart.
+    bundled card keeps the element, but a copy older than 0.2.5 throws on its own
+    define and lists the card a second time in the picker, and either way it has
+    to be updated by hand. Checked at every start, so removing the resource
+    clears the issue on the next restart.
     """
     resources = hass.data[LOVELACE_DATA].resources
     await resources.async_get_info()
