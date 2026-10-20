@@ -173,6 +173,10 @@ AUTH_FAILURE_STORE = f"{DOMAIN}_auth_failure"
 ICON_PROXY_URL = "/api/mos/icon/{entry_id}/{token}"
 ICON_PROXY_VIEW_REGISTERED = f"{DOMAIN}_icon_proxy_view"
 
+# The route the bundled MOS NAS Card is served on. The frontend loads it on
+# every page, with a content hash appended so a new bundle is never cached.
+CARD_URL = "/mos_static/mos-card.js"
+
 # The largest response the icon proxy reads into memory. Icons are a few dozen
 # kilobytes; anything past this is not artwork, and the request that triggered
 # the fetch is unauthenticated.
