@@ -153,6 +153,20 @@ git commit -m "feat(sensor): add air quality index sensor"
 # 4. Merge the PR on GitHub
 ```
 
+## Bundled Card Updates
+
+The MOS NAS Card is released from `anym001/ha-mos-card` and reaches users only through this integration
+(`custom_components/mos/www/mos-card.js`). `.github/workflows/card-sync.yml` runs daily and on demand
+(**Actions → Card Sync → Run workflow**):
+
+1. Reads the newest card release and downloads its `mos-card.js`
+2. Does nothing if the bundled file is identical, or if the branch `card-sync/<tag>` already exists
+3. Otherwise pushes `card-sync/<tag>` and opens a PR titled `feat(card): …` when the card release lists features,
+   `fix(card): …` otherwise — so merging it releases the integration with the new card
+
+A card change therefore ships in two steps: release the card, then merge the sync PR here and release the
+integration. Closing a sync PR declines that card version; delete its branch to have it offered again.
+
 ## GitHub Repository Setup (One-Time)
 
 > [!NOTE]
@@ -163,6 +177,13 @@ git commit -m "feat(sensor): add air quality index sensor"
 In **Settings → Actions → General → Workflow permissions**, set:
 
 - **Read and write permissions** — release-please needs to create PRs and tags
+
+### Recommended: Token for Card Sync PRs
+
+A PR opened with `github.token` starts no workflows, so its required checks never report and it cannot be merged
+without bypassing the ruleset. Add a fine-grained personal access token limited to this repository, with
+**Contents** and **Pull requests** read and write, as the secret `CARD_SYNC_TOKEN`; `card-sync.yml` uses it when
+present.
 
 ### Recommended: Branch Protection for `main`
 
@@ -185,6 +206,7 @@ If you want an additional manual gate, you can add a required label (`release: a
 | File                                   | Purpose                                                          |
 | -------------------------------------- | ---------------------------------------------------------------- |
 | `.github/workflows/release-please.yml` | GitHub Actions workflow, triggers on push to `main`              |
+| `.github/workflows/card-sync.yml`      | Opens a PR with the newest MOS NAS Card release bundle           |
 | `release-please-config.json`           | Changelog sections, version bump rules, extra-files              |
 | `.release-please-manifest.json`        | Current version tracked by release-please                        |
 | `CHANGELOG.md`                         | Auto-generated, committed in the same commit as the version bump |

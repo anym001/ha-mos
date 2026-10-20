@@ -157,8 +157,9 @@ cached for good while an updated bundle still reaches the browser. A missing
 bundle is logged and skipped; the entities do not depend on it.
 
 The bundle is built in `anym001/ha-mos-card` and committed here unchanged — it
-is minified, so codespell skips `www/` (`pyproject.toml`). See the decision log
-entry _The Card Ships Inside the Integration_.
+is minified, so codespell skips `www/` (`pyproject.toml`). `card-sync.yml` opens
+a pull request with the asset of each new card release; see `RELEASE.md`. See
+the decision log entry _The Card Ships Inside the Integration_.
 
 ### API Client
 
