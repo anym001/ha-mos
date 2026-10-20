@@ -566,7 +566,7 @@
   "issues": {
     "separate_card_install": {
       "title": "MOS NAS Card ist zusätzlich separat installiert",
-      "description": "Die MOS NAS Card ist jetzt Teil der MOS-NAS-Integration, aber eine Dashboard-Ressource lädt noch eine eigene Kopie: {url}.\n\nEntferne diese Kopie, damit nur die mitgelieferte Card geladen wird. Stammt sie aus HACS, entferne **MOS NAS Card** unter HACS → Dashboard. Hast du sie von Hand installiert, lösche `mos-card.js` aus dem Ordner `www` deiner Konfiguration und ihren Eintrag unter **Einstellungen → Dashboards → Ressourcen**.\n\nDieser Hinweis verschwindet nach dem nächsten Neustart von Home Assistant."
+      "description": "Die MOS NAS Card ist jetzt Teil der MOS-NAS-Integration, aber eine Dashboard-Ressource lädt noch eine eigene Kopie: {url}.\n\nDamit werden zwei Kopien geladen: Eine ältere meldet einen Fehler in der Browser-Konsole und kann die Card doppelt in der Card-Auswahl anzeigen. Entferne sie, damit nur die mitgelieferte Card geladen wird. Stammt sie aus HACS, entferne **MOS NAS Card** unter HACS → Dashboard. Hast du sie von Hand installiert, lösche `mos-card.js` aus dem Ordner `www` deiner Konfiguration und ihren Eintrag unter **Einstellungen → Dashboards → Ressourcen**.\n\nDieser Hinweis verschwindet nach dem nächsten Neustart von Home Assistant."
     }
   }
 }
