@@ -7,7 +7,8 @@
   "config_flow": true,
   "dependencies": [
     "frontend",
-    "http"
+    "http",
+    "lovelace"
   ],
   "documentation": "https://github.com/anym001/ha-mos",
   "integration_type": "hub",

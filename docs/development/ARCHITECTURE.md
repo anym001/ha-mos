@@ -154,7 +154,9 @@ Fetched by the Browser_.
 adds it to every frontend page with `add_extra_js_url`, once per Home Assistant
 from `async_setup`. The URL carries a hash of the bundle, so the route can be
 cached for good while an updated bundle still reaches the browser. A missing
-bundle is logged and skipped; the entities do not depend on it.
+bundle is logged and skipped; the entities do not depend on it. At every start
+it also looks for a dashboard resource that still loads a separately installed
+`mos-card.js` and raises the repair issue `separate_card_install` while one does.
 
 The bundle is built in `anym001/ha-mos-card` and committed here unchanged — it
 is minified, so codespell skips `www/` (`pyproject.toml`). `card-sync.yml` opens

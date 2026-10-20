@@ -10,10 +10,26 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 
 from custom_components.mos import bundled_card
-from custom_components.mos.const import CARD_URL
+from custom_components.mos.const import CARD_URL, DOMAIN, ISSUE_SEPARATE_CARD
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL
+from homeassistant.components.lovelace.const import LOVELACE_DATA
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.setup import async_setup_component
+
+
+async def _set_up_with_resource(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: AsyncMock, url: str
+) -> None:
+    """Register a dashboard resource, then set the integration up."""
+    assert await async_setup_component(hass, "lovelace", {})
+    await hass.data[LOVELACE_DATA].resources.async_create_item({"res_type": "module", "url": url})
+    mock_config_entry.add_to_hass(hass)
+
+    with patch("custom_components.mos.MOSApiClient", return_value=mock_client):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
 
 def _card_urls(hass: HomeAssistant) -> list[str]:
@@ -87,3 +103,53 @@ async def test_a_missing_bundle_leaves_the_integration_working(
     assert mock_config_entry.state is ConfigEntryState.LOADED
     assert "The bundled MOS NAS Card is missing" in caplog.text
     assert not _card_urls(hass)
+
+
+async def test_a_separately_installed_card_raises_a_repair_issue(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """A resource left over from the card's own HACS listing is named in the issue."""
+    url = "/hacsfiles/ha-mos-card/mos-card.js?hacstag=123"
+
+    await _set_up_with_resource(hass, mock_config_entry, mock_client, url)
+
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_SEPARATE_CARD)
+    assert issue is not None
+    assert issue.severity is ir.IssueSeverity.WARNING
+    assert issue.translation_placeholders == {"url": url}
+
+
+async def test_an_unrelated_resource_raises_no_issue(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """Only a resource serving the card's file name counts as a second copy."""
+    await _set_up_with_resource(hass, mock_config_entry, mock_client, "/local/other-mos-card.js")
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_SEPARATE_CARD) is None
+
+
+async def test_no_separate_card_clears_an_earlier_issue(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+) -> None:
+    """Removing the old copy is enough; the issue goes on the next start."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        ISSUE_SEPARATE_CARD,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_SEPARATE_CARD,
+    )
+    mock_config_entry.add_to_hass(hass)
+
+    with patch("custom_components.mos.MOSApiClient", return_value=mock_client):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_SEPARATE_CARD) is None

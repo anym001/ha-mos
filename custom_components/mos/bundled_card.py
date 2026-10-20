@@ -17,13 +17,15 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http.server import StaticPathConfig
+from homeassistant.components.lovelace.const import LOVELACE_DATA
+from homeassistant.helpers import issue_registry as ir
 
-from .const import CARD_URL, LOGGER
+from .const import CARD_FILENAME, CARD_URL, DOMAIN, ISSUE_SEPARATE_CARD, LOGGER, SEPARATE_CARD_LEARN_MORE_URL
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-CARD_PATH = Path(__file__).parent / "www" / "mos-card.js"
+CARD_PATH = Path(__file__).parent / "www" / CARD_FILENAME
 
 
 def _content_hash(path: Path) -> str | None:
@@ -52,3 +54,38 @@ async def async_register_card(hass: HomeAssistant) -> None:
 
     await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)])
     add_extra_js_url(hass, f"{CARD_URL}?v={digest}")
+    await async_check_separate_card(hass)
+
+
+async def async_check_separate_card(hass: HomeAssistant) -> None:
+    """
+    Raise a repair issue while a dashboard resource still loads its own copy of the card.
+
+    That copy comes from the card's former HACS listing or a manual install. The
+    bundled card loads first and keeps the element, so nothing breaks, but the
+    user is left running two copies and updating one of them by hand. Checked at
+    every start, so removing the resource clears the issue on the next restart.
+    """
+    resources = hass.data[LOVELACE_DATA].resources
+    await resources.async_get_info()
+    separate = [
+        url
+        for item in resources.async_items()
+        if (url := str(item.get("url", ""))).split("?", 1)[0].endswith(f"/{CARD_FILENAME}")
+        and not url.startswith(CARD_URL)
+    ]
+
+    if not separate:
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_SEPARATE_CARD)
+        return
+
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        ISSUE_SEPARATE_CARD,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=ISSUE_SEPARATE_CARD,
+        translation_placeholders={"url": ", ".join(separate)},
+        learn_more_url=SEPARATE_CARD_LEARN_MORE_URL,
+    )

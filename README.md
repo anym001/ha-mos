@@ -43,7 +43,7 @@ The [MOS NAS Card](https://github.com/anym001/ha-mos-card) renders the devices t
 
 The card comes with the integration: once MOS NAS is set up, add a card of type `custom:mos-card` to any dashboard (it is listed as **MOS NAS Card** in the card picker). There is nothing to download and no resource to add. Its options are documented in the [card's README](https://github.com/anym001/ha-mos-card#configuration).
 
-**Installed the card separately before?** Remove **MOS NAS Card** in HACS, or — for a manual install — delete `mos-card.js` from `<config>/www/` and its entry under **Settings → Dashboards → Resources**. Otherwise the browser loads two copies, and the older one may be the one that runs.
+**Installed the card separately before?** Remove **MOS NAS Card** in HACS, or — for a manual install — delete `mos-card.js` from `<config>/www/` and its entry under **Settings → Dashboards → Resources**. Otherwise the browser loads two copies, and Home Assistant shows a repair notice under **Settings → Repairs** until the old copy is gone.
 
 ## Installation
 

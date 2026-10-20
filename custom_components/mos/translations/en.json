@@ -562,5 +562,11 @@
         "name": "Power"
       }
     }
+  },
+  "issues": {
+    "separate_card_install": {
+      "title": "MOS NAS Card is also installed separately",
+      "description": "The MOS NAS Card now comes with the MOS NAS integration, but a dashboard resource still loads a copy of its own: {url}.\n\nRemove that copy so only the bundled card is loaded. If it came from HACS, remove **MOS NAS Card** under HACS → Dashboard. If you installed it by hand, delete `mos-card.js` from the `www` folder of your configuration and its entry under **Settings → Dashboards → Resources**.\n\nThis notice disappears after the next restart of Home Assistant."
+    }
   }
 }
