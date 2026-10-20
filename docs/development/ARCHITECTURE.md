@@ -7,6 +7,7 @@ This document describes the technical architecture of the MOS NAS custom compone
 ```text
 custom_components/mos/
 ├── __init__.py              # Integration setup and unload
+├── bundled_card.py          # Serves the MOS NAS Card and announces it to the frontend
 ├── config_flow.py           # Config flow entry point
 ├── const.py                 # Constants and configuration keys
 ├── coordinator/             # Data update coordinator package
@@ -19,6 +20,8 @@ custom_components/mos/
 ├── diagnostics.py           # Diagnostic data for troubleshooting
 ├── icon_proxy.py            # Serves guest artwork from Home Assistant's own origin
 ├── manifest.json            # Integration metadata
+├── www/
+│   └── mos-card.js          # Built MOS NAS Card bundle, from anym001/ha-mos-card releases
 ├── api/                     # External API communication
 │   ├── __init__.py          # Exception hierarchy and exports
 │   └── client.py            # API client implementation
@@ -144,6 +147,18 @@ config entry, the browser is told to cache them for the same hour, and an
 `ETag` lets it revalidate with a `304` rather than downloading them again. See
 the decision log entry _Guest Artwork Is Served Through Home Assistant, Not
 Fetched by the Browser_.
+
+### Bundled Card
+
+`bundled_card.py` serves `www/mos-card.js` at `/mos_static/mos-card.js` and
+adds it to every frontend page with `add_extra_js_url`, once per Home Assistant
+from `async_setup`. The URL carries a hash of the bundle, so the route can be
+cached for good while an updated bundle still reaches the browser. A missing
+bundle is logged and skipped; the entities do not depend on it.
+
+The bundle is built in `anym001/ha-mos-card` and committed here unchanged — it
+is minified, so codespell skips `www/` (`pyproject.toml`). See the decision log
+entry _The Card Ships Inside the Integration_.
 
 ### API Client
 
@@ -299,7 +314,8 @@ Tests mirror the source structure under `tests/`.
 Core dependencies (see `manifest.json`):
 
 - `aiohttp` - Async HTTP client
-- `http` - Declared in `manifest.json`, for the view the icon proxy registers
+- `http` - Declared in `manifest.json`, for the view the icon proxy registers and the card's static route
+- `frontend` - Declared in `manifest.json`, for announcing the bundled card
 - Home Assistant 2026.8.0+ (see `hacs.json`) - Platform requirements
 
 Development dependencies (see `requirements_dev.txt`, `requirements_test.txt`).

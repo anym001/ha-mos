@@ -27,6 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import MOSApiClient
+from .bundled_card import async_register_card
 from .const import (
     AUTH_FAILURE_STORE,
     CONF_API_TOKEN,
@@ -45,6 +46,7 @@ from .icon_proxy import MOSIconProxy, async_register_icon_proxy_view
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
     from .data import MOSConfigEntry
 
@@ -56,6 +58,12 @@ PLATFORMS: list[Platform] = [
 
 # This integration is configured via config entries only
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Make the bundled MOS NAS Card available, once per Home Assistant."""
+    await async_register_card(hass)
+    return True
 
 
 async def async_setup_entry(

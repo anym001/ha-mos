@@ -59,6 +59,10 @@ filterwarnings = [
     "ignore::aiohttp.web_exceptions.NotAppKeyWarning",
 ]
 
+[tool.codespell]
+# Adds to the skip list script/spell-check passes: the bundled card is minified.
+skip = "custom_components/mos/www/*"
+
 [tool.coverage.run]
 source = ["custom_components/mos"]
 omit = ["tests/*"]

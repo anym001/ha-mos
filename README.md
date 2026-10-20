@@ -41,6 +41,10 @@ Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get th
 
 The [MOS NAS Card](https://github.com/anym001/ha-mos-card) renders the devices this integration creates — Docker/LXC containers, VMs, disks, storage pools and the UPS — as a stack of tiles, and follows them as they come and go.
 
+The card comes with the integration: once MOS NAS is set up, add a card of type `custom:mos-card` to any dashboard (it is listed as **MOS NAS Card** in the card picker). There is nothing to download and no resource to add. Its options are documented in the [card's README](https://github.com/anym001/ha-mos-card#configuration).
+
+**Installed the card separately before?** Remove **MOS NAS Card** in HACS, or — for a manual install — delete `mos-card.js` from `<config>/www/` and its entry under **Settings → Dashboards → Resources**. Otherwise the browser loads two copies, and the older one may be the one that runs.
+
 ## Installation
 
 **MOS NAS** is in the HACS default store, so no custom repository is needed:

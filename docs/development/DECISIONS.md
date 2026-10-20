@@ -634,6 +634,38 @@ carries a deprecation naming this integration.
 
 ---
 
+### The Card Ships Inside the Integration
+
+**Date:** 2026-10-20
+
+**Context:** The MOS NAS Card only works with this integration. Its request for a HACS default listing of its own
+(hacs/default#10112) was closed: HACS lists a card that is paired with one integration by the same author as part
+of that integration. The card is built with Node tooling in its own repository, which this repository's
+Python-only tooling and template sync are not set up for.
+
+**Decision:** Keep developing the card in `anym001/ha-mos-card` and commit its released bundle to
+`custom_components/mos/www/mos-card.js`. `bundled_card.py` serves it and announces it with `add_extra_js_url`, not
+as a Lovelace resource. The card's own HACS listing as a custom repository ends.
+
+**Rationale:**
+
+- One install gives the user the integration and the card in matching versions; there is no resource to add.
+- `add_extra_js_url` works for dashboards in YAML mode, writes nothing into the user's resource collection and leaves
+  nothing behind when the integration is removed. A Lovelace resource does none of the three.
+- Moving the card's source here would mix Node and Python tooling in a repository synced from a Python template.
+
+**Consequences:**
+
+- The card no longer releases to users on its own: a card fix reaches them with the next integration release that
+  carries its bundle.
+- The bundle is minified, so its diff is unreadable in review; what a bundle change contains is reviewed in the card
+  repository.
+- The card is loaded on every frontend page, whether a dashboard uses it or not.
+- An install that still has the card from HACS loads it twice. The card tolerates that from 0.2.5 on; the user still
+  has to remove the old copy and its resource.
+
+---
+
 ## Future Considerations
 
 ### State Restoration
