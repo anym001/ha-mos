@@ -175,7 +175,13 @@ ICON_PROXY_VIEW_REGISTERED = f"{DOMAIN}_icon_proxy_view"
 
 # The route the bundled MOS NAS Card is served on. The frontend loads it on
 # every page, with a content hash appended so a new bundle is never cached.
-CARD_URL = "/mos_static/mos-card.js"
+CARD_FILENAME = "mos-card.js"
+CARD_URL = f"/mos_static/{CARD_FILENAME}"
+
+# Repair issue raised while a dashboard resource still loads a separately
+# installed copy of the card, and where its instructions live.
+ISSUE_SEPARATE_CARD = "separate_card_install"
+SEPARATE_CARD_LEARN_MORE_URL = "https://github.com/anym001/ha-mos#companion-card"
 
 # The largest response the icon proxy reads into memory. Icons are a few dozen
 # kilobytes; anything past this is not artwork, and the request that triggered
