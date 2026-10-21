@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.4](https://github.com/anym001/ha-mos/compare/v0.3.3...v0.3.4) (2026-10-21)
+
+
+### Features
+
+* **card:** flag a separately installed copy of the card as a repair ([e1d07be](https://github.com/anym001/ha-mos/commit/e1d07be8a03416cf4bc151f6c6dbb2529ccb5709))
+* **card:** ship the mos nas card with the integration ([0d35033](https://github.com/anym001/ha-mos/commit/0d35033433b80d16fbde7709711840cd02383fa1))
+
+
+### Bug Fixes
+
+* **card:** bundle the mos nas card v0.3.0 ([bd2815f](https://github.com/anym001/ha-mos/commit/bd2815f8c220ee74ead3f8c4dafde809b43e6c06))
+* **repairs:** say what a separately installed card copy actually does ([4acbf26](https://github.com/anym001/ha-mos/commit/4acbf2604177e6dcb1fc2c25a93d19f0b501895d))
+* **translations:** translate the Compose power switch into German ([202c762](https://github.com/anym001/ha-mos/commit/202c76209a0e9f2cd8d43060393407532796035b))
+
 ## [0.3.3](https://github.com/anym001/ha-mos/compare/v0.3.2...v0.3.3) (2026-09-15)
 
 
