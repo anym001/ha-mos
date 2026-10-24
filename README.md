@@ -39,12 +39,12 @@ Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get th
 
 ## Companion Card
 
-The [MOS NAS Card](frontend/README.md) comes in two cards, both shipped with the integration:
+The [MOS NAS Card](https://github.com/anym001/ha-mos/blob/main/frontend/README.md) comes in two cards, both shipped with the integration:
 
 - **MOS NAS Card** (`custom:mos-card`) lists the devices this integration creates — Docker/LXC containers, Compose stacks, VMs, disks, storage pools and the UPS — one row each, with start/stop, links and the server's load above them. It follows the devices as they come and go.
 - **MOS NAS Overview** (`custom:mos-overview-card`) shows a server at a glance: load with its last hour, one tile per guest kind, the pools, the disks, the UPS and the services.
 
-Once MOS NAS is set up, add either card to any dashboard; both are in the card picker. There is nothing to download and no resource to add. Their options are documented in the [card's README](frontend/README.md#configuration).
+Once MOS NAS is set up, add either card to any dashboard; both are in the card picker. There is nothing to download and no resource to add. Their options are documented in the [card's README](https://github.com/anym001/ha-mos/blob/main/frontend/README.md#configuration).
 
 **Installed the card separately before?** Remove **MOS NAS Card** in HACS, or — for a manual install — delete `mos-card.js` from `<config>/www/` and its entry under **Settings → Dashboards → Resources**. Otherwise the browser loads two copies, and Home Assistant shows a repair notice under **Settings → Repairs** until the old copy is gone.
 
