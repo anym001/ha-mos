@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/anym001/ha-mos/compare/v0.3.4...v0.3.5) (2026-10-24)
+
+
+### Features
+
+* **card:** bundle the mos nas card v0.3.1 ([a43fa8c](https://github.com/anym001/ha-mos/commit/a43fa8cc7cafd27d854c72ba249a96a0787b205d))
+
 ## [0.3.4](https://github.com/anym001/ha-mos/compare/v0.3.3...v0.3.4) (2026-10-21)
 
 
