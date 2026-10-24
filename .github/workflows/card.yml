@@ -22,8 +22,6 @@ jobs:
     defaults:
       run:
         working-directory: frontend
-    env:
-      COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
     steps:
       - name: Checkout the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,20 +33,19 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: |
-          corepack enable
-          corepack prepare yarn@4.12.0 --activate
-          yarn install --immutable
+        run: npm ci
 
       - name: Lint, type check, test and build
-        run: yarn check
+        run: npm run check
 
       # HACS ships the committed bundle, so it has to be what the source builds to.
       - name: Bundle matches the source
         run: |
           if ! git diff --exit-code --stat -- ../custom_components/mos/www/mos-card.js; then
-            echo "::error::custom_components/mos/www/mos-card.js is stale. Run 'yarn build' in frontend/ and commit the result."
+            echo "::error::custom_components/mos/www/mos-card.js is stale. Run 'npm run build' in frontend/ and commit the result."
             exit 1
           fi

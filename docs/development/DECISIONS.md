@@ -689,15 +689,14 @@ Inside the Integration_ that kept the card in its own repository.
   the `model_id` contract is one atomic pull request.
 - One changelog and one version instead of two that only ever shipped together.
 - The concern that stopped this before — Node next to Python tooling in a repository synced from a Python template —
-  is contained: `frontend/` keeps its own Yarn toolchain, the root tooling leaves it alone, and template sync
-  excludes it.
+  is contained: `frontend/` is an npm project of its own, like the root tooling, and template sync excludes it.
 - Keeping the separate repository without its releases would have kept the sync step and its bot pull request.
 
 **Consequences:**
 
 - The minified bundle stays committed, because HACS installs the repository as it is. The `Card` workflow rebuilds
   it and fails when it differs, so source and bundle cannot drift — which relies on the build being deterministic.
-- Two package managers live in the repository: npm at the root, Yarn in `frontend/`.
+- Two npm projects live in the repository, the root tooling and `frontend/`, each with its own lockfile.
 - A Dependabot update that changes the bundle fails the `Card` workflow until the bundle is rebuilt on its branch.
 - The card's history before the move stays in the archived repository; the import is a single commit, because
   replaying it here would put every old card feature into the next changelog.

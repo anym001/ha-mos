@@ -79,7 +79,7 @@ repos:
         entry: bash -c 'if [[ -x "./node_modules/.bin/prettier" ]]; then ./node_modules/.bin/prettier --write "$@"; exit $?; fi; echo "⚠️  Skipping prettier (npm not ready)"; exit 0' --
         language: system
         types: [markdown]
-        exclude: ^frontend/
+        exclude: ^frontend/node_modules/
         pass_filenames: true
 
       # Markdown linting with markdownlint-cli2
@@ -88,39 +88,31 @@ repos:
         entry: bash -c 'if [[ -x "./node_modules/.bin/markdownlint-cli2" ]]; then ./node_modules/.bin/markdownlint-cli2 --fix "$@"; exit $?; fi; echo "⚠️  Skipping markdownlint-cli2 (npm not ready)"; exit 0' --
         language: system
         types: [markdown]
-        exclude: ^frontend/
+        exclude: ^frontend/node_modules/
         pass_filenames: true
 
-      # The card in frontend/ has its own Node toolchain (yarn); its hooks run
-      # there, with the paths pre-commit passes made relative to it.
+      # The card in frontend/ has its own npm project; its hooks run there,
+      # with the paths pre-commit passes made relative to it.
       - id: frontend-prettier
         name: prettier (frontend)
-        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/prettier" ]]; then ./node_modules/.bin/prettier --write "${@#frontend/}"; exit $?; fi; echo "⚠️  Skipping prettier (yarn install not run in frontend/)"; exit 0' --
+        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/prettier" ]]; then ./node_modules/.bin/prettier --write "${@#frontend/}"; exit $?; fi; echo "⚠️  Skipping prettier (npm ci not run in frontend/)"; exit 0' --
         language: system
-        types_or: [ts, javascript, json, yaml, markdown]
+        types_or: [ts, javascript, json, yaml]
         files: ^frontend/
-        exclude: ^frontend/yarn\.lock$
+        exclude: ^frontend/package-lock\.json$
         pass_filenames: true
 
       - id: frontend-eslint
         name: eslint (frontend)
-        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/eslint" ]]; then ./node_modules/.bin/eslint --fix "${@#frontend/}"; exit $?; fi; echo "⚠️  Skipping eslint (yarn install not run in frontend/)"; exit 0' --
+        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/eslint" ]]; then ./node_modules/.bin/eslint --fix "${@#frontend/}"; exit $?; fi; echo "⚠️  Skipping eslint (npm ci not run in frontend/)"; exit 0' --
         language: system
         types: [ts]
         files: ^frontend/(src|tests)/
         pass_filenames: true
 
-      - id: frontend-markdownlint
-        name: markdownlint-cli2 (frontend)
-        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/markdownlint-cli2" ]]; then ./node_modules/.bin/markdownlint-cli2 --fix "${@#frontend/}"; exit $?; fi; echo "⚠️  Skipping markdownlint-cli2 (yarn install not run in frontend/)"; exit 0' --
-        language: system
-        types: [markdown]
-        files: ^frontend/
-        pass_filenames: true
-
       - id: frontend-tsc
         name: tsc --noEmit (frontend)
-        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/tsc" ]]; then ./node_modules/.bin/tsc --noEmit; exit $?; fi; echo "⚠️  Skipping tsc (yarn install not run in frontend/)"; exit 0'
+        entry: bash -c 'cd frontend || exit 1; if [[ -x "./node_modules/.bin/tsc" ]]; then ./node_modules/.bin/tsc --noEmit; exit $?; fi; echo "⚠️  Skipping tsc (npm ci not run in frontend/)"; exit 0'
         language: system
         types: [ts]
         files: ^frontend/

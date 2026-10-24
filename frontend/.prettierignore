@@ -3,8 +3,6 @@ dist/
 
 # Package manager state
 node_modules/
-.yarn/
-yarn.lock
 
 # Agent scratch state, git-excluded and not part of the repository's docs
 .claude/
