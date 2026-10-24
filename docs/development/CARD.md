@@ -277,31 +277,33 @@ loads the built bundle from a URL rather than from a dev server. Rollup produces
 directly, so the dev loop and the shipped artifact are the same thing.
 
 `rollup.config.js` is production only and writes `custom_components/mos/www/mos-card.js`;
-`rollup.config.dev.js` is what `yarn start` runs, writes `frontend/dist/` and serves it on port 5000.
+`rollup.config.dev.js` is what `npm start` runs, writes `frontend/dist/` and serves it on port 5000.
 
 Every command runs in `frontend/`:
 
-| Command            | Description                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------- |
-| `yarn install`     | Dependencies; the pre-commit hooks come from the repository root                    |
-| `yarn check`       | Everything CI runs: lint, typecheck, test, lint:md, lint:format, lint:dedupe, build |
-| `yarn build`       | Lint + production bundle (minified, ES2022 output)                                  |
-| `yarn rollup`      | Production bundle only (skips lint)                                                 |
-| `yarn start`       | Development watcher with rebuild on save                                            |
-| `yarn lint`        | ESLint across all `src/` files                                                      |
-| `yarn typecheck`   | `tsc --noEmit`                                                                      |
-| `yarn lint:md`     | markdownlint                                                                        |
-| `yarn lint:format` | `prettier --check`                                                                  |
-| `yarn lint:dedupe` | `yarn.lock` holds a single copy of `home-assistant-js-websocket`                    |
+| Command               | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
+| `npm ci`              | Dependencies; the pre-commit hooks come from the repository root |
+| `npm run check`       | Everything CI runs: lint, typecheck, test, lint:format, build    |
+| `npm run build`       | Lint + production bundle (minified, ES2022 output)               |
+| `npm run rollup`      | Production bundle only (skips lint)                              |
+| `npm start`           | Development watcher with rebuild on save                         |
+| `npm run lint`        | ESLint across all `src/` files                                   |
+| `npm run typecheck`   | `tsc --noEmit`                                                   |
+| `npm test`            | Vitest, once                                                     |
+| `npm run lint:format` | `prettier --check`                                               |
 
-`frontend/` keeps its own Node toolchain (Yarn 4, its own Prettier and markdownlint config). The
-repository root's npm tooling and its Prettier and markdownlint hooks leave `frontend/` alone, and
-`.pre-commit-config.yaml` runs the card's own hooks there instead.
+`frontend/` is an npm project of its own, next to the root's, with its own lockfile and its own
+Prettier config for TypeScript. Markdown in `frontend/` is checked by the repository's
+`script/markdown-check` (through `script/hooks/markdown-check.post.sh`) with the root markdownlint
+config; Prettier picks up `frontend/.prettierrc.json` for those files either way.
+`.pre-commit-config.yaml` runs the card's Prettier, ESLint and `tsc` hooks in `frontend/`, and
+`script/setup/bootstrap` installs both projects (`script/hooks/setup/bootstrap.post.sh`).
 
 > [!IMPORTANT]
-> A green `yarn build` is **not** a green type check. `@rollup/plugin-typescript` reports type
-> errors as warnings and still emits a bundle, so `yarn build` exits 0 on code that does not
-> type-check. `yarn typecheck` is the only command that fails on one.
+> A green `npm run build` is **not** a green type check. `@rollup/plugin-typescript` reports type
+> errors as warnings and still emits a bundle, so `npm run build` exits 0 on code that does not
+> type-check. `npm run typecheck` is the only command that fails on one.
 
 Rollup and Terser both target ES2022. Do not lower those targets: Lit 3 uses native `class`
 syntax, and transpiling to ES5 produces `TypeError: Class constructor cannot be invoked without
@@ -320,7 +322,7 @@ version is the one Home Assistant shows.
 
 ## Tests
 
-`yarn test` runs Vitest over `frontend/tests/`, in a plain node environment with no DOM.
+`npm test` runs Vitest over `frontend/tests/`, in a plain node environment with no DOM.
 
 What is covered is the files that hold logic rather than rendering:
 
@@ -364,19 +366,20 @@ suite reverses them for exactly that case.
 ## Continuous Integration
 
 The `Card` workflow (`.github/workflows/card.yml`) runs on every pull request and every push to
-`main`: `yarn install --immutable`, `yarn check`, then the bundle comparison above. It always runs,
+`main`: `npm ci`, `npm run check`, then the bundle comparison above. It always runs,
 rather than only on changes under `frontend/`, so it can be a required check without blocking pull
 requests that never start it.
 
-`custom-card-helpers` depends on its own `home-assistant-js-websocket` range. When Dependabot bumps
-the direct pin, Yarn can keep the old version for `custom-card-helpers`, and the two `Connection`
-types then fail the type check because `Auth` has a private field. `yarn lint:dedupe` reports that
-cause directly; `yarn dedupe home-assistant-js-websocket` fixes it. The check is limited to this
-one package because other duplicates in the lockfile are harmless and would fail every Dependabot
-pull request.
+`custom-card-helpers` depends on its own `home-assistant-js-websocket` range. Its copy and the card's
+must be one and the same: with two, the two `Connection` types fail the type check because `Auth`
+has a private field. npm installs a single copy as long as the card's version satisfies that range;
+`npm ls home-assistant-js-websocket` shows it, and `npm dedupe` merges a second one.
+
+`eslint-plugin-import` does not yet list ESLint 10 among its peers, so `overrides` in
+`package.json` points it at the card's ESLint. Drop the override once the plugin declares support.
 
 A Dependabot update of a package that ends up in the bundle — Lit, `custom-card-helpers`, or a build
-plugin that changes its output — fails the bundle comparison until someone runs `yarn build` on its
+plugin that changes its output — fails the bundle comparison until someone runs `npm run build` on its
 branch and commits the result. Such a commit is `fix(card): …`, so the new bundle reaches users with
 the next release.
 
@@ -386,16 +389,14 @@ the next release.
 | -------------- | --------------- | ----------------------------------------- |
 | Home Assistant | 2026.8          | The integration's floor, from `hacs.json` |
 | Node.js        | 24              | Required by `custom-card-helpers@2`       |
-| Yarn           | 4               | Managed via Corepack                      |
 
 ```bash
 cd frontend
-corepack enable
-yarn install
-yarn check
+npm ci
+npm run check
 ```
 
-To try a change in the development instance, run `yarn build` and restart Home Assistant
+To try a change in the development instance, run `npm run build` and restart Home Assistant
 (`script/develop`). The integration reads the bundle's hash once at startup and puts it in the URL,
 so a rebuilt bundle reaches the browser only after a restart.
 

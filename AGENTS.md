@@ -240,11 +240,11 @@ This integration uses the following identifiers consistently:
 
 ### The Card (`frontend/`)
 
-The MOS NAS Card's TypeScript source lives in `frontend/`, with its own Yarn toolchain; its built bundle is
+The MOS NAS Card's TypeScript source lives in `frontend/`, its own npm project; its built bundle is
 `custom_components/mos/www/mos-card.js`, committed. Read [`frontend/AGENTS.md`](frontend/AGENTS.md) before changing
 anything under `frontend/`.
 
-- A change to the card's source comes with the rebuilt bundle in the same commit (`yarn build` in `frontend/`).
+- A change to the card's source comes with the rebuilt bundle in the same commit (`npm run build` in `frontend/`).
 - The commit scope is `card`; its German translations are maintained with its English ones, unlike the
   integration's.
 - The card selects devices by `model_id`. Changing a device's `model_id` or how the card matches it means changing

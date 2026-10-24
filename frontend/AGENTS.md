@@ -13,17 +13,15 @@ rules. They are agent-independent: anything tool-specific belongs in that tool's
 Run in `frontend/`:
 
 ```bash
-yarn install     # dependencies; pre-commit hooks come from the repository root
-yarn check       # everything below except `start`, in one command
-yarn start
-yarn build
-yarn lint        # ESLint, over src and tests
-yarn typecheck   # tsc --noEmit
-yarn test        # Vitest, once
-yarn test:watch  # Vitest, watching
-yarn lint:md     # markdownlint
-yarn lint:format # prettier --check
-yarn lint:dedupe # no second copy of home-assistant-js-websocket in yarn.lock
+npm ci                # dependencies; pre-commit hooks come from the repository root
+npm run check         # everything below except `start`, in one command
+npm start
+npm run build
+npm run lint          # ESLint, over src and tests
+npm run typecheck     # tsc --noEmit
+npm test              # Vitest, once
+npm run test:watch    # Vitest, watching
+npm run lint:format   # prettier --check
 ```
 
 ### Primary files
@@ -122,11 +120,11 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
 
 ## Build and quality expectations
 
-- Keep `yarn lint` clean for changed code.
-- Run `yarn check` before handing work back — it is the local equivalent of the CI gates.
+- Keep `npm run lint` clean for changed code.
+- Run `npm run check` before handing work back — it is the local equivalent of the CI gates.
 - Do not read a green build as a green type check.
   `@rollup/plugin-typescript` reports type errors as warnings and still emits a bundle, so
-  `yarn build` exits 0 on code that does not type-check. `yarn typecheck` is the only command
+  `npm run build` exits 0 on code that does not type-check. `npm run typecheck` is the only command
   that fails on one.
 - Cover new pure logic with a test. Logic that does not need a DOM, a `hass` or a render belongs in
   `src/devices.ts`, `src/config.ts` or `src/rows.ts` rather than on the component, where it could
@@ -154,7 +152,7 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
   `card`; a user-facing change is `feat(card): …` or `fix(card): …` and ships with the next
   integration release.
 - A change under `src/` comes with the rebuilt `../custom_components/mos/www/mos-card.js` in the
-  same commit: run `yarn build` and stage both. The `Card` workflow fails when the committed bundle
+  same commit: run `npm run build` and stage both. The `Card` workflow fails when the committed bundle
   is not what the source builds to.
 - The card has no version of its own; do not add one.
 
@@ -162,7 +160,7 @@ listed and merely reports unavailable. Do not add manual refresh logic that figh
 
 1. Read adjacent code before editing.
 2. Implement the smallest viable change.
-3. Run `yarn check` (or a targeted command while iterating) and stage the rebuilt bundle.
+3. Run `npm run check` (or a targeted command while iterating) and stage the rebuilt bundle.
 4. Update docs/README when behavior or config changes.
 5. Summarize what changed and why.
 

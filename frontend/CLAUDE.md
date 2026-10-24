@@ -8,8 +8,8 @@ The card's instructions are in [`AGENTS.md`](AGENTS.md); the repository's
 - **Card types:** `custom:mos-card`, `custom:mos-overview-card`
 - **Main code:** `src/mos-card.ts`, `src/overview-card.ts`, device selection in `src/devices.ts`
 - **Technical docs:** [`../docs/development/CARD.md`](../docs/development/CARD.md)
-- **Validate:** `yarn check` in `frontend/` (lint + typecheck + test + lint:md + lint:format + lint:dedupe + build)
-- **Careful:** a green `yarn build` is not a green type check — run `yarn typecheck`
+- **Validate:** `npm run check` in `frontend/` (lint + typecheck + test + lint:format + build)
+- **Careful:** a green `npm run build` is not a green type check — run `npm run typecheck`
 - **Bundle:** commit the rebuilt `custom_components/mos/www/mos-card.js` with every source change
 - **Commit scope:** `card`
 - **Never match** devices on `identifiers` or names — only `model_id` (see `AGENTS.md`)

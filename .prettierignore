@@ -4,8 +4,7 @@ config/
 custom_components/
 !custom_components/mos/
 
-# The card has its own Prettier config and runs it itself (frontend/package.json)
-frontend/
+frontend/node_modules/
 
 # Auto-generated release files
 CHANGELOG.md
