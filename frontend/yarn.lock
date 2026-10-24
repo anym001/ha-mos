@@ -2603,17 +2603,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"home-assistant-js-websocket@npm:9.7.1":
+"home-assistant-js-websocket@npm:9.7.1, home-assistant-js-websocket@npm:^9.6.0":
   version: 9.7.1
   resolution: "home-assistant-js-websocket@npm:9.7.1"
   checksum: 10c0/6e0a1107659243d7c8822b219148d4f36f5e04f9af0f8a3ae8f62a9481e1833550f9956c809dc22a1840f84e6a5abf9e110cace53549abb63be07b6676bbc214
-  languageName: node
-  linkType: hard
-
-"home-assistant-js-websocket@npm:^9.6.0":
-  version: 9.7.0
-  resolution: "home-assistant-js-websocket@npm:9.7.0"
-  checksum: 10c0/0afb6fe1a4b827aca7b741bb2061d5b556e428c60b1efb4ae668f5a36e414fe71c59be1740b014af3dad1e088ca9c3736b5bc76680ebdeaa5757783a6b83afa7
   languageName: node
   linkType: hard
 
