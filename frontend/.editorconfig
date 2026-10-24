@@ -1,0 +1,39 @@
+# top-most EditorConfig file
+root = true
+
+# Default settings. Two spaces rather than the integration repository's four:
+# there is no Python here, and every language in this repo indents by two.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# TypeScript/JavaScript - the card itself
+[*.{js,ts,mjs,cjs}]
+indent_size = 2
+
+# CSS - the card's styles live in tagged templates, but standalone files match
+[*.{css,scss}]
+indent_size = 2
+
+# JSON - package.json, translations
+[*.{json,jsonc}]
+indent_size = 2
+
+# YAML - GitHub workflows, pre-commit, issue forms
+[*.{yaml,yml}]
+indent_size = 2
+
+# Markdown - README, AGENTS.md, templates
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 2

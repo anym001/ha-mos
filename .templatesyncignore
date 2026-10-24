@@ -11,6 +11,10 @@
 # Never overwrite your integration with blueprint placeholder code
 custom_components/
 
+# ── The card ─────────────────────────────────────────────────
+# Source of the bundled MOS NAS Card; the blueprint has nothing here.
+frontend/
+
 # ── Tests ────────────────────────────────────────────────────
 # Test files reference your integration domain (set by initialize.sh).
 # Future test files added by the blueprint would arrive with

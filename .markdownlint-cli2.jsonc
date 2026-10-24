@@ -14,6 +14,8 @@
     ".claude/rules/**",
     ".claude/skills/**",
     ".github/instructions/**",
+    // The card lints its own Markdown with its own config
+    "frontend/**",
     // Agent scratch space — generated notes and reports, never committed
     ".agents/scratch/**"
   ]
