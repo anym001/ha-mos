@@ -1,6 +1,5 @@
 {
   "common": {
-    "version": "Version",
     "invalid_configuration": "Ungültige Konfiguration",
     "loading": "Geräte werden geladen…",
     "no_devices": "Keine MOS-Geräte gefunden",
