@@ -670,6 +670,41 @@ as a Lovelace resource. The card's own HACS listing as a custom repository ends.
 
 ---
 
+### Develop the Card in This Repository
+
+**Date:** 2026-10-24
+
+**Context:** With the card shipping inside the integration (_The Card Ships Inside the Integration_), every card
+change took four pull requests: the change and the release in `anym001/ha-mos-card`, then a sync of the released
+bundle and the release here. The two bot pull requests open with `github.token`, start no CI and needed an admin
+merge each. The `model_id` contract between the two sides lived in two repositories.
+
+**Decision:** Move the card's source into `frontend/` and build the committed bundle from it. The card has no
+release or version of its own; `anym001/ha-mos-card` is archived. This supersedes the part of _The Card Ships
+Inside the Integration_ that kept the card in its own repository.
+
+**Rationale:**
+
+- A card change is one pull request and reaches users with the next integration release; a change to both sides of
+  the `model_id` contract is one atomic pull request.
+- One changelog and one version instead of two that only ever shipped together.
+- The concern that stopped this before — Node next to Python tooling in a repository synced from a Python template —
+  is contained: `frontend/` keeps its own Yarn toolchain, the root tooling leaves it alone, and template sync
+  excludes it.
+- Keeping the separate repository without its releases would have kept the sync step and its bot pull request.
+
+**Consequences:**
+
+- The minified bundle stays committed, because HACS installs the repository as it is. The `Card` workflow rebuilds
+  it and fails when it differs, so source and bundle cannot drift — which relies on the build being deterministic.
+- Two package managers live in the repository: npm at the root, Yarn in `frontend/`.
+- A Dependabot update that changes the bundle fails the `Card` workflow until the bundle is rebuilt on its branch.
+- The card's history before the move stays in the archived repository; the import is a single commit, because
+  replaying it here would put every old card feature into the next changelog.
+- Trying a card change in the development instance takes a build and a restart.
+
+---
+
 ## Future Considerations
 
 ### State Restoration

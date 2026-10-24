@@ -21,7 +21,7 @@ custom_components/mos/
 ├── icon_proxy.py            # Serves guest artwork from Home Assistant's own origin
 ├── manifest.json            # Integration metadata
 ├── www/
-│   └── mos-card.js          # Built MOS NAS Card bundle, from anym001/ha-mos-card releases
+│   └── mos-card.js          # Built MOS NAS Card bundle, from frontend/
 ├── api/                     # External API communication
 │   ├── __init__.py          # Exception hierarchy and exports
 │   └── client.py            # API client implementation
@@ -158,10 +158,11 @@ bundle is logged and skipped; the entities do not depend on it. At every start
 it also looks for a dashboard resource that still loads a separately installed
 `mos-card.js` and raises the repair issue `separate_card_install` while one does.
 
-The bundle is built in `anym001/ha-mos-card` and committed here unchanged — it
-is minified, so codespell skips `www/` (`pyproject.toml`). `card-sync.yml` opens
-a pull request with the asset of each new card release; see `RELEASE.md`. See
-the decision log entry _The Card Ships Inside the Integration_.
+The bundle is built from `frontend/` and committed — it is minified, so
+codespell skips `www/` (`pyproject.toml`). The `Card` workflow fails when it is
+not what the source builds to. The card itself is described in
+[`CARD.md`](CARD.md). See the decision log entries _The Card Ships Inside the
+Integration_ and _Develop the Card in This Repository_.
 
 ### API Client
 
