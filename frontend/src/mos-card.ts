@@ -73,18 +73,11 @@ import {
   summaryStyles,
 } from './render';
 import { actionHandler } from './action-handler-directive';
-import { CARD_VERSION } from './const';
 import { announceCard, defineWhenHostReady } from './register';
 import type { CustomCardEntry } from './register';
 import { localize, setLanguage } from './localize/localize';
 // The overview card ships in the same bundle, so installing one installs both.
 import './overview-card';
-
-console.info(
-  `%c  MOS-CARD \n%c  ${localize('common.version')} ${CARD_VERSION}    `,
-  'color: orange; font-weight: bold; background: black',
-  'color: white; font-weight: bold; background: dimgray',
-);
 
 interface WindowWithCustomCards extends Window {
   customCards?: CustomCardEntry[];
