@@ -20,6 +20,7 @@ Read `AGENTS.md` completely before starting any work. It contains:
 - **Validate:** `script/check` (type-check + lint + spell)
 - **Test:** `script/test`
 - **Run HA:** `./script/develop`
+- **Card:** source in `frontend/` — read [`frontend/AGENTS.md`](frontend/AGENTS.md) before editing it
 
 ## Commit Messages (non-negotiable)
 

@@ -222,6 +222,10 @@ Home Assistant instance running and already configured with the included
 
 You can also run tests using `script/test` to ensure your changes don't break existing functionality.
 
+A change to the card in `frontend/` is checked there with `yarn check`, and the rebuilt
+`custom_components/mos/www/mos-card.js` is committed with it — see
+[`docs/development/CARD.md`](docs/development/CARD.md).
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under its MIT License.

@@ -1,8 +1,8 @@
 """
 Serves the MOS NAS Card and has the frontend load it on every page.
 
-The card is developed in its own repository, ``anym001/ha-mos-card``, and ships
-here as its built bundle, ``www/mos-card.js``. HACS lists a card that only works
+The card's source is in ``frontend/`` at the repository root, and it ships as
+its built bundle, ``www/mos-card.js``. HACS lists a card that only works
 with one integration as part of that integration, not as a repository of its
 own, so installing this integration is what makes ``custom:mos-card`` available.
 
