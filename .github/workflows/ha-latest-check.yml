@@ -48,6 +48,27 @@ jobs:
           uv venv "$VIRTUAL_ENV" --python 3.14
           uv pip install pytest-homeassistant-custom-component
 
+      # The harness ships core only; packages the manifest's dependencies need
+      # (frontend's home-assistant-frontend) are read from their own manifests.
+      - name: Install what the integration's dependencies require
+        env:
+          VIRTUAL_ENV: ${{ github.workspace }}/.venv-latest
+        run: |
+          REQUIREMENTS=$(.venv-latest/bin/python - <<'PY'
+          import importlib.util, json, pathlib
+          components = pathlib.Path(importlib.util.find_spec("homeassistant").origin).parent / "components"
+          manifest = json.loads(next(pathlib.Path("custom_components").glob("*/manifest.json")).read_text())
+          for dependency in manifest.get("dependencies", []):
+              for requirement in json.loads((components / dependency / "manifest.json").read_text()).get("requirements", []):
+                  print(requirement)
+          PY
+          )
+          echo "Installing: ${REQUIREMENTS:-nothing}"
+          if [ -n "$REQUIREMENTS" ]; then
+            # shellcheck disable=SC2086 # one requirement per word
+            uv pip install $REQUIREMENTS
+          fi
+
       - name: Report the version under test
         id: version
         run: |
@@ -68,7 +89,7 @@ jobs:
           PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
         run: |
           DOMAIN=$(python3 -c "import glob, json; print(json.load(open(glob.glob('custom_components/*/manifest.json')[0]))['domain'])")
-          DEPRECATIONS=$(grep -F "custom integration '${DOMAIN}'" pytest-latest.log | sed 's/.*Detected/Detected/' | sort -u || true)
+          DEPRECATIONS=$(grep -F "custom integration '${DOMAIN}'" pytest-latest.log | grep -F "Detected" | sed 's/.*Detected/Detected/' | sort -u || true)
 
           {
             echo "## Home Assistant ${HA_UNDER_TEST}"
