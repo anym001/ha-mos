@@ -14,6 +14,7 @@
     ".claude/rules/**",
     ".claude/skills/**",
     ".github/instructions/**",
+    "frontend/node_modules/**",
     // Agent scratch space — generated notes and reports, never committed
     ".agents/scratch/**"
   ]
