@@ -300,3 +300,22 @@ async def test_a_stale_engine_list_stops_the_fallback_measuring(
     await hass.async_block_till_done()
 
     assert _measured(mock_client) == set()
+
+
+async def test_a_stopped_stack_reads_unknown_even_with_figures(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_compose_stacks: list[dict[str, Any]],
+) -> None:
+    """Figures a stopped stack still carries are not a measurement (#137)."""
+    mock_client.async_get_compose_stacks.return_value = [
+        {**stack, "performance": {"cpu": {"usage": 4.5, "unit": "%"}, "memory": {"bytes": 268_435_456}}}
+        for stack in mock_compose_stacks
+    ]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_compose_orphan_cpu_usage").state == STATE_UNKNOWN
+    assert hass.states.get("sensor.sirius_compose_orphan_memory_usage").state == STATE_UNKNOWN
+    assert hass.states.get("sensor.sirius_compose_hatest_cpu_usage").state == "4.5"

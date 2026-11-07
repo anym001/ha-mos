@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
@@ -119,3 +120,14 @@ async def test_lxc_state_sensor_has_no_picture_when_the_server_hosts_none(
     state = hass.states.get("sensor.sirius_lxc_database_state")
     assert state is not None
     assert "entity_picture" not in state.attributes
+
+
+async def test_a_stopped_lxc_guest_reads_unknown(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """The zeroes MOS reports for a stopped guest are not a measurement (#137)."""
+    for key in ("cpu_usage", "memory_usage"):
+        state = hass.states.get(f"sensor.sirius_lxc_webserver_{key}")
+        assert state is not None
+        assert state.state == STATE_UNKNOWN

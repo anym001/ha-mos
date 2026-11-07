@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.entity import MOSEntity
+from custom_components.mos.entity_utils.guest_usage import while_running
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, UnitOfInformation
 from homeassistant.helpers.typing import StateType
@@ -63,7 +64,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSVmMachineSensorEntityDescription, ...] = (
         translation_key="vm_cpu_usage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda machine: (machine.get("cpu") or {}).get("usage"),
+        value_fn=while_running(lambda machine: (machine.get("cpu") or {}).get("usage")),
     ),
     MOSVmMachineSensorEntityDescription(
         key="memory_usage",
@@ -72,7 +73,7 @@ ENTITY_DESCRIPTIONS: tuple[MOSVmMachineSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda machine: (machine.get("memory") or {}).get("bytes"),
+        value_fn=while_running(lambda machine: (machine.get("memory") or {}).get("bytes")),
     ),
 )
 

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.const import DOCKER_IMAGE_LABEL_ATTRIBUTES, MOSDeviceKind
 from custom_components.mos.coordinator.docker_stats import DockerStatsContext
 from custom_components.mos.entity import MOSEntity
+from custom_components.mos.entity_utils.guest_usage import while_running
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, UnitOfInformation
 from homeassistant.helpers.typing import StateType
@@ -137,7 +138,7 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
         translation_key="docker_cpu_usage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda container: container.get("stats_cpu_percent"),
+        value_fn=while_running(lambda container: container.get("stats_cpu_percent")),
         needs_stats=True,
     ),
     MOSDockerContainerSensorEntityDescription(
@@ -147,7 +148,7 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSDockerContainerSensorEntityDescription, ...]
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.MEBIBYTES,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda container: container.get("stats_memory_bytes"),
+        value_fn=while_running(lambda container: container.get("stats_memory_bytes")),
         needs_stats=True,
     ),
 )
