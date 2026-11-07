@@ -308,3 +308,22 @@ async def test_usage_from_the_container_list_survives_a_dead_engine_proxy(
 
     assert coordinator.stale_resources == frozenset({"docker_engine_containers"})
     assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "2.13"
+
+
+async def test_a_stopped_container_reads_unknown_even_with_figures(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_docker_containers: list[dict[str, Any]],
+) -> None:
+    """Figures a stopped container still carries are not a measurement (#137)."""
+    mock_client.async_get_docker_containers.return_value = [
+        {**container, "performance": {"cpu": {"usage": 1.5, "unit": "%"}, "memory": {"bytes": 103_116_472}}}
+        for container in mock_docker_containers
+    ]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_docker_nginx_cpu_usage").state == STATE_UNKNOWN
+    assert hass.states.get("sensor.sirius_docker_nginx_memory_usage").state == STATE_UNKNOWN
+    assert hass.states.get("sensor.sirius_docker_pushbits_cpu_usage").state == "1.5"

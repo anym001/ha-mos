@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from custom_components.mos.const import MOSDeviceKind
 from custom_components.mos.coordinator.compose import ComposeStatsContext
 from custom_components.mos.entity import MOSEntity
+from custom_components.mos.entity_utils.guest_usage import while_running
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.const import PERCENTAGE, UnitOfInformation
 from homeassistant.helpers.typing import StateType
@@ -60,6 +61,11 @@ def _state(stack: dict[str, Any]) -> StateType:
     if not isinstance(running, bool):
         return None
     return "running" if running else "stopped"
+
+
+def _is_running(stack: dict[str, Any]) -> bool:
+    """Return whether MOS reports the stack as running."""
+    return stack.get("running") is True
 
 
 def _state_attributes(stack: dict[str, Any]) -> dict[str, Any]:
@@ -144,7 +150,7 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = 
         translation_key="compose_cpu_usage",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda stack: stack.get("stats_cpu_percent"),
+        value_fn=while_running(lambda stack: stack.get("stats_cpu_percent"), _is_running),
         needs_stats=True,
     ),
     MOSComposeStackSensorEntityDescription(
@@ -154,7 +160,7 @@ STATS_ENTITY_DESCRIPTIONS: tuple[MOSComposeStackSensorEntityDescription, ...] = 
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.MEBIBYTES,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda stack: stack.get("stats_memory_bytes"),
+        value_fn=while_running(lambda stack: stack.get("stats_memory_bytes"), _is_running),
         needs_stats=True,
     ),
 )
