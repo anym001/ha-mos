@@ -19,7 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "custom-card-helpers": "2.0.0",
-    "home-assistant-js-websocket": "9.7.1",
+    "home-assistant-js-websocket": "9.8.0",
     "lit": "^3.3.3"
   },
   "devDependencies": {
@@ -29,7 +29,7 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.1",
     "@rollup/plugin-typescript": "^12.3.1",
-    "@typescript-eslint/eslint-plugin": "^8.72.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.72.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.13.0",
@@ -37,11 +37,11 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.7",
     "prettier": "^3.9.10",
-    "rollup": "^4.64.12",
+    "rollup": "^4.66.0",
     "rollup-plugin-esbuild": "^6.2.1",
     "rollup-plugin-serve": "^3.0.0",
     "tslib": "^2.8.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vite": "^8",
     "vitest": "^5"
   },
