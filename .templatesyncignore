@@ -180,6 +180,22 @@ GEMINI.md
 .agents/skills/blueprint-skill-maintenance/SKILL.md
 .agents/skills/blueprint-tooling/SKILL.md
 
+# Files this repository has fixed or adapted ahead of the blueprint. #154 would
+# have reverted all three: the markdownlint exclusion for the card's
+# node_modules, the flush-left BREAKING CHANGE footer that release-please needs,
+# and a write-path rule naming an `_async_write` helper the base entity here
+# does not have. Trade-off: blueprint improvements to them have to be copied
+# over by hand — `script/compare-blueprint` shows what changed.
+.markdownlint-cli2.jsonc
+.agents/instructions/blueprint.commit-message.instructions.md
+.agents/instructions/blueprint.entities.instructions.md
+
+# Tests initialize.sh, which this initialised repository no longer has (#154).
+script/tests/test_initialize.py
+
+# Copilot's copy of the /issues command; Claude Code reads .claude/commands/.
+.github/skills/
+
 # Schema for the services.yaml this integration does not ship.
 schemas/yaml/services_schema.yaml
 
