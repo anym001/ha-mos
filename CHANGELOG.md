@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/anym001/ha-mos/compare/v0.3.5...v0.3.6) (2026-11-10)
+
+
+### Bug Fixes
+
+* **sensor:** report unknown usage for guests that are not running ([378d674](https://github.com/anym001/ha-mos/commit/378d6744f82b0b228960c989b76e0b576b01281f)), closes [#137](https://github.com/anym001/ha-mos/issues/137)
+
 ## [0.3.5](https://github.com/anym001/ha-mos/compare/v0.3.4...v0.3.5) (2026-10-24)
 
 
