@@ -132,6 +132,24 @@ async def test_pool_without_member_devices_has_no_serial_attributes(
         assert attribute not in usage.attributes
 
 
+async def test_pool_usage_exposes_the_btrfs_raid_level(
+    hass: HomeAssistant,
+    setup_integration: MockConfigEntry,
+    mock_client: AsyncMock,
+    mock_pools: list[dict],
+) -> None:
+    """A multi-device btrfs pool reports its RAID level; any other pool omits it."""
+    mock_client.async_get_pools.return_value = [
+        {**mock_pools[0], "raid_level": None},
+        {**mock_pools[1], "raid_level": "raid1"},
+    ]
+    await setup_integration.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get("sensor.sirius_pool_test2_usage").attributes["raid_level"] == "raid1"
+    assert "raid_level" not in hass.states.get("sensor.sirius_pool_test1_usage").attributes
+
+
 async def test_pool_removed_from_api_removes_its_sensors(
     hass: HomeAssistant,
     setup_integration: MockConfigEntry,

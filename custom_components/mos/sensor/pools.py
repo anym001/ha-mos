@@ -72,7 +72,7 @@ def _serials(members: list[dict[str, Any]]) -> list[str]:
 
 def _member_attributes(pool: dict[str, Any]) -> dict[str, Any]:
     """
-    Describe the disks backing this pool, data and parity kept apart.
+    Describe the disks backing this pool, data and parity kept apart, and its btrfs RAID level.
 
     ``diskSerial`` is the same value as a disk's own ``serial`` from ``/disks``,
     which is what keys that disk's device, so the serial lists are what let a
@@ -80,7 +80,7 @@ def _member_attributes(pool: dict[str, Any]) -> dict[str, Any]:
     ``mount_point`` have no other source: ``/disks`` does not report either.
 
     Returns:
-        The attributes to expose, with empty lists omitted.
+        The attributes to expose, with empty or missing values omitted.
 
     """
     data = _members(pool.get("data_devices"))
@@ -90,6 +90,7 @@ def _member_attributes(pool: dict[str, Any]) -> dict[str, Any]:
         "parity_disk_serials": _serials(parity),
         "member_disks": data,
         "parity_disks": parity,
+        "raid_level": pool.get("raid_level"),
     }
     return {key: value for key, value in attributes.items() if value}
 
