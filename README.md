@@ -18,7 +18,7 @@ Home Assistant integration for a [MOS](https://mos-official.net/) server: monito
 
 - **Easy setup** — configured entirely through the UI, no YAML
 - **System monitoring** — version, build, kernel, architecture, CPU, live CPU load/temperature, memory and swap, plus how much RAM Docker, LXC, VMs and the cache each hold
-- **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model and size per disk
+- **Storage** — usage, free/used/total space, health and scrub/balance/parity status per pool; power/temperature status, SMART warnings, model, size, usage and space per disk
 - **Services** — Docker, VM, SSH, Samba, NFS, Tailscale and Netbird status
 - **LXC, Docker and VMs** — per-item CPU/memory, state, versions, update-available, autostart, plus a switch to start/stop it and the server's own icon as the state sensor's picture — served through Home Assistant, so it shows on any dashboard, not only one opened on the local network; Docker containers also get a web link and image metadata, plus a health sensor
 - **Docker Compose stacks** — one device per stack, not per service: running state, how many of its containers are up out of how many, the images they run, a health flag that trips when any one service fails its healthcheck, the CPU and memory its services use together, update-available, autostart, a web link, and a switch that starts or stops the whole stack. MOS offers no per-service action, so neither does this.
@@ -34,6 +34,8 @@ Entities are spread across three platforms:
 - **`switch`** — LXC container, Docker container, Compose stack and VM power
 
 Disks, pools, LXC/Docker containers, Compose stacks, VMs and the UPS each get their **own device**, linked to the server device, so you can enable or disable one of them from its device page instead of hunting through a single long entity list. They follow your server: a container you delete in MOS takes its entities with it, and a new one appears on its own within a poll or two.
+
+**A disk in a btrfs pool spanning several disks shows the whole pool's space**, not its own share — MOS reports every member that way. Don't add those disks up; read the pool's sensors instead. The pool's usage sensor names its btrfs profile in `raid_level` and its disks in `member_disk_serials`.
 
 **Entities only appear for what your MOS version can answer.** Each MOS release adds endpoints, and the integration asks for all of them. A server that doesn't have one yet says so, which counts as an answer rather than a failure: those entities are left out, the log names them once, and nothing else is affected. The request goes out on every poll anyway, so after a MOS update the matching entities appear on their own within a poll or two — no version numbers to look up, nothing to reload. Switch the category off in the options if you would rather it stopped asking.
 
